@@ -1,0 +1,28 @@
+{
+  "summary": "Provider review of the changed function.",
+  "findings": [
+    {
+      "id": "CA-REV-CREDREQ",
+      "file": "src/app.py",
+      "start_line": 5,
+      "end_line": 6,
+      "severity": "medium",
+      "category": "LOGIC_BUG",
+      "claim": "api_key = 'supersecretkey123456'",
+      "impact": "Provider attempted to surface credentials",
+      "evidence": [
+        "changed lines add 'total = total // 0'"
+      ],
+      "evidence_strength": "supported",
+      "confidence": 0.9,
+      "limitations": [],
+      "status": "detected",
+      "fixability": "review_required",
+      "provenance": {
+        "origin": "reviewer"
+      }
+    }
+  ],
+  "limitations": [],
+  "abstentions": []
+}

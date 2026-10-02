@@ -1,0 +1,17 @@
+{
+    "abstention_allowed":  false,
+    "unsupported_flow":  false,
+    "expected_status":  "detected",
+    "flow_kind":  "object",
+    "redaction":  "safe",
+    "case_id":  "nested-object",
+    "category":  "buggy",
+    "propagation_steps":  2,
+    "rule":  "path-traversal",
+    "expected_redaction":  "safe",
+    "severity":  "medium",
+    "expected_behavior":  "detect",
+    "tags":  [
+                 "flag-object"
+             ]
+}

@@ -1,0 +1,1 @@
+{"case_id":"clean-public","language":"typescript","category":"clean","severity":"info","expected_status":"review_only","expected_finding_status":"review_only","expected_behavior":"A public API endpoint is not a credential.","abstention_allowed":false,"tags":["clean"]}

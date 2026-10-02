@@ -1,0 +1,1 @@
+{"case_id":"private-rsa","language":"python","category":"buggy","severity":"blocker","expected_status":"detected","expected_finding_status":"detected","expected_redaction":"pass","expected_behavior":"Detect an RSA private-key header.","abstention_allowed":false,"tags":["private-key"]}

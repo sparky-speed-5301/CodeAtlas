@@ -1,0 +1,21 @@
+{
+  "case_id": "case-14-invalid-path",
+  "category": "live_review",
+  "config": {},
+  "description": "Finding references a file outside the packet; validator excludes it",
+  "dry_run": false,
+  "expected": {
+    "expected_policy": "allowed",
+    "provider_output_valid": false,
+    "request_made": true,
+    "reviewer_findings_merged": 0
+  },
+  "scenario": "finding_outside_packet_path",
+  "test_group": "adversarial",
+  "transport": {
+    "input_tokens": 150,
+    "latency_ms": 5.0,
+    "mode": "response",
+    "output_tokens": 80
+  }
+}

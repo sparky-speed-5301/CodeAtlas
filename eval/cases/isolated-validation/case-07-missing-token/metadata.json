@@ -1,0 +1,24 @@
+{
+  "base_commit": "real",
+  "case_id": "case-07-missing-token",
+  "category": "isolated_validation",
+  "dirty_worktree": false,
+  "expected": {
+    "applies_cleanly": false,
+    "approval_verified": false,
+    "builds_not_run": true,
+    "cleanup_status": "not_applicable",
+    "exit": 1,
+    "status": "requires_human_approval",
+    "syntax_valid": null,
+    "tests_not_run": true,
+    "valid": false,
+    "worktree_unchanged": true
+  },
+  "proposal_file": "normal",
+  "retain_sandbox_on_failure": false,
+  "run_id": "default",
+  "scenario": "missing_approval_token",
+  "title": "missing_approval_token",
+  "token": "missing"
+}

@@ -1,0 +1,19 @@
+{
+  "case_id": "case-15-deleted-file",
+  "category": "repo_intel",
+  "scenario": "deleted_file",
+  "description": "Deleted source file does not crash index or context retrieval",
+  "expected_status": "detected",
+  "abstention_allowed": false,
+  "expected_changed_symbols": [
+    "sym::src/active.py::function::root::active_fn"
+  ],
+  "expected_context_candidates": [
+    "src/active.py"
+  ],
+  "expected_files_count": 1,
+  "expected_imports_count": 0,
+  "expected_symbols_count": 1,
+  "expected_unresolved_refs": 0,
+  "expected_parse_failures": 0
+}

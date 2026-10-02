@@ -1,0 +1,17 @@
+{
+  "case_id": "case-19-excessive-output",
+  "scenario": "excessive_output",
+  "group": "execution",
+  "token": "valid",
+  "max_output_bytes": 1000,
+  "expected": {
+    "exit": 0,
+    "status": "validated",
+    "tests_status": "passed",
+    "syntax_valid": true,
+    "applies_cleanly": true,
+    "approval_verified": true,
+    "execution_allowed": true,
+    "cleanup_status": "completed"
+  }
+}

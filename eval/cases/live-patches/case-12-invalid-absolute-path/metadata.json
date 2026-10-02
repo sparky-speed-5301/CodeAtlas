@@ -1,0 +1,21 @@
+{
+  "allow_patch_suggestions": true,
+  "case_id": "case-12-invalid-absolute-path",
+  "category": "live_patch",
+  "config": {},
+  "description": "Diff with an absolute path header is rejected by the parser",
+  "expected": {
+    "expected_policy": "allowed",
+    "expected_proposal_status": null,
+    "proposals_created": 0,
+    "rejection_reasons": [
+      "Absolute path detected"
+    ],
+    "request_made": true,
+    "suggestions_accepted": 0,
+    "suggestions_received": 1,
+    "suggestions_rejected": 1
+  },
+  "scenario": "invalid_absolute_path",
+  "test_group": "invalid"
+}

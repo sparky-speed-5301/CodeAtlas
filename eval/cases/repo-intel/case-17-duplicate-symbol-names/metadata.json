@@ -1,0 +1,19 @@
+{
+  "case_id": "case-17-duplicate-symbol-names",
+  "category": "repo_intel",
+  "scenario": "duplicate_symbol_names",
+  "description": "Identically named functions in different modules get distinct IDs",
+  "expected_status": "detected",
+  "abstention_allowed": false,
+  "expected_changed_symbols": [
+    "sym::src/formatter_a.py::function::root::format_item"
+  ],
+  "expected_context_candidates": [
+    "src/formatter_a.py"
+  ],
+  "expected_files_count": 2,
+  "expected_imports_count": 0,
+  "expected_symbols_count": 2,
+  "expected_unresolved_refs": 0,
+  "expected_parse_failures": 0
+}

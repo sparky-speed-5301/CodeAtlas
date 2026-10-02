@@ -1,0 +1,19 @@
+{
+  "case_id": "case-05-changed-exported-symbol",
+  "category": "repo_intel",
+  "scenario": "changed_exported_symbol",
+  "description": "TypeScript exported session getter modified",
+  "expected_status": "detected",
+  "abstention_allowed": false,
+  "expected_changed_symbols": [
+    "sym::src/auth.ts::function::root::getSession"
+  ],
+  "expected_context_candidates": [
+    "src/auth.ts"
+  ],
+  "expected_files_count": 1,
+  "expected_imports_count": 0,
+  "expected_symbols_count": 1,
+  "expected_unresolved_refs": 0,
+  "expected_parse_failures": 0
+}

@@ -1,0 +1,13 @@
+{
+  "case_id": "py-print-direct-token",
+  "language": "python",
+  "category": "SENSITIVE_DATA_EXPOSURE",
+  "expected_status": "detected",
+  "expected_flow_type": "direct",
+  "expected_rule": "sensitive-to-sink",
+  "expected_severity": "high",
+  "expected_file": "src/auth.py",
+  "expected_line": 2,
+  "abstention_allowed": false,
+  "description": "Python print(request.token) directly exposing token"
+}

@@ -1,0 +1,21 @@
+{
+  "allow_patch_suggestions": true,
+  "case_id": "case-15-invalid-hunk-counts",
+  "category": "live_patch",
+  "config": {},
+  "description": "invalid_hunk_counts",
+  "expected": {
+    "expected_policy": "allowed",
+    "expected_proposal_status": null,
+    "proposals_created": 0,
+    "rejection_reasons": [
+      "Hunk line count mismatch"
+    ],
+    "request_made": true,
+    "suggestions_accepted": 0,
+    "suggestions_received": 1,
+    "suggestions_rejected": 1
+  },
+  "scenario": "invalid_hunk_counts",
+  "test_group": "invalid"
+}

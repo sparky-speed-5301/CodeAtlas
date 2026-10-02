@@ -1,0 +1,19 @@
+{
+  "case_id": "case-26-unapproved-apply",
+  "title": "Unapproved patch application blocked",
+  "target_files": [
+    "src/calc.py"
+  ],
+  "expected_status": "requires_human_approval",
+  "expected_policy_decision": "requires_human_approval",
+  "expected_valid": true,
+  "expected_applies_cleanly": false,
+  "expected_syntax_valid": null,
+  "expected_rejection_reason": "requires human approval token",
+  "application_allowed": false,
+  "original_worktree_must_remain_unchanged": true,
+  "tamper_hash": false,
+  "wrong_base_commit": false,
+  "invalid_token": false,
+  "no_token": true
+}

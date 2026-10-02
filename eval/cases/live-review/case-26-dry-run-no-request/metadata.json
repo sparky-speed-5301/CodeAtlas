@@ -1,0 +1,21 @@
+{
+  "case_id": "case-26-dry-run-no-request",
+  "category": "live_review",
+  "config": {},
+  "description": "Dry run prepares the review but never contacts the provider",
+  "dry_run": true,
+  "expected": {
+    "expected_policy": "allowed",
+    "provider_output_valid": null,
+    "request_made": false,
+    "reviewer_findings_merged": 0
+  },
+  "scenario": "dry_run_makes_no_request",
+  "test_group": "contract",
+  "transport": {
+    "input_tokens": 150,
+    "latency_ms": 5.0,
+    "mode": "response",
+    "output_tokens": 80
+  }
+}

@@ -1,0 +1,13 @@
+{
+  "case_id": "py-format-alias-password",
+  "language": "python",
+  "category": "SENSITIVE_DATA_EXPOSURE",
+  "expected_status": "detected",
+  "expected_flow_type": "interpolation",
+  "expected_rule": "sensitive-to-sink",
+  "expected_severity": "high",
+  "expected_file": "src/auth.py",
+  "expected_line": 6,
+  "abstention_allowed": false,
+  "description": "Python formatted string containing an aliased password"
+}

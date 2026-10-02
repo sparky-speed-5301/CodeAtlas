@@ -1,0 +1,16 @@
+{
+  "case_id": "case-12-redacted-diagnostics",
+  "scenario": "redacted_diagnostics",
+  "token": "valid",
+  "run_full_suite": true,
+  "test_config": {
+    "allow_full_suite": true
+  },
+  "expected": {
+    "exit": 1,
+    "status": "failed_validation",
+    "full_suite_requested": true,
+    "full_suite_status": "failed",
+    "redaction_verified": true
+  }
+}

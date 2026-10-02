@@ -1,0 +1,24 @@
+{
+  "base_commit": "stale",
+  "case_id": "case-16-stale-base-commit",
+  "category": "isolated_validation",
+  "dirty_worktree": false,
+  "expected": {
+    "applies_cleanly": false,
+    "approval_verified": true,
+    "builds_not_run": true,
+    "cleanup_status": "not_applicable",
+    "exit": 1,
+    "status": "failed_validation",
+    "syntax_valid": null,
+    "tests_not_run": true,
+    "valid": false,
+    "worktree_unchanged": true
+  },
+  "proposal_file": "normal",
+  "retain_sandbox_on_failure": false,
+  "run_id": "default",
+  "scenario": "stale_base_commit_rejected",
+  "title": "stale_base_commit_rejected",
+  "token": "valid"
+}

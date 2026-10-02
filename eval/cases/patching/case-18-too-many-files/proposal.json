@@ -1,0 +1,35 @@
+{
+  "proposal_id": "prop-cdaeb727caf9",
+  "finding_id": "FIND-case-18-too-many-files",
+  "provider_name": "eval-fixer",
+  "provider_version": "1.0.0",
+  "base_commit": "HEAD",
+  "target_files": [
+    "src/mod_0.py",
+    "src/mod_1.py",
+    "src/mod_2.py",
+    "src/mod_3.py",
+    "src/mod_4.py",
+    "src/mod_5.py"
+  ],
+  "unified_diff": "--- a/src/mod_0.py\n+++ b/src/mod_0.py\n@@ -1,1 +1,2 @@\n def fn_0(): pass\n+# touch\n\n--- a/src/mod_1.py\n+++ b/src/mod_1.py\n@@ -1,1 +1,2 @@\n def fn_1(): pass\n+# touch\n\n--- a/src/mod_2.py\n+++ b/src/mod_2.py\n@@ -1,1 +1,2 @@\n def fn_2(): pass\n+# touch\n\n--- a/src/mod_3.py\n+++ b/src/mod_3.py\n@@ -1,1 +1,2 @@\n def fn_3(): pass\n+# touch\n\n--- a/src/mod_4.py\n+++ b/src/mod_4.py\n@@ -1,1 +1,2 @@\n def fn_4(): pass\n+# touch\n\n--- a/src/mod_5.py\n+++ b/src/mod_5.py\n@@ -1,1 +1,2 @@\n def fn_5(): pass\n+# touch\n",
+  "rationale": "Too many files modified policy rejection",
+  "expected_behavior": "Resolve finding",
+  "risk_level": "low",
+  "requested_action": "validate",
+  "status": "proposed",
+  "policy_decision": null,
+  "created_at": "2026-10-02T08:34:16.813109+00:00",
+  "limitations": [],
+  "provenance": {},
+  "patch_hash": "43a5cd12bb20b2e061387b9557c382eef6b1ffa1378b203d448d98505d636509",
+  "redaction_audit": {
+    "safe": true,
+    "raw_value_matches": 0,
+    "rules_applied": [
+      "regex_secret_scrubbing",
+      "credential_pattern_check"
+    ],
+    "failed_checks": []
+  }
+}

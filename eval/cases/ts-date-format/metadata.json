@@ -1,0 +1,10 @@
+{
+  "case_id": "ts-date-format",
+  "language": "typescript",
+  "category": "clean",
+  "severity": "info",
+  "expected_status": "review_only",
+  "abstention_allowed": false,
+  "expected_behavior": "Format a date using the caller-provided locale without mutating the date.",
+  "tags": ["formatting"]
+}

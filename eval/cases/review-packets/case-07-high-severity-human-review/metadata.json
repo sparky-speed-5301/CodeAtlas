@@ -1,0 +1,14 @@
+{
+  "case_id": "case-07-high-severity-human-review",
+  "category": "review_packet",
+  "scenario": "high_severity_policy_gate",
+  "description": "High severity security issue requires human approval",
+  "expected_packet_success": true,
+  "expected_policy": "requires_human_approval",
+  "expected_provider_valid": true,
+  "expected_truncated": false,
+  "expected_redacted": true,
+  "expected_merged_count": null,
+  "provider": "mock:clean",
+  "config": {}
+}

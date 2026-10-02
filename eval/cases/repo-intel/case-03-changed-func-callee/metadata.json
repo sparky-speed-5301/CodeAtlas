@@ -1,0 +1,20 @@
+{
+  "case_id": "case-03-changed-func-callee",
+  "category": "repo_intel",
+  "scenario": "changed_function_with_callee",
+  "description": "Changed handler function that invokes database callee",
+  "expected_status": "detected",
+  "abstention_allowed": false,
+  "expected_changed_symbols": [
+    "sym::src/handler.py::function::root::handle"
+  ],
+  "expected_context_candidates": [
+    "src/handler.py",
+    "src/db.py"
+  ],
+  "expected_files_count": 2,
+  "expected_imports_count": 1,
+  "expected_symbols_count": 2,
+  "expected_unresolved_refs": 0,
+  "expected_parse_failures": 0
+}

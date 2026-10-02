@@ -1,0 +1,20 @@
+{
+  "case_id": "case-28-provider-auth-failure",
+  "category": "live_review",
+  "config": {},
+  "description": "Authentication failure is mapped to a failed run with no findings",
+  "dry_run": false,
+  "expected": {
+    "expect_transport_failure": "auth",
+    "expected_policy": "allowed",
+    "provider_output_valid": false,
+    "request_made": true,
+    "reviewer_findings_merged": 0
+  },
+  "scenario": "provider_authentication_failure",
+  "test_group": "transport",
+  "transport": {
+    "error": "auth",
+    "mode": "error"
+  }
+}

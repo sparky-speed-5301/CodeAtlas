@@ -1,0 +1,45 @@
+{
+  "summary": "Provider review with draft patch suggestions.",
+  "findings": [
+    {
+      "id": "CA-REV-TS1",
+      "file": "src/service.ts",
+      "start_line": 2,
+      "end_line": 2,
+      "severity": "medium",
+      "category": "LOGIC_BUG",
+      "claim": "missing await on fetch call",
+      "impact": "unhandled promise",
+      "evidence": [
+        "changed lines add 'total = total // 0'"
+      ],
+      "evidence_strength": "supported",
+      "confidence": 0.9,
+      "limitations": [],
+      "status": "detected",
+      "fixability": "review_required",
+      "provenance": {
+        "origin": "reviewer"
+      }
+    }
+  ],
+  "limitations": [],
+  "abstentions": [],
+  "patch_suggestions": [
+    {
+      "suggestion_id": "CA-SUG-001",
+      "finding_id": "CA-REV-TS1",
+      "unified_diff": "--- a/src/service.ts\n+++ b/src/service.ts\n@@ -1,3 +1,3 @@\n async function load(): Promise<string> {\n-  return fetch(\"/api\").text();\n+  return (await fetch(\"/api\")).text();\n }\n",
+      "rationale": "Replace division by zero with a safe divisor",
+      "expected_behavior": "compute no longer raises ZeroDivisionError for large totals",
+      "target_files": [
+        "src/service.ts"
+      ],
+      "risk_level": "low",
+      "limitations": [],
+      "provider_provenance": {
+        "origin": "provider"
+      }
+    }
+  ]
+}

@@ -1,0 +1,13 @@
+{
+  "case_id": "py-pagination-token-safe",
+  "language": "python",
+  "category": "SENSITIVE_DATA_EXPOSURE",
+  "expected_status": "review_only",
+  "expected_flow_type": "none",
+  "expected_rule": "none",
+  "expected_severity": "info",
+  "expected_file": "src/pages.py",
+  "expected_line": null,
+  "abstention_allowed": false,
+  "description": "variable named token used only as a pagination token with no sensitive source"
+}

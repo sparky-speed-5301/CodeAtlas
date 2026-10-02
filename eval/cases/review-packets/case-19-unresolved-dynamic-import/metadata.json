@@ -1,0 +1,14 @@
+{
+  "case_id": "case-19-unresolved-dynamic-import",
+  "category": "review_packet",
+  "scenario": "unresolved_dynamic_import",
+  "description": "Dynamic import recorded in index diagnostics and packet limitations",
+  "expected_packet_success": true,
+  "expected_policy": "allowed",
+  "expected_provider_valid": true,
+  "expected_truncated": false,
+  "expected_redacted": true,
+  "expected_merged_count": null,
+  "provider": "mock:clean",
+  "config": {}
+}

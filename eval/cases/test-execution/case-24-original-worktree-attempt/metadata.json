@@ -1,0 +1,19 @@
+{
+  "case_id": "case-24-original-worktree-attempt",
+  "scenario": "original_worktree_attempt",
+  "group": "safety",
+  "token": "valid",
+  "test_config": {
+    "target_original_worktree": true
+  },
+  "expected": {
+    "exit": 1,
+    "status": "failed_validation",
+    "tests_status": "blocked",
+    "syntax_valid": true,
+    "applies_cleanly": true,
+    "approval_verified": true,
+    "execution_allowed": false,
+    "cleanup_status": "completed"
+  }
+}

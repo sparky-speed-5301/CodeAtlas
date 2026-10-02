@@ -1,0 +1,20 @@
+{
+  "case_id": "case-32-cleanup-failure",
+  "scenario": "cleanup_failure",
+  "group": "isolation",
+  "token": "valid",
+  "retain_sandbox_on_failure": true,
+  "test_config": {
+    "simulate_cleanup_failure": true
+  },
+  "expected": {
+    "exit": 1,
+    "status": "failed_validation",
+    "tests_status": "not_run",
+    "syntax_valid": null,
+    "applies_cleanly": false,
+    "approval_verified": true,
+    "execution_allowed": false,
+    "cleanup_status": "failed"
+  }
+}

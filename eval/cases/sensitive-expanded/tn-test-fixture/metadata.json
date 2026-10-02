@@ -1,0 +1,1 @@
+{"case_id": "tn-test-fixture", "language": "python", "category": "clean", "severity": "low", "expected_status": "review_only", "expected_finding_status": "review_only", "expected_redaction": "not_applicable", "expected_behavior": "clean sensitive-data scenario.", "abstention_allowed": false, "rule": "token", "tags": ["clean"]}

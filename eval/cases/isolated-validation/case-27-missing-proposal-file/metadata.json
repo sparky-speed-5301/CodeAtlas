@@ -1,0 +1,24 @@
+{
+  "base_commit": "real",
+  "case_id": "case-27-missing-proposal-file",
+  "category": "isolated_validation",
+  "dirty_worktree": false,
+  "expected": {
+    "applies_cleanly": null,
+    "approval_verified": null,
+    "builds_not_run": true,
+    "cleanup_status": null,
+    "exit": 1,
+    "status": null,
+    "syntax_valid": null,
+    "tests_not_run": true,
+    "valid": false,
+    "worktree_unchanged": true
+  },
+  "proposal_file": "missing",
+  "retain_sandbox_on_failure": false,
+  "run_id": "default",
+  "scenario": "missing_proposal_file",
+  "title": "missing_proposal_file",
+  "token": "valid"
+}

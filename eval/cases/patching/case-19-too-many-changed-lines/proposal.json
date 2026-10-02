@@ -1,0 +1,30 @@
+{
+  "proposal_id": "prop-992e2ffaaaf5",
+  "finding_id": "FIND-case-19-too-many-changed-lines",
+  "provider_name": "eval-fixer",
+  "provider_version": "1.0.0",
+  "base_commit": "HEAD",
+  "target_files": [
+    "src/calc.py"
+  ],
+  "unified_diff": "--- a/src/calc.py\n+++ b/src/calc.py\n@@ -1,1 +1,161 @@\n def run():\n+line_0 = 0\n+line_1 = 1\n+line_2 = 2\n+line_3 = 3\n+line_4 = 4\n+line_5 = 5\n+line_6 = 6\n+line_7 = 7\n+line_8 = 8\n+line_9 = 9\n+line_10 = 10\n+line_11 = 11\n+line_12 = 12\n+line_13 = 13\n+line_14 = 14\n+line_15 = 15\n+line_16 = 16\n+line_17 = 17\n+line_18 = 18\n+line_19 = 19\n+line_20 = 20\n+line_21 = 21\n+line_22 = 22\n+line_23 = 23\n+line_24 = 24\n+line_25 = 25\n+line_26 = 26\n+line_27 = 27\n+line_28 = 28\n+line_29 = 29\n+line_30 = 30\n+line_31 = 31\n+line_32 = 32\n+line_33 = 33\n+line_34 = 34\n+line_35 = 35\n+line_36 = 36\n+line_37 = 37\n+line_38 = 38\n+line_39 = 39\n+line_40 = 40\n+line_41 = 41\n+line_42 = 42\n+line_43 = 43\n+line_44 = 44\n+line_45 = 45\n+line_46 = 46\n+line_47 = 47\n+line_48 = 48\n+line_49 = 49\n+line_50 = 50\n+line_51 = 51\n+line_52 = 52\n+line_53 = 53\n+line_54 = 54\n+line_55 = 55\n+line_56 = 56\n+line_57 = 57\n+line_58 = 58\n+line_59 = 59\n+line_60 = 60\n+line_61 = 61\n+line_62 = 62\n+line_63 = 63\n+line_64 = 64\n+line_65 = 65\n+line_66 = 66\n+line_67 = 67\n+line_68 = 68\n+line_69 = 69\n+line_70 = 70\n+line_71 = 71\n+line_72 = 72\n+line_73 = 73\n+line_74 = 74\n+line_75 = 75\n+line_76 = 76\n+line_77 = 77\n+line_78 = 78\n+line_79 = 79\n+line_80 = 80\n+line_81 = 81\n+line_82 = 82\n+line_83 = 83\n+line_84 = 84\n+line_85 = 85\n+line_86 = 86\n+line_87 = 87\n+line_88 = 88\n+line_89 = 89\n+line_90 = 90\n+line_91 = 91\n+line_92 = 92\n+line_93 = 93\n+line_94 = 94\n+line_95 = 95\n+line_96 = 96\n+line_97 = 97\n+line_98 = 98\n+line_99 = 99\n+line_100 = 100\n+line_101 = 101\n+line_102 = 102\n+line_103 = 103\n+line_104 = 104\n+line_105 = 105\n+line_106 = 106\n+line_107 = 107\n+line_108 = 108\n+line_109 = 109\n+line_110 = 110\n+line_111 = 111\n+line_112 = 112\n+line_113 = 113\n+line_114 = 114\n+line_115 = 115\n+line_116 = 116\n+line_117 = 117\n+line_118 = 118\n+line_119 = 119\n+line_120 = 120\n+line_121 = 121\n+line_122 = 122\n+line_123 = 123\n+line_124 = 124\n+line_125 = 125\n+line_126 = 126\n+line_127 = 127\n+line_128 = 128\n+line_129 = 129\n+line_130 = 130\n+line_131 = 131\n+line_132 = 132\n+line_133 = 133\n+line_134 = 134\n+line_135 = 135\n+line_136 = 136\n+line_137 = 137\n+line_138 = 138\n+line_139 = 139\n+line_140 = 140\n+line_141 = 141\n+line_142 = 142\n+line_143 = 143\n+line_144 = 144\n+line_145 = 145\n+line_146 = 146\n+line_147 = 147\n+line_148 = 148\n+line_149 = 149\n+line_150 = 150\n+line_151 = 151\n+line_152 = 152\n+line_153 = 153\n+line_154 = 154\n+line_155 = 155\n+line_156 = 156\n+line_157 = 157\n+line_158 = 158\n+line_159 = 159\n",
+  "rationale": "Too many changed lines policy rejection",
+  "expected_behavior": "Resolve finding",
+  "risk_level": "low",
+  "requested_action": "validate",
+  "status": "proposed",
+  "policy_decision": null,
+  "created_at": "2026-10-02T08:34:16.816284+00:00",
+  "limitations": [],
+  "provenance": {},
+  "patch_hash": "05d6049eb17838e31a2256bdd86b63db8c7f30213949349d955be733bd1559b7",
+  "redaction_audit": {
+    "safe": true,
+    "raw_value_matches": 0,
+    "rules_applied": [
+      "regex_secret_scrubbing",
+      "credential_pattern_check"
+    ],
+    "failed_checks": []
+  }
+}

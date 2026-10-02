@@ -1,0 +1,1 @@
+{"case_id": "renamed-password", "language": "python", "category": "buggy", "severity": "high", "expected_status": "detected", "expected_finding_status": "detected", "expected_redaction": "pass", "expected_behavior": "renamed sensitive-data scenario.", "abstention_allowed": false, "rule": "password", "tags": ["renamed"]}

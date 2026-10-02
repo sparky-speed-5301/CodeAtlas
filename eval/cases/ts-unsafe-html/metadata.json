@@ -1,0 +1,10 @@
+{
+  "case_id": "ts-unsafe-html",
+  "language": "typescript",
+  "category": "buggy",
+  "severity": "high",
+  "expected_status": "detected",
+  "abstention_allowed": false,
+  "expected_behavior": "Render user text as text or sanitize it before inserting into the DOM.",
+  "tags": ["xss", "dom"]
+}

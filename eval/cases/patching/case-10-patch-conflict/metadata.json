@@ -1,0 +1,19 @@
+{
+  "case_id": "case-10-patch-conflict",
+  "title": "Patch conflict on stale lines",
+  "target_files": [
+    "src/calc.py"
+  ],
+  "expected_status": "failed_validation",
+  "expected_policy_decision": "requires_human_approval",
+  "expected_valid": false,
+  "expected_applies_cleanly": false,
+  "expected_syntax_valid": null,
+  "expected_rejection_reason": "Patch conflict / apply error",
+  "application_allowed": false,
+  "original_worktree_must_remain_unchanged": true,
+  "tamper_hash": false,
+  "wrong_base_commit": false,
+  "invalid_token": false,
+  "no_token": false
+}

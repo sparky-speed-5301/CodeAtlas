@@ -1,0 +1,16 @@
+{
+  "case_id": "case-26-invalid-approval-token",
+  "scenario": "invalid_approval_token",
+  "group": "approval",
+  "token": "malformed",
+  "expected": {
+    "exit": 1,
+    "status": "failed_validation",
+    "tests_status": "not_run",
+    "syntax_valid": null,
+    "applies_cleanly": false,
+    "approval_verified": false,
+    "execution_allowed": false,
+    "cleanup_status": "not_applicable"
+  }
+}

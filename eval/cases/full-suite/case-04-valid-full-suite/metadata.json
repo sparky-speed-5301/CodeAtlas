@@ -1,0 +1,16 @@
+{
+  "case_id": "case-04-valid-full-suite",
+  "scenario": "valid_full_suite",
+  "token": "valid",
+  "run_full_suite": true,
+  "test_config": {
+    "allow_full_suite": true
+  },
+  "expected": {
+    "exit": 0,
+    "status": "validated",
+    "full_suite_requested": true,
+    "full_suite_policy_opted_in": true,
+    "full_suite_status": "passed"
+  }
+}

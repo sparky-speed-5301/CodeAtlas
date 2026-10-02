@@ -1,0 +1,30 @@
+{
+  "proposal_id": "prop-fd6b6682f31f",
+  "finding_id": "F-TEST-8A",
+  "provider_name": "operator",
+  "provider_version": "1.0.0",
+  "base_commit": "BASE_SHA",
+  "target_files": [
+    "src/calc.ts"
+  ],
+  "unified_diff": "--- a/src/calc.ts\n+++ b/src/calc.ts\n@@ -1,3 +1,4 @@\n export function multiply(a: number, b: number): number {\n+  // safe multiply\n   return a * b;\n }\n",
+  "rationale": "Test execution evaluation fixture",
+  "expected_behavior": "Tests executed safely",
+  "risk_level": "low",
+  "requested_action": "validate",
+  "status": "requires_human_approval",
+  "policy_decision": null,
+  "created_at": "2026-10-02T17:32:45.287202+00:00",
+  "limitations": [],
+  "provenance": {},
+  "patch_hash": "b82850a4c9fa954973f1f7ae4e1eadab556d4808c2567fea9d7f60dc590e7ec3",
+  "redaction_audit": {
+    "safe": true,
+    "raw_value_matches": 0,
+    "rules_applied": [
+      "regex_secret_scrubbing",
+      "credential_pattern_check"
+    ],
+    "failed_checks": []
+  }
+}

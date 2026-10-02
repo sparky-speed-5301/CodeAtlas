@@ -1,0 +1,20 @@
+{
+  "allow_patch_suggestions": true,
+  "case_id": "case-10-invalid-malformed-json",
+  "category": "live_patch",
+  "config": {},
+  "description": "Unparseable provider response yields no suggestions",
+  "expected": {
+    "expected_policy": "allowed",
+    "expected_proposal_status": null,
+    "proposals_created": 0,
+    "provider_output_valid": false,
+    "rejection_reasons": [],
+    "request_made": true,
+    "suggestions_accepted": 0,
+    "suggestions_received": 0,
+    "suggestions_rejected": 0
+  },
+  "scenario": "invalid_malformed_json",
+  "test_group": "invalid"
+}

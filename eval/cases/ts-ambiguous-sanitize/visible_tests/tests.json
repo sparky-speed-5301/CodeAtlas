@@ -1,0 +1,8 @@
+{
+  "format": "static-contract-v1",
+  "entrypoint": "fragment.ts:renderTrustedFragment",
+  "tests": [
+    {"name": "trusted formatting", "input": {"fragment": "<b>hello</b>", "trusted": true}, "expected": {"innerHTML": "<b>hello</b>"}},
+    {"name": "unknown trust contract", "input": {"fragment": "<img src=x onerror=alert(1)>", "trusted": null}, "expected": {"review_status": "ambiguous", "missing_context": "Caller provenance and sanitization guarantee"}}
+  ]
+}

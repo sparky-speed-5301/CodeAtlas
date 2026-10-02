@@ -1,0 +1,30 @@
+{
+  "proposal_id": "prop-9225b06c22e5",
+  "finding_id": "FIND-case-20-binary-patch",
+  "provider_name": "eval-fixer",
+  "provider_version": "1.0.0",
+  "base_commit": "HEAD",
+  "target_files": [
+    "src/calc.py"
+  ],
+  "unified_diff": "GIT binary patch\nliteral 10\nzc$@*N\n",
+  "rationale": "Binary patch content rejection",
+  "expected_behavior": "Resolve finding",
+  "risk_level": "low",
+  "requested_action": "validate",
+  "status": "proposed",
+  "policy_decision": null,
+  "created_at": "2026-10-02T08:34:16.819453+00:00",
+  "limitations": [],
+  "provenance": {},
+  "patch_hash": "d0a6811df789f6d5ff2e5c7bdcbcacf8cf2be9066445d687b9c0f2fa0966dba7",
+  "redaction_audit": {
+    "safe": true,
+    "raw_value_matches": 0,
+    "rules_applied": [
+      "regex_secret_scrubbing",
+      "credential_pattern_check"
+    ],
+    "failed_checks": []
+  }
+}

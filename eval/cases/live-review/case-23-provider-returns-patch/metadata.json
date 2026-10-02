@@ -1,0 +1,22 @@
+{
+  "case_id": "case-23-provider-returns-patch",
+  "category": "live_review",
+  "config": {},
+  "description": "Provider attempts to return a patch via extra keys; no patch ever becomes a finding",
+  "dry_run": false,
+  "expected": {
+    "expect_extra_keys_ignored": true,
+    "expected_policy": "allowed",
+    "provider_output_valid": true,
+    "request_made": true,
+    "reviewer_findings_merged": 0
+  },
+  "scenario": "provider_returns_patch",
+  "test_group": "adversarial",
+  "transport": {
+    "input_tokens": 170,
+    "latency_ms": 6.0,
+    "mode": "response",
+    "output_tokens": 120
+  }
+}

@@ -1,0 +1,24 @@
+{
+  "base_commit": "real",
+  "case_id": "case-26-provider-token-as-cli-token",
+  "category": "isolated_validation",
+  "dirty_worktree": false,
+  "expected": {
+    "applies_cleanly": false,
+    "approval_verified": false,
+    "builds_not_run": true,
+    "cleanup_status": "not_applicable",
+    "exit": 1,
+    "status": "failed_validation",
+    "syntax_valid": null,
+    "tests_not_run": true,
+    "valid": false,
+    "worktree_unchanged": true
+  },
+  "proposal_file": "normal",
+  "retain_sandbox_on_failure": false,
+  "run_id": "default",
+  "scenario": "provider_forged_token_rejected",
+  "title": "provider_forged_token_rejected",
+  "token": "provider_embedded_used"
+}

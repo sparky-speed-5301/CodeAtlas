@@ -1,0 +1,17 @@
+{
+    "abstention_allowed":  false,
+    "unsupported_flow":  false,
+    "expected_status":  "detected",
+    "flow_kind":  "direct",
+    "redaction":  "safe",
+    "case_id":  "direct-call",
+    "category":  "buggy",
+    "propagation_steps":  1,
+    "rule":  "command-injection",
+    "expected_redaction":  "safe",
+    "severity":  "high",
+    "expected_behavior":  "detect",
+    "tags":  [
+                 "flag-direct"
+             ]
+}

@@ -1,0 +1,1 @@
+{"case_id": "tn-env-api-key", "language": "python", "category": "clean", "severity": "info", "expected_status": "review_only", "expected_finding_status": "review_only", "expected_redaction": "not_applicable", "expected_behavior": "environment-reference sensitive-data scenario.", "abstention_allowed": false, "rule": "api-key", "tags": ["environment-reference"]}

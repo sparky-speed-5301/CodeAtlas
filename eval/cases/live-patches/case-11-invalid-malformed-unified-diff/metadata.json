@@ -1,0 +1,21 @@
+{
+  "allow_patch_suggestions": true,
+  "case_id": "case-11-invalid-malformed-unified-diff",
+  "category": "live_patch",
+  "config": {},
+  "description": "invalid_malformed_unified_diff",
+  "expected": {
+    "expected_policy": "allowed",
+    "expected_proposal_status": null,
+    "proposals_created": 0,
+    "rejection_reasons": [
+      "malformed unified diff"
+    ],
+    "request_made": true,
+    "suggestions_accepted": 0,
+    "suggestions_received": 1,
+    "suggestions_rejected": 1
+  },
+  "scenario": "invalid_malformed_unified_diff",
+  "test_group": "invalid"
+}

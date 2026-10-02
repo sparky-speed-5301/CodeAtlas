@@ -1,0 +1,30 @@
+{
+  "proposal_id": "prop-bb2f3ad1f535",
+  "finding_id": "FIND-case-14-lockfile-modification",
+  "provider_name": "eval-fixer",
+  "provider_version": "1.0.0",
+  "base_commit": "HEAD",
+  "target_files": [
+    "package-lock.json"
+  ],
+  "unified_diff": "--- a/package-lock.json\n+++ b/package-lock.json\n@@ -1,3 +1,3 @@\n {\n-  \"version\": \"1.0.0\"\n+  \"version\": \"1.0.1\"\n }\n",
+  "rationale": "Lockfile modification policy rejection",
+  "expected_behavior": "Resolve finding",
+  "risk_level": "low",
+  "requested_action": "validate",
+  "status": "proposed",
+  "policy_decision": null,
+  "created_at": "2026-10-02T08:34:16.698940+00:00",
+  "limitations": [],
+  "provenance": {},
+  "patch_hash": "366d2400007ff07dee40cd722dcae5f2433df73c162d6628042c6478aec2df65",
+  "redaction_audit": {
+    "safe": true,
+    "raw_value_matches": 0,
+    "rules_applied": [
+      "regex_secret_scrubbing",
+      "credential_pattern_check"
+    ],
+    "failed_checks": []
+  }
+}

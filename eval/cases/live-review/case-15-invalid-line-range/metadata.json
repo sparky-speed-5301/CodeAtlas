@@ -1,0 +1,21 @@
+{
+  "case_id": "case-15-invalid-line-range",
+  "category": "live_review",
+  "config": {},
+  "description": "Finding with end_line before start_line is excluded",
+  "dry_run": false,
+  "expected": {
+    "expected_policy": "allowed",
+    "provider_output_valid": false,
+    "request_made": true,
+    "reviewer_findings_merged": 0
+  },
+  "scenario": "finding_invalid_line_range",
+  "test_group": "contract",
+  "transport": {
+    "input_tokens": 150,
+    "latency_ms": 5.0,
+    "mode": "response",
+    "output_tokens": 80
+  }
+}

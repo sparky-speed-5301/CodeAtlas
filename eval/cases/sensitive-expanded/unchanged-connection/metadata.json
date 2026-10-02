@@ -1,0 +1,1 @@
+{"case_id": "unchanged-connection", "language": "python", "category": "buggy", "severity": "blocker", "expected_status": "detected", "expected_finding_status": "detected", "expected_redaction": "pass", "expected_behavior": "unchanged-context sensitive-data scenario.", "abstention_allowed": false, "rule": "connection-string", "tags": ["unchanged-context"]}

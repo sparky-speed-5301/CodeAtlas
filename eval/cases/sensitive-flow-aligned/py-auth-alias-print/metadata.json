@@ -1,0 +1,13 @@
+{
+  "case_id": "py-auth-alias-print",
+  "language": "python",
+  "category": "SENSITIVE_DATA_EXPOSURE",
+  "expected_status": "detected",
+  "expected_flow_type": "alias",
+  "expected_rule": "sensitive-to-sink",
+  "expected_severity": "high",
+  "expected_file": "src/auth.py",
+  "expected_line": 3,
+  "abstention_allowed": false,
+  "description": "Python auth = token; print(auth)"
+}

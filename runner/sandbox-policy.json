@@ -1,0 +1,7 @@
+{
+  "network": "restricted",
+  "read_only_root": true,
+  "run_as_non_root": true,
+  "allow_host_sockets": false,
+  "resource_limits": {"cpu_seconds": 120, "memory_mb": 2048, "disk_mb": 4096}
+}

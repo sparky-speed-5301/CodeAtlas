@@ -1,0 +1,19 @@
+{
+  "case_id": "case-09-generated-file",
+  "category": "repo_intel",
+  "scenario": "generated_file",
+  "description": "Protobuf auto-generated file recognized as is_generated",
+  "expected_status": "detected",
+  "abstention_allowed": false,
+  "expected_changed_symbols": [
+    "sym::src/models_pb2.py::module_variable::root::MESSAGE_TYPE"
+  ],
+  "expected_context_candidates": [
+    "src/models_pb2.py"
+  ],
+  "expected_files_count": 2,
+  "expected_imports_count": 0,
+  "expected_symbols_count": 2,
+  "expected_unresolved_refs": 0,
+  "expected_parse_failures": 0
+}

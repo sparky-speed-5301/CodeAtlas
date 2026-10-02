@@ -1,0 +1,14 @@
+{
+  "case_id": "case-05-deterministic-secret",
+  "category": "review_packet",
+  "scenario": "deterministic_secret_finding",
+  "description": "Hardcoded secret detected deterministically",
+  "expected_packet_success": true,
+  "expected_policy": "requires_human_approval",
+  "expected_provider_valid": true,
+  "expected_truncated": false,
+  "expected_redacted": true,
+  "expected_merged_count": null,
+  "provider": "mock:clean",
+  "config": {}
+}

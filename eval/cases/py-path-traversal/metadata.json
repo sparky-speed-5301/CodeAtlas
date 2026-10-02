@@ -1,0 +1,10 @@
+{
+  "case_id": "py-path-traversal",
+  "language": "python",
+  "category": "buggy",
+  "severity": "high",
+  "expected_status": "detected",
+  "abstention_allowed": false,
+  "expected_behavior": "Resolve downloads beneath the configured root and reject path traversal.",
+  "tags": ["path-traversal", "filesystem"]
+}

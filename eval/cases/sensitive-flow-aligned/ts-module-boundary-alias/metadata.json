@@ -1,0 +1,13 @@
+{
+  "case_id": "ts-module-boundary-alias",
+  "language": "typescript",
+  "category": "SENSITIVE_DATA_EXPOSURE",
+  "expected_status": "abstained",
+  "expected_flow_type": "unknown",
+  "expected_rule": "sensitive-to-sink",
+  "expected_severity": "medium",
+  "expected_file": "src/auth.ts",
+  "expected_line": null,
+  "abstention_allowed": true,
+  "description": "sensitive alias crosses module boundary (inter-file flow cannot be resolved locally)"
+}

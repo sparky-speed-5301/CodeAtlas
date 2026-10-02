@@ -1,0 +1,13 @@
+{
+  "case_id": "py-test-fixture-ignored",
+  "language": "python",
+  "category": "SENSITIVE_DATA_EXPOSURE",
+  "expected_status": "review_only",
+  "expected_flow_type": "none",
+  "expected_rule": "none",
+  "expected_severity": "info",
+  "expected_file": "tests/mock_auth.py",
+  "expected_line": null,
+  "abstention_allowed": false,
+  "description": "ignored test fixture path with mock dummy values"
+}

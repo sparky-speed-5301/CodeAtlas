@@ -1,0 +1,20 @@
+{
+  "case_id": "case-06-python-relative-import",
+  "category": "repo_intel",
+  "scenario": "python_relative_import",
+  "description": "Package module using relative import to sibling module",
+  "expected_status": "detected",
+  "abstention_allowed": false,
+  "expected_changed_symbols": [
+    "sym::src/pkg/runner.py::function::root::execute"
+  ],
+  "expected_context_candidates": [
+    "src/pkg/runner.py",
+    "src/pkg/helpers.py"
+  ],
+  "expected_files_count": 3,
+  "expected_imports_count": 1,
+  "expected_symbols_count": 2,
+  "expected_unresolved_refs": 0,
+  "expected_parse_failures": 0
+}

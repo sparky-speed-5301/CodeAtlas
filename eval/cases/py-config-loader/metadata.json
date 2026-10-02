@@ -1,0 +1,10 @@
+{
+  "case_id": "py-config-loader",
+  "language": "python",
+  "category": "clean",
+  "severity": "low",
+  "expected_status": "review_only",
+  "abstention_allowed": false,
+  "expected_behavior": "Read a JSON configuration file and surface malformed configuration to the caller.",
+  "tags": ["configuration", "errors"]
+}

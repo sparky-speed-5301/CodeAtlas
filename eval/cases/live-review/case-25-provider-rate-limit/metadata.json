@@ -1,0 +1,20 @@
+{
+  "case_id": "case-25-provider-rate-limit",
+  "category": "live_review",
+  "config": {},
+  "description": "Rate-limit error is mapped to a failed run with no findings",
+  "dry_run": false,
+  "expected": {
+    "expect_transport_failure": "rate_limit",
+    "expected_policy": "allowed",
+    "provider_output_valid": false,
+    "request_made": true,
+    "reviewer_findings_merged": 0
+  },
+  "scenario": "provider_rate_limit",
+  "test_group": "transport",
+  "transport": {
+    "error": "rate_limit",
+    "mode": "error"
+  }
+}

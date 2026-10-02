@@ -1,0 +1,14 @@
+{
+  "case_id": "case-17-unsupported-category",
+  "category": "review_packet",
+  "scenario": "unsupported_validated_fix_claim",
+  "description": "Provider claims fixability='validated' without test proof",
+  "expected_packet_success": true,
+  "expected_policy": "allowed",
+  "expected_provider_valid": false,
+  "expected_truncated": false,
+  "expected_redacted": true,
+  "expected_merged_count": null,
+  "provider": "mock:unsupported_validated",
+  "config": {}
+}

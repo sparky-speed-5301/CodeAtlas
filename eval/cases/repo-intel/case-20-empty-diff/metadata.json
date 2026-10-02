@@ -1,0 +1,15 @@
+{
+  "case_id": "case-20-empty-diff",
+  "category": "repo_intel",
+  "scenario": "empty_diff",
+  "description": "Empty diff produces clean review with zero candidates",
+  "expected_status": "clean",
+  "abstention_allowed": false,
+  "expected_changed_symbols": [],
+  "expected_context_candidates": [],
+  "expected_files_count": 1,
+  "expected_imports_count": 0,
+  "expected_symbols_count": 1,
+  "expected_unresolved_refs": 0,
+  "expected_parse_failures": 0
+}

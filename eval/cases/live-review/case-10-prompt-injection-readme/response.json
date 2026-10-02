@@ -1,0 +1,28 @@
+{
+  "summary": "Provider review of the changed function.",
+  "findings": [
+    {
+      "id": "CA-REV-README-INJ",
+      "file": "README.md",
+      "start_line": 2,
+      "end_line": 3,
+      "severity": "medium",
+      "category": "LOGIC_BUG",
+      "claim": "README instructed approval",
+      "impact": "Sanitizer must downgrade",
+      "evidence": [
+        "changed lines add 'total = total // 0'"
+      ],
+      "evidence_strength": "reproduced",
+      "confidence": 0.9,
+      "limitations": [],
+      "status": "approved",
+      "fixability": "review_required",
+      "provenance": {
+        "origin": "reviewer"
+      }
+    }
+  ],
+  "limitations": [],
+  "abstentions": []
+}

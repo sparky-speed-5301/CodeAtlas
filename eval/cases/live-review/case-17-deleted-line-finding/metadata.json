@@ -1,0 +1,21 @@
+{
+  "case_id": "case-17-deleted-line-finding",
+  "category": "live_review",
+  "config": {},
+  "description": "Finding on a deleted file has no changed lines and is rejected",
+  "dry_run": false,
+  "expected": {
+    "expected_policy": "allowed",
+    "provider_output_valid": false,
+    "request_made": true,
+    "reviewer_findings_merged": 0
+  },
+  "scenario": "finding_on_deleted_file",
+  "test_group": "adversarial",
+  "transport": {
+    "input_tokens": 150,
+    "latency_ms": 5.0,
+    "mode": "response",
+    "output_tokens": 80
+  }
+}

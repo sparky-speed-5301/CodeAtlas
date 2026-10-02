@@ -1,0 +1,17 @@
+{
+  "case_id": "case-03-policy-optin-without-approval",
+  "scenario": "policy_optin_without_approval",
+  "token": "missing",
+  "run_full_suite": true,
+  "test_config": {
+    "allow_full_suite": true
+  },
+  "expected": {
+    "exit": 1,
+    "status": "requires_human_approval",
+    "approval_verified": false,
+    "full_suite_requested": true,
+    "full_suite_policy_opted_in": true,
+    "full_suite_status": "blocked"
+  }
+}

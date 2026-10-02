@@ -1,0 +1,20 @@
+{
+  "case_id": "case-01-changed-func-test",
+  "category": "repo_intel",
+  "scenario": "changed_function_with_related_test",
+  "description": "Changed function with related test referencing it",
+  "expected_status": "detected",
+  "abstention_allowed": false,
+  "expected_changed_symbols": [
+    "sym::src/service.py::function::root::process_data"
+  ],
+  "expected_context_candidates": [
+    "src/service.py",
+    "tests/test_service.py"
+  ],
+  "expected_files_count": 2,
+  "expected_imports_count": 1,
+  "expected_symbols_count": 2,
+  "expected_unresolved_refs": 0,
+  "expected_parse_failures": 0
+}

@@ -1,0 +1,22 @@
+{
+  "case_id": "case-10-packet-truncation",
+  "category": "review_packet",
+  "scenario": "packet_truncation_limits",
+  "description": "Review packet bounded by max_lines_per_file constraint",
+  "expected_packet_success": true,
+  "expected_policy": "abstain",
+  "expected_provider_valid": true,
+  "expected_truncated": true,
+  "expected_redacted": true,
+  "expected_merged_count": null,
+  "provider": "mock:clean",
+  "config": {
+    "review": {
+      "max_lines_per_file": 30,
+      "max_total_context_lines": 50
+    },
+    "policy": {
+      "abstain_on_truncated_changed_code": true
+    }
+  }
+}

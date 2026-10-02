@@ -1,0 +1,30 @@
+{
+  "proposal_id": "prop-149209849ba9",
+  "finding_id": "F-TEST-8A",
+  "provider_name": "operator",
+  "provider_version": "1.0.0",
+  "base_commit": "BASE_SHA",
+  "target_files": [
+    "src/calc.py"
+  ],
+  "unified_diff": "--- a/src/calc.py\n+++ b/src/calc.py\n@@ -1,2 +1,2 @@\n def add(a, b):\n-    return a + b\n+    return a - b\n",
+  "rationale": "Test execution evaluation fixture",
+  "expected_behavior": "Tests executed safely",
+  "risk_level": "low",
+  "requested_action": "validate",
+  "status": "requires_human_approval",
+  "policy_decision": null,
+  "created_at": "2026-10-02T17:32:45.282276+00:00",
+  "limitations": [],
+  "provenance": {},
+  "patch_hash": "99fbefaecfd6c9974c22ff4468229396228eae89afebbd56b77b705e4cf27f80",
+  "redaction_audit": {
+    "safe": true,
+    "raw_value_matches": 0,
+    "rules_applied": [
+      "regex_secret_scrubbing",
+      "credential_pattern_check"
+    ],
+    "failed_checks": []
+  }
+}

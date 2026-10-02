@@ -1,0 +1,17 @@
+{
+    "abstention_allowed":  false,
+    "unsupported_flow":  false,
+    "expected_status":  "review_only",
+    "flow_kind":  "direct",
+    "redaction":  "safe",
+    "case_id":  "direct-log",
+    "category":  "clean",
+    "propagation_steps":  1,
+    "rule":  "sensitive-log",
+    "expected_redaction":  "safe",
+    "severity":  "medium",
+    "expected_behavior":  "review-only",
+    "tags":  [
+                 "clean"
+             ]
+}

@@ -1,0 +1,14 @@
+{
+  "case_id": "case-12-redaction-failure",
+  "category": "review_packet",
+  "scenario": "reviewer_secret_leak_rejected",
+  "description": "Reviewer provider attempts to leak raw secret; output rejected",
+  "expected_packet_success": true,
+  "expected_policy": "allowed",
+  "expected_provider_valid": false,
+  "expected_truncated": false,
+  "expected_redacted": true,
+  "expected_merged_count": null,
+  "provider": "mock:secret_leak",
+  "config": {}
+}

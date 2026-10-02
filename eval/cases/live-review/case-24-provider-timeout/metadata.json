@@ -1,0 +1,20 @@
+{
+  "case_id": "case-24-provider-timeout",
+  "category": "live_review",
+  "config": {},
+  "description": "Transport timeout is mapped to a failed, abstained run with no findings",
+  "dry_run": false,
+  "expected": {
+    "expect_transport_failure": "timeout",
+    "expected_policy": "allowed",
+    "provider_output_valid": false,
+    "request_made": true,
+    "reviewer_findings_merged": 0
+  },
+  "scenario": "provider_timeout",
+  "test_group": "transport",
+  "transport": {
+    "error": "timeout",
+    "mode": "error"
+  }
+}

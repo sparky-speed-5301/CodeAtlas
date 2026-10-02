@@ -1,0 +1,1 @@
+{"case_id":"unchanged-config","language":"javascript","category":"clean","severity":"info","expected_status":"review_only","expected_finding_status":"review_only","expected_behavior":"An unchanged configuration value is ignored.","abstention_allowed":false,"tags":["unchanged-context"]}

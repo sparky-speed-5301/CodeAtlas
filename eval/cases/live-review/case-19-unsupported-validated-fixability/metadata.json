@@ -1,0 +1,23 @@
+{
+  "case_id": "case-19-unsupported-validated-fixability",
+  "category": "live_review",
+  "config": {},
+  "description": "Provider claims fixability validated with detected status; sanitizer forces review_required",
+  "dry_run": false,
+  "expected": {
+    "expect_sanitized": true,
+    "expected_policy": "allowed",
+    "merged_fixability": "review_required",
+    "provider_output_valid": true,
+    "request_made": true,
+    "reviewer_findings_merged": 1
+  },
+  "scenario": "unsupported_validated_fixability",
+  "test_group": "adversarial",
+  "transport": {
+    "input_tokens": 155,
+    "latency_ms": 5.0,
+    "mode": "response",
+    "output_tokens": 85
+  }
+}

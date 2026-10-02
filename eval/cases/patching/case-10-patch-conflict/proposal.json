@@ -1,0 +1,30 @@
+{
+  "proposal_id": "prop-cb93a97b5edf",
+  "finding_id": "FIND-case-10-patch-conflict",
+  "provider_name": "eval-fixer",
+  "provider_version": "1.0.0",
+  "base_commit": "HEAD",
+  "target_files": [
+    "src/calc.py"
+  ],
+  "unified_diff": "--- a/src/calc.py\n+++ b/src/calc.py\n@@ -999,1 +999,1 @@\n-def obsolete():\n+def fixed():\n",
+  "rationale": "Patch conflict on stale lines",
+  "expected_behavior": "Resolve finding",
+  "risk_level": "low",
+  "requested_action": "validate",
+  "status": "proposed",
+  "policy_decision": null,
+  "created_at": "2026-10-02T08:34:16.686393+00:00",
+  "limitations": [],
+  "provenance": {},
+  "patch_hash": "7c8fe076f1524b16ce24f6b35482c9b74e3a13f574722c9cd586fc950bcdcb7d",
+  "redaction_audit": {
+    "safe": true,
+    "raw_value_matches": 0,
+    "rules_applied": [
+      "regex_secret_scrubbing",
+      "credential_pattern_check"
+    ],
+    "failed_checks": []
+  }
+}

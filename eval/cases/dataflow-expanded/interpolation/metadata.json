@@ -1,0 +1,17 @@
+{
+    "abstention_allowed":  false,
+    "unsupported_flow":  false,
+    "expected_status":  "detected",
+    "flow_kind":  "interpolation",
+    "redaction":  "safe",
+    "case_id":  "interpolation",
+    "category":  "buggy",
+    "propagation_steps":  2,
+    "rule":  "sql-injection",
+    "expected_redaction":  "safe",
+    "severity":  "high",
+    "expected_behavior":  "detect",
+    "tags":  [
+                 "flag-interpolation"
+             ]
+}

@@ -1,0 +1,16 @@
+{
+  "case_id": "case-03-python-syntax-pass-test-fail",
+  "scenario": "python_syntax_pass_test_fail",
+  "group": "execution",
+  "token": "valid",
+  "expected": {
+    "exit": 1,
+    "status": "failed_validation",
+    "tests_status": "failed",
+    "syntax_valid": true,
+    "applies_cleanly": true,
+    "approval_verified": true,
+    "execution_allowed": true,
+    "cleanup_status": "completed"
+  }
+}

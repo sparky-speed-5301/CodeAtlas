@@ -1,0 +1,30 @@
+{
+  "proposal_id": "prop-b847cf14b980",
+  "finding_id": "FIND-case-02-one-line-ts-fix",
+  "provider_name": "eval-fixer",
+  "provider_version": "1.0.0",
+  "base_commit": "HEAD",
+  "target_files": [
+    "src/util.ts"
+  ],
+  "unified_diff": "--- a/src/util.ts\n+++ b/src/util.ts\n@@ -1,3 +1,3 @@\n export function getLength(str: string | null): number {\n-  return str.length;\n+  return str ? str.length : 0;\n }\n",
+  "rationale": "One line TypeScript fix",
+  "expected_behavior": "Resolve finding",
+  "risk_level": "low",
+  "requested_action": "validate",
+  "status": "proposed",
+  "policy_decision": null,
+  "created_at": "2026-10-02T08:34:16.657915+00:00",
+  "limitations": [],
+  "provenance": {},
+  "patch_hash": "b13f95cd8f5a80fbe80159dd666f7ed06b4e16f5665321bf9ff1aff819b6ddd5",
+  "redaction_audit": {
+    "safe": true,
+    "raw_value_matches": 0,
+    "rules_applied": [
+      "regex_secret_scrubbing",
+      "credential_pattern_check"
+    ],
+    "failed_checks": []
+  }
+}

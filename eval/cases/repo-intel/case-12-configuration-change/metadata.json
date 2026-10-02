@@ -1,0 +1,17 @@
+{
+  "case_id": "case-12-configuration-change",
+  "category": "repo_intel",
+  "scenario": "configuration_change",
+  "description": "Repository configuration change correctly retrieved as configuration candidate",
+  "expected_status": "detected",
+  "abstention_allowed": false,
+  "expected_changed_symbols": [],
+  "expected_context_candidates": [
+    ".codeatlas.yml"
+  ],
+  "expected_files_count": 2,
+  "expected_imports_count": 0,
+  "expected_symbols_count": 1,
+  "expected_unresolved_refs": 0,
+  "expected_parse_failures": 0
+}

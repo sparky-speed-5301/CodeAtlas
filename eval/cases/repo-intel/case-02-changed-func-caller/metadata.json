@@ -1,0 +1,20 @@
+{
+  "case_id": "case-02-changed-func-caller",
+  "category": "repo_intel",
+  "scenario": "changed_function_with_caller",
+  "description": "Changed utility function called by application entrypoint",
+  "expected_status": "detected",
+  "abstention_allowed": false,
+  "expected_changed_symbols": [
+    "sym::src/utils.py::function::root::calculate_hash"
+  ],
+  "expected_context_candidates": [
+    "src/utils.py",
+    "src/app.py"
+  ],
+  "expected_files_count": 2,
+  "expected_imports_count": 1,
+  "expected_symbols_count": 2,
+  "expected_unresolved_refs": 0,
+  "expected_parse_failures": 0
+}

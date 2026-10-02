@@ -1,0 +1,1 @@
+{"case_id": "deleted-private-key", "language": "python", "category": "buggy", "severity": "blocker", "expected_status": "detected", "expected_finding_status": "detected", "expected_redaction": "pass", "expected_behavior": "deleted-line sensitive-data scenario.", "abstention_allowed": false, "rule": "private-key", "tags": ["deleted-line"]}

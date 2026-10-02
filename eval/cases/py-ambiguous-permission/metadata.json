@@ -1,0 +1,10 @@
+{
+  "case_id": "py-ambiguous-permission",
+  "language": "python",
+  "category": "ambiguous",
+  "severity": "high",
+  "expected_status": "abstained",
+  "abstention_allowed": true,
+  "expected_behavior": "Confirm whether inherited team membership is intended to grant this permission.",
+  "tags": ["authorization", "policy"]
+}

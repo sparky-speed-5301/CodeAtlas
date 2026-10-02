@@ -1,0 +1,17 @@
+{
+    "abstention_allowed":  false,
+    "unsupported_flow":  false,
+    "expected_status":  "review_only",
+    "flow_kind":  "alias",
+    "redaction":  "safe",
+    "case_id":  "alias-clean",
+    "category":  "clean",
+    "propagation_steps":  2,
+    "rule":  "sql-injection",
+    "expected_redaction":  "safe",
+    "severity":  "medium",
+    "expected_behavior":  "review-only",
+    "tags":  [
+                 "clean"
+             ]
+}

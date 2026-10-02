@@ -1,0 +1,10 @@
+{
+  "case_id": "ts-ambiguous-sanitize",
+  "language": "typescript",
+  "category": "ambiguous",
+  "severity": "medium",
+  "expected_status": "abstained",
+  "abstention_allowed": true,
+  "expected_behavior": "Determine whether the caller guarantees that this HTML fragment is trusted before rendering it.",
+  "tags": ["xss", "trust-boundary"]
+}

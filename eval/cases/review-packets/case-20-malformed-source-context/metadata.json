@@ -1,0 +1,14 @@
+{
+  "case_id": "case-20-malformed-source-context",
+  "category": "review_packet",
+  "scenario": "malformed_source_context",
+  "description": "Malformed syntax safely bounded without packet failure",
+  "expected_packet_success": true,
+  "expected_policy": "allowed",
+  "expected_provider_valid": true,
+  "expected_truncated": false,
+  "expected_redacted": true,
+  "expected_merged_count": null,
+  "provider": "mock:clean",
+  "config": {}
+}

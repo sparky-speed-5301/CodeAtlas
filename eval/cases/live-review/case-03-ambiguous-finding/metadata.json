@@ -1,0 +1,21 @@
+{
+  "case_id": "case-03-ambiguous-finding",
+  "category": "live_review",
+  "config": {},
+  "description": "Low-confidence finding is merged but marked review-only by policy",
+  "dry_run": false,
+  "expected": {
+    "expected_policy": "review_only",
+    "provider_output_valid": true,
+    "request_made": true,
+    "reviewer_findings_merged": 1
+  },
+  "scenario": "ambiguous_finding_low_confidence",
+  "test_group": "contract",
+  "transport": {
+    "input_tokens": 150,
+    "latency_ms": 5.0,
+    "mode": "response",
+    "output_tokens": 80
+  }
+}

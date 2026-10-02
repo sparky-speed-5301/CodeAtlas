@@ -1,0 +1,45 @@
+{
+  "summary": "Provider review with draft patch suggestions.",
+  "findings": [
+    {
+      "id": "CA-REV-001",
+      "file": "src/app.py",
+      "start_line": 5,
+      "end_line": 6,
+      "severity": "medium",
+      "category": "LOGIC_BUG",
+      "claim": "The accumulator is divided by zero once the total exceeds 100",
+      "impact": "Calling compute with a large total raises ZeroDivisionError",
+      "evidence": [
+        "changed lines add 'total = total // 0'"
+      ],
+      "evidence_strength": "supported",
+      "confidence": 0.9,
+      "limitations": [],
+      "status": "detected",
+      "fixability": "review_required",
+      "provenance": {
+        "origin": "reviewer"
+      }
+    }
+  ],
+  "limitations": [],
+  "abstentions": [],
+  "patch_suggestions": [
+    {
+      "suggestion_id": "CA-SUG-001",
+      "finding_id": "CA-REV-001",
+      "unified_diff": "--- a/src/app.py\n+++ b/src/app.py\n@@ -5,3 +5,43 @@\n         if total > 100:\n-            total = total // 0\n+            total = total // 2  # padding padding padding padding\n+            total = total // 2  # padding padding padding padding\n+            total = total // 2  # padding padding padding padding\n+            total = total // 2  # padding padding padding padding\n+            total = total // 2  # padding padding padding padding\n+            total = total // 2  # padding padding padding padding\n+            total = total // 2  # padding padding padding padding\n+            total = total // 2  # padding padding padding padding\n+            total = total // 2  # padding padding padding padding\n+            total = total // 2  # padding padding padding padding\n+            total = total // 2  # padding padding padding padding\n+            total = total // 2  # padding padding padding padding\n+            total = total // 2  # padding padding padding padding\n+            total = total // 2  # padding padding padding padding\n+            total = total // 2  # padding padding padding padding\n+            total = total // 2  # padding padding padding padding\n+            total = total // 2  # padding padding padding padding\n+            total = total // 2  # padding padding padding padding\n+            total = total // 2  # padding padding padding padding\n+            total = total // 2  # padding padding padding padding\n+            total = total // 2  # padding padding padding padding\n+            total = total // 2  # padding padding padding padding\n+            total = total // 2  # padding padding padding padding\n+            total = total // 2  # padding padding padding padding\n+            total = total // 2  # padding padding padding padding\n+            total = total // 2  # padding padding padding padding\n+            total = total // 2  # padding padding padding padding\n+            total = total // 2  # padding padding padding padding\n+            total = total // 2  # padding padding padding padding\n+            total = total // 2  # padding padding padding padding\n+            total = total // 2  # padding padding padding padding\n+            total = total // 2  # padding padding padding padding\n+            total = total // 2  # padding padding padding padding\n+            total = total // 2  # padding padding padding padding\n+            total = total // 2  # padding padding padding padding\n+            total = total // 2  # padding padding padding padding\n+            total = total // 2  # padding padding padding padding\n+            total = total // 2  # padding padding padding padding\n+            total = total // 2  # padding padding padding padding\n+            total = total // 2  # padding padding padding padding\n     return total\n",
+      "rationale": "Replace division by zero with a safe divisor",
+      "expected_behavior": "compute no longer raises ZeroDivisionError for large totals",
+      "target_files": [
+        "src/app.py"
+      ],
+      "risk_level": "low",
+      "limitations": [],
+      "provider_provenance": {
+        "origin": "provider"
+      }
+    }
+  ]
+}

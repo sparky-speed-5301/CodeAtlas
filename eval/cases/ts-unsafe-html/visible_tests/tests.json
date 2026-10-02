@@ -1,0 +1,8 @@
+{
+  "format": "static-contract-v1",
+  "entrypoint": "render.ts:renderMessage",
+  "tests": [
+    {"name": "plain text", "input": {"message": "hello"}, "expected": {"textContent": "hello", "childElementCount": 0}},
+    {"name": "markup rendered literally", "input": {"message": "<img src=x onerror=alert(1)>"}, "expected": {"textContent": "<img src=x onerror=alert(1)>", "childElementCount": 0}}
+  ]
+}

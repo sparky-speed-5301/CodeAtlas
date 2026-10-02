@@ -1,0 +1,14 @@
+{
+  "case_id": "case-11-redaction-success",
+  "category": "review_packet",
+  "scenario": "packet_redaction_success",
+  "description": "Secrets in source sanitized prior to packet assembly",
+  "expected_packet_success": true,
+  "expected_policy": "requires_human_approval",
+  "expected_provider_valid": true,
+  "expected_truncated": false,
+  "expected_redacted": true,
+  "expected_merged_count": null,
+  "provider": "mock:clean",
+  "config": {}
+}

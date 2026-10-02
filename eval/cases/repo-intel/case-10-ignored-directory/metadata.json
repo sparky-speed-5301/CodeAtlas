@@ -1,0 +1,19 @@
+{
+  "case_id": "case-10-ignored-directory",
+  "category": "repo_intel",
+  "scenario": "ignored_directory",
+  "description": "Default excluded directories node_modules and dist not indexed",
+  "expected_status": "detected",
+  "abstention_allowed": false,
+  "expected_changed_symbols": [
+    "sym::src/app.py::function::root::run"
+  ],
+  "expected_context_candidates": [
+    "src/app.py"
+  ],
+  "expected_files_count": 1,
+  "expected_imports_count": 0,
+  "expected_symbols_count": 1,
+  "expected_unresolved_refs": 0,
+  "expected_parse_failures": 0
+}

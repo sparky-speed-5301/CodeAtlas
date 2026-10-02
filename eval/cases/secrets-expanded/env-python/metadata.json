@@ -1,0 +1,1 @@
+{"case_id":"env-python","language":"python","category":"clean","severity":"info","expected_status":"review_only","expected_finding_status":"review_only","expected_behavior":"Environment lookup is not a hardcoded secret.","abstention_allowed":false,"tags":["environment-reference"]}

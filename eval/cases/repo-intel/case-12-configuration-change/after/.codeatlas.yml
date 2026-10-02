@@ -1,0 +1,3 @@
+repository:
+  index: true
+  max_context_candidates: 10

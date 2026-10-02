@@ -1,0 +1,28 @@
+{
+  "summary": "Provider review of the changed function.",
+  "findings": [
+    {
+      "id": "CA-REV-SENSITIVE",
+      "file": "src/service.py",
+      "start_line": 2,
+      "end_line": 2,
+      "severity": "high",
+      "category": "SENSITIVE_DATA_EXPOSURE",
+      "claim": "A sensitive attribute flows into a print sink",
+      "impact": "Sensitive value may be disclosed through logs",
+      "evidence": [
+        "print(password) on a changed line"
+      ],
+      "evidence_strength": "supported",
+      "confidence": 0.9,
+      "limitations": [],
+      "status": "detected",
+      "fixability": "review_required",
+      "provenance": {
+        "origin": "reviewer"
+      }
+    }
+  ],
+  "limitations": [],
+  "abstentions": []
+}

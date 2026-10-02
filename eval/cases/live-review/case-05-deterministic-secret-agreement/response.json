@@ -1,0 +1,28 @@
+{
+  "summary": "Provider review of the changed function.",
+  "findings": [
+    {
+      "id": "CA-REV-SECRET",
+      "file": "src/app.py",
+      "start_line": 2,
+      "end_line": 2,
+      "severity": "high",
+      "category": "HARD_CODED_SECRET",
+      "claim": "A credential appears to be hardcoded in the changed function",
+      "impact": "Secret material may leak through the repository",
+      "evidence": [
+        "changed line returns a redacted credential-shaped literal"
+      ],
+      "evidence_strength": "supported",
+      "confidence": 0.9,
+      "limitations": [],
+      "status": "detected",
+      "fixability": "review_required",
+      "provenance": {
+        "origin": "reviewer"
+      }
+    }
+  ],
+  "limitations": [],
+  "abstentions": []
+}

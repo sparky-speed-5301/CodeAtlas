@@ -1,0 +1,19 @@
+{
+  "case_id": "case-06-malformed-hunk",
+  "title": "Malformed hunk line count mismatch",
+  "target_files": [
+    "src/calc.py"
+  ],
+  "expected_status": "rejected",
+  "expected_policy_decision": "rejected",
+  "expected_valid": false,
+  "expected_applies_cleanly": false,
+  "expected_syntax_valid": null,
+  "expected_rejection_reason": "Hunk line count mismatch",
+  "application_allowed": false,
+  "original_worktree_must_remain_unchanged": true,
+  "tamper_hash": false,
+  "wrong_base_commit": false,
+  "invalid_token": false,
+  "no_token": false
+}

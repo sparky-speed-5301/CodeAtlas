@@ -1,0 +1,14 @@
+{
+  "case_id": "case-09-low-confidence-output",
+  "category": "review_packet",
+  "scenario": "low_confidence_reviewer_output",
+  "description": "Reviewer output below confidence threshold marked review-only",
+  "expected_packet_success": true,
+  "expected_policy": "review_only",
+  "expected_provider_valid": true,
+  "expected_truncated": false,
+  "expected_redacted": true,
+  "expected_merged_count": null,
+  "provider": "mock:low_confidence",
+  "config": {}
+}

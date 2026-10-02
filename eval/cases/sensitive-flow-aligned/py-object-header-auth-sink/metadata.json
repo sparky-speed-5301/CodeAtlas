@@ -1,0 +1,13 @@
+{
+  "case_id": "py-object-header-auth-sink",
+  "language": "python",
+  "category": "SENSITIVE_DATA_EXPOSURE",
+  "expected_status": "detected",
+  "expected_flow_type": "object_access",
+  "expected_rule": "sensitive-to-sink",
+  "expected_severity": "high",
+  "expected_file": "src/auth.py",
+  "expected_line": 6,
+  "abstention_allowed": false,
+  "description": "request.headers.authorization -> local variable -> sink"
+}

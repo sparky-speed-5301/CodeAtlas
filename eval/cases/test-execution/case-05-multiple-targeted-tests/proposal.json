@@ -1,0 +1,30 @@
+{
+  "proposal_id": "prop-fcd24aabb63b",
+  "finding_id": "F-TEST-8A",
+  "provider_name": "operator",
+  "provider_version": "1.0.0",
+  "base_commit": "BASE_SHA",
+  "target_files": [
+    "src/user.py"
+  ],
+  "unified_diff": "--- a/src/user.py\n+++ b/src/user.py\n@@ -1,2 +1,3 @@\n def format_user(name):\n+    # format user note\n     return f'User: {name}'\n",
+  "rationale": "Test execution evaluation fixture",
+  "expected_behavior": "Tests executed safely",
+  "risk_level": "low",
+  "requested_action": "validate",
+  "status": "requires_human_approval",
+  "policy_decision": null,
+  "created_at": "2026-10-02T17:32:45.288813+00:00",
+  "limitations": [],
+  "provenance": {},
+  "patch_hash": "26935e554b06e2a32e66bccdbbf6993c775b075ab20a142ccc1d743cae4e0fbf",
+  "redaction_audit": {
+    "safe": true,
+    "raw_value_matches": 0,
+    "rules_applied": [
+      "regex_secret_scrubbing",
+      "credential_pattern_check"
+    ],
+    "failed_checks": []
+  }
+}

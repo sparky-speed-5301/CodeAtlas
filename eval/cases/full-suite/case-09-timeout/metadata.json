@@ -1,0 +1,16 @@
+{
+  "case_id": "case-09-timeout",
+  "scenario": "timeout",
+  "token": "valid",
+  "run_full_suite": true,
+  "test_timeout": 0.3,
+  "test_config": {
+    "allow_full_suite": true
+  },
+  "expected": {
+    "exit": 1,
+    "status": "failed_validation",
+    "full_suite_requested": true,
+    "full_suite_status": "timed_out"
+  }
+}

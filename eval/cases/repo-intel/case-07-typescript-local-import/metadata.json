@@ -1,0 +1,20 @@
+{
+  "case_id": "case-07-typescript-local-import",
+  "category": "repo_intel",
+  "scenario": "typescript_local_import",
+  "description": "Local relative import in TypeScript resolved cleanly",
+  "expected_status": "detected",
+  "abstention_allowed": false,
+  "expected_changed_symbols": [
+    "sym::src/main.ts::function::root::compute"
+  ],
+  "expected_context_candidates": [
+    "src/main.ts",
+    "src/math.ts"
+  ],
+  "expected_files_count": 2,
+  "expected_imports_count": 1,
+  "expected_symbols_count": 2,
+  "expected_unresolved_refs": 0,
+  "expected_parse_failures": 0
+}

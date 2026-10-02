@@ -1,0 +1,20 @@
+{
+  "case_id": "case-08-shell-cmd",
+  "scenario": "shell_cmd",
+  "token": "valid",
+  "run_full_suite": true,
+  "test_config": {
+    "allow_full_suite": true,
+    "override_command": [
+      "bash",
+      "-c",
+      "echo 1"
+    ]
+  },
+  "expected": {
+    "exit": 1,
+    "status": "failed_validation",
+    "full_suite_requested": true,
+    "full_suite_status": "blocked"
+  }
+}

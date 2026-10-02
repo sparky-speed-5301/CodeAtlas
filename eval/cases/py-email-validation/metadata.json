@@ -1,0 +1,10 @@
+{
+  "case_id": "py-email-validation",
+  "language": "python",
+  "category": "clean",
+  "severity": "info",
+  "expected_status": "review_only",
+  "abstention_allowed": false,
+  "expected_behavior": "Accept only the documented simple email shape and reject empty input.",
+  "tags": ["validation"]
+}

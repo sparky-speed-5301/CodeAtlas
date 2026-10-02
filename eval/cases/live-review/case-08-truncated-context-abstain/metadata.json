@@ -1,0 +1,27 @@
+{
+  "case_id": "case-08-truncated-context-abstain",
+  "category": "live_review",
+  "config": {
+    "review": {
+      "abstain_on_truncated_changed_code": true,
+      "max_total_context_lines": 2
+    }
+  },
+  "description": "Line budget truncates changed code; policy abstains and no request is made",
+  "dry_run": false,
+  "expected": {
+    "expected_policy": "abstain",
+    "provider_output_valid": null,
+    "provider_skipped": true,
+    "request_made": false,
+    "reviewer_findings_merged": 0
+  },
+  "scenario": "truncated_context_policy_abstention",
+  "test_group": "contract",
+  "transport": {
+    "input_tokens": 150,
+    "latency_ms": 5.0,
+    "mode": "response",
+    "output_tokens": 80
+  }
+}

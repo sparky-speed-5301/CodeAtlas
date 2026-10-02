@@ -1,0 +1,21 @@
+{
+  "allow_patch_suggestions": true,
+  "case_id": "case-37-invalid-patch-no-source-finding",
+  "category": "live_patch",
+  "config": {},
+  "description": "invalid_patch_no_source_finding",
+  "expected": {
+    "expected_policy": "allowed",
+    "expected_proposal_status": null,
+    "proposals_created": 0,
+    "rejection_reasons": [
+      "no source finding with id CA-REV-NONE"
+    ],
+    "request_made": true,
+    "suggestions_accepted": 0,
+    "suggestions_received": 1,
+    "suggestions_rejected": 1
+  },
+  "scenario": "invalid_patch_no_source_finding",
+  "test_group": "invalid"
+}

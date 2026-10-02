@@ -1,0 +1,23 @@
+{
+  "case_id": "case-21-raw-secret-leak-attempt",
+  "category": "live_review",
+  "config": {},
+  "description": "Provider embeds a raw credential in evidence; entire output rejected",
+  "dry_run": false,
+  "expected": {
+    "expect_rejected": true,
+    "expect_secret_rejection": true,
+    "expected_policy": "allowed",
+    "provider_output_valid": false,
+    "request_made": true,
+    "reviewer_findings_merged": 0
+  },
+  "scenario": "provider_returns_raw_secret",
+  "test_group": "adversarial",
+  "transport": {
+    "input_tokens": 160,
+    "latency_ms": 5.0,
+    "mode": "response",
+    "output_tokens": 90
+  }
+}

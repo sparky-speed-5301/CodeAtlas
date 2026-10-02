@@ -1,0 +1,14 @@
+{
+  "case_id": "case-16-duplicate-findings",
+  "category": "review_packet",
+  "scenario": "duplicate_finding_merge",
+  "description": "Reviewer findings overlapping deterministic findings merged",
+  "expected_packet_success": true,
+  "expected_policy": "requires_human_approval",
+  "expected_provider_valid": true,
+  "expected_truncated": false,
+  "expected_redacted": true,
+  "expected_merged_count": 1,
+  "provider": "mock:duplicate_finding",
+  "config": {}
+}

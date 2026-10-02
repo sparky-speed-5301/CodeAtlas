@@ -1,0 +1,23 @@
+{
+  "allow_patch_suggestions": true,
+  "case_id": "case-06-valid-multi-hunk-patch",
+  "category": "live_patch",
+  "config": {
+    "patch": {
+      "max_changed_lines": 20
+    }
+  },
+  "description": "valid_multi_hunk_patch",
+  "expected": {
+    "expected_policy": "allowed",
+    "expected_proposal_status": "requires_human_approval",
+    "proposals_created": 1,
+    "rejection_reasons": [],
+    "request_made": true,
+    "suggestions_accepted": 1,
+    "suggestions_received": 1,
+    "suggestions_rejected": 0
+  },
+  "scenario": "valid_multi_hunk_patch",
+  "test_group": "valid"
+}

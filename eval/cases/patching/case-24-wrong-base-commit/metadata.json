@@ -1,0 +1,19 @@
+{
+  "case_id": "case-24-wrong-base-commit",
+  "title": "Wrong base commit resolution failure",
+  "target_files": [
+    "src/calc.py"
+  ],
+  "expected_status": "failed_validation",
+  "expected_policy_decision": "requires_human_approval",
+  "expected_valid": false,
+  "expected_applies_cleanly": false,
+  "expected_syntax_valid": null,
+  "expected_rejection_reason": "could not be resolved",
+  "application_allowed": false,
+  "original_worktree_must_remain_unchanged": true,
+  "tamper_hash": false,
+  "wrong_base_commit": true,
+  "invalid_token": false,
+  "no_token": false
+}

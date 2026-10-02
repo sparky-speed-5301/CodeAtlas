@@ -1,0 +1,19 @@
+{
+  "case_id": "case-11-test-modification",
+  "title": "Test file modification policy rejection",
+  "target_files": [
+    "tests/test_calc.py"
+  ],
+  "expected_status": "rejected",
+  "expected_policy_decision": "rejected",
+  "expected_valid": false,
+  "expected_applies_cleanly": false,
+  "expected_syntax_valid": null,
+  "expected_rejection_reason": "Modifying test files is prohibited",
+  "application_allowed": false,
+  "original_worktree_must_remain_unchanged": true,
+  "tamper_hash": false,
+  "wrong_base_commit": false,
+  "invalid_token": false,
+  "no_token": false
+}

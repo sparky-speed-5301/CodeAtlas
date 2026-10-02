@@ -1,0 +1,16 @@
+{
+  "case_id": "case-06-missing-runner",
+  "scenario": "missing_runner",
+  "token": "valid",
+  "run_full_suite": true,
+  "test_config": {
+    "allow_full_suite": true,
+    "missing_runner": true
+  },
+  "expected": {
+    "exit": 1,
+    "status": "failed_validation",
+    "full_suite_requested": true,
+    "full_suite_status": "blocked"
+  }
+}

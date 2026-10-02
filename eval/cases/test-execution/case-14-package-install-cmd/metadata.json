@@ -1,0 +1,23 @@
+{
+  "case_id": "case-14-package-install-cmd",
+  "scenario": "package_install_cmd",
+  "group": "safety",
+  "token": "valid",
+  "test_config": {
+    "override_command": [
+      "pip",
+      "install",
+      "requests"
+    ]
+  },
+  "expected": {
+    "exit": 1,
+    "status": "failed_validation",
+    "tests_status": "blocked",
+    "syntax_valid": true,
+    "applies_cleanly": true,
+    "approval_verified": true,
+    "execution_allowed": false,
+    "cleanup_status": "completed"
+  }
+}

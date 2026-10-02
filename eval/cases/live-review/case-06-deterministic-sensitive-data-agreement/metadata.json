@@ -1,0 +1,22 @@
+{
+  "case_id": "case-06-deterministic-sensitive-data-agreement",
+  "category": "live_review",
+  "config": {},
+  "description": "Provider finding agrees with deterministic sensitive-data finding and merges",
+  "dry_run": false,
+  "expected": {
+    "expected_policy": "requires_human_approval",
+    "merged_origin": "merged",
+    "provider_output_valid": true,
+    "request_made": true,
+    "reviewer_findings_merged": 1
+  },
+  "scenario": "deterministic_sensitive_data_agreement",
+  "test_group": "contract",
+  "transport": {
+    "input_tokens": 165,
+    "latency_ms": 6.0,
+    "mode": "response",
+    "output_tokens": 88
+  }
+}

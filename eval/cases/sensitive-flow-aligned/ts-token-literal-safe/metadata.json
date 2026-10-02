@@ -1,0 +1,13 @@
+{
+  "case_id": "ts-token-literal-safe",
+  "language": "typescript",
+  "category": "SENSITIVE_DATA_EXPOSURE",
+  "expected_status": "review_only",
+  "expected_flow_type": "none",
+  "expected_rule": "none",
+  "expected_severity": "info",
+  "expected_file": "src/auth.ts",
+  "expected_line": null,
+  "abstention_allowed": false,
+  "description": "const token = 'example-token'; console.log(token) - non-sensitive static dummy string"
+}

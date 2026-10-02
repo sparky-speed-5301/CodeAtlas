@@ -1,0 +1,21 @@
+{
+  "allow_patch_suggestions": true,
+  "case_id": "case-27-invalid-binary-patch",
+  "category": "live_patch",
+  "config": {},
+  "description": "invalid_binary_patch",
+  "expected": {
+    "expected_policy": "allowed",
+    "expected_proposal_status": null,
+    "proposals_created": 0,
+    "rejection_reasons": [
+      "Binary patch content is unsupported"
+    ],
+    "request_made": true,
+    "suggestions_accepted": 0,
+    "suggestions_received": 1,
+    "suggestions_rejected": 1
+  },
+  "scenario": "invalid_binary_patch",
+  "test_group": "invalid"
+}

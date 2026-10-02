@@ -1,0 +1,24 @@
+{
+  "base_commit": "real",
+  "case_id": "case-06-valid-scoped-run-id",
+  "category": "isolated_validation",
+  "dirty_worktree": false,
+  "expected": {
+    "applies_cleanly": true,
+    "approval_verified": true,
+    "builds_not_run": true,
+    "cleanup_status": "completed",
+    "exit": 0,
+    "status": "validated",
+    "syntax_valid": true,
+    "tests_not_run": true,
+    "valid": true,
+    "worktree_unchanged": true
+  },
+  "proposal_file": "normal",
+  "retain_sandbox_on_failure": false,
+  "run_id": "run-custom",
+  "scenario": "valid_scoped_run_id",
+  "title": "valid_scoped_run_id",
+  "token": "valid"
+}

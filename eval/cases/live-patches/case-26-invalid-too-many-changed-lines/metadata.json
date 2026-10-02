@@ -1,0 +1,25 @@
+{
+  "allow_patch_suggestions": true,
+  "case_id": "case-26-invalid-too-many-changed-lines",
+  "category": "live_patch",
+  "config": {
+    "patch": {
+      "max_changed_lines": 5
+    }
+  },
+  "description": "invalid_too_many_changed_lines",
+  "expected": {
+    "expected_policy": "allowed",
+    "expected_proposal_status": null,
+    "proposals_created": 0,
+    "rejection_reasons": [
+      "exceeding limit of 5"
+    ],
+    "request_made": true,
+    "suggestions_accepted": 0,
+    "suggestions_received": 1,
+    "suggestions_rejected": 1
+  },
+  "scenario": "invalid_too_many_changed_lines",
+  "test_group": "invalid"
+}

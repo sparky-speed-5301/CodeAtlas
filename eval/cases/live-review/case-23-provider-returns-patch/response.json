@@ -1,0 +1,8 @@
+{
+  "summary": "Provider review of the changed function.",
+  "findings": [],
+  "limitations": [],
+  "abstentions": [],
+  "patch": "--- a/src/app.py\n+++ b/src/app.py\n@@ -1,4 +1,4 @@\n",
+  "patch_status": "applied"
+}

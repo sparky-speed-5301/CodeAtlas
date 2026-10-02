@@ -1,0 +1,13 @@
+{
+  "case_id": "py-comment-password-sink",
+  "language": "python",
+  "category": "SENSITIVE_DATA_EXPOSURE",
+  "expected_status": "review_only",
+  "expected_flow_type": "none",
+  "expected_rule": "none",
+  "expected_severity": "info",
+  "expected_file": "src/auth.py",
+  "expected_line": null,
+  "abstention_allowed": false,
+  "description": "comment containing logger.info(password) - skipped comment line"
+}

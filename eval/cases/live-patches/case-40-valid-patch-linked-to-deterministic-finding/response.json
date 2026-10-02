@@ -1,0 +1,45 @@
+{
+  "summary": "Provider review with draft patch suggestions.",
+  "findings": [
+    {
+      "id": "CA-REV-SENSITIVE",
+      "file": "src/service.py",
+      "start_line": 2,
+      "end_line": 2,
+      "severity": "high",
+      "category": "SENSITIVE_DATA_EXPOSURE",
+      "claim": "A sensitive attribute flows into a print sink",
+      "impact": "Sensitive value may be disclosed through logs",
+      "evidence": [
+        "print(user.password) on a changed line"
+      ],
+      "evidence_strength": "supported",
+      "confidence": 0.9,
+      "limitations": [],
+      "status": "detected",
+      "fixability": "review_required",
+      "provenance": {
+        "origin": "reviewer"
+      }
+    }
+  ],
+  "limitations": [],
+  "abstentions": [],
+  "patch_suggestions": [
+    {
+      "suggestion_id": "CA-SUG-SENS",
+      "finding_id": "CA-REV-SENSITIVE",
+      "unified_diff": "--- a/src/service.py\n+++ b/src/service.py\n@@ -1,2 +1,2 @@\n def render(user):\n-    print(user.password)\n+    print(\"[REDACTED]\")\n",
+      "rationale": "Replace the print sink with a redacted placeholder",
+      "expected_behavior": "compute no longer raises ZeroDivisionError for large totals",
+      "target_files": [
+        "src/service.py"
+      ],
+      "risk_level": "low",
+      "limitations": [],
+      "provider_provenance": {
+        "origin": "provider"
+      }
+    }
+  ]
+}

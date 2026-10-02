@@ -1,0 +1,14 @@
+{
+  "case_id": "case-15-invalid-line-range",
+  "category": "review_packet",
+  "scenario": "invalid_provider_line_range",
+  "description": "Provider produces inverted line range (end < start)",
+  "expected_packet_success": true,
+  "expected_policy": "allowed",
+  "expected_provider_valid": false,
+  "expected_truncated": false,
+  "expected_redacted": true,
+  "expected_merged_count": null,
+  "provider": "mock:invalid_line_range",
+  "config": {}
+}

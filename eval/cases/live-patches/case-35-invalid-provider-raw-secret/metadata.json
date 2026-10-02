@@ -1,0 +1,20 @@
+{
+  "allow_patch_suggestions": true,
+  "case_id": "case-35-invalid-provider-raw-secret",
+  "category": "live_patch",
+  "config": {},
+  "description": "invalid_provider_raw_secret",
+  "expected": {
+    "expected_policy": "allowed",
+    "expected_proposal_status": null,
+    "proposals_created": 0,
+    "rejection_reasons": [],
+    "request_made": true,
+    "sanitizer_rejected": true,
+    "suggestions_accepted": 0,
+    "suggestions_received": 0,
+    "suggestions_rejected": 0
+  },
+  "scenario": "invalid_provider_raw_secret",
+  "test_group": "invalid"
+}

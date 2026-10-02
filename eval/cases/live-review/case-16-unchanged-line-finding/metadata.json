@@ -1,0 +1,21 @@
+{
+  "case_id": "case-16-unchanged-line-finding",
+  "category": "live_review",
+  "config": {},
+  "description": "Finding anchored beyond the diff hunks is rejected as not diff-scoped",
+  "dry_run": false,
+  "expected": {
+    "expected_policy": "allowed",
+    "provider_output_valid": false,
+    "request_made": true,
+    "reviewer_findings_merged": 0
+  },
+  "scenario": "finding_outside_diff_lines",
+  "test_group": "adversarial",
+  "transport": {
+    "input_tokens": 150,
+    "latency_ms": 5.0,
+    "mode": "response",
+    "output_tokens": 80
+  }
+}

@@ -1,0 +1,28 @@
+{
+  "summary": "Provider review of the changed function.",
+  "findings": [
+    {
+      "id": "CA-REV-FAR",
+      "file": "src/app.py",
+      "start_line": 50,
+      "end_line": 51,
+      "severity": "medium",
+      "category": "LOGIC_BUG",
+      "claim": "The accumulator is divided by zero once the total exceeds 100",
+      "impact": "Calling compute_total with a large total raises ZeroDivisionError",
+      "evidence": [
+        "changed lines add 'total = total // 0'"
+      ],
+      "evidence_strength": "supported",
+      "confidence": 0.9,
+      "limitations": [],
+      "status": "detected",
+      "fixability": "review_required",
+      "provenance": {
+        "origin": "reviewer"
+      }
+    }
+  ],
+  "limitations": [],
+  "abstentions": []
+}

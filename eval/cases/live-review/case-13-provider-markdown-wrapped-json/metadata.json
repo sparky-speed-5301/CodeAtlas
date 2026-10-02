@@ -1,0 +1,21 @@
+{
+  "case_id": "case-13-provider-markdown-wrapped-json",
+  "category": "live_review",
+  "config": {},
+  "description": "Markdown fences are stripped and the embedded JSON is processed",
+  "dry_run": false,
+  "expected": {
+    "expected_policy": "allowed",
+    "provider_output_valid": true,
+    "request_made": true,
+    "reviewer_findings_merged": 1
+  },
+  "scenario": "provider_markdown_wrapped_json",
+  "test_group": "contract",
+  "transport": {
+    "input_tokens": 155,
+    "latency_ms": 5.0,
+    "mode": "response",
+    "output_tokens": 85
+  }
+}

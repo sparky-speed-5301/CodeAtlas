@@ -1,0 +1,19 @@
+{
+  "case_id": "case-11-binary-file",
+  "category": "repo_intel",
+  "scenario": "binary_file",
+  "description": "Binary asset file marked is_binary and skipped from parsing",
+  "expected_status": "detected",
+  "abstention_allowed": false,
+  "expected_changed_symbols": [
+    "sym::src/view.py::function::root::render"
+  ],
+  "expected_context_candidates": [
+    "src/view.py"
+  ],
+  "expected_files_count": 2,
+  "expected_imports_count": 0,
+  "expected_symbols_count": 1,
+  "expected_unresolved_refs": 0,
+  "expected_parse_failures": 0
+}

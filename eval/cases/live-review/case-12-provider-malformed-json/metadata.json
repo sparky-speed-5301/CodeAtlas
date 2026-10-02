@@ -1,0 +1,22 @@
+{
+  "case_id": "case-12-provider-malformed-json",
+  "category": "live_review",
+  "config": {},
+  "description": "Provider returns unparseable text; output rejected, no findings",
+  "dry_run": false,
+  "expected": {
+    "expect_rejected": true,
+    "expected_policy": "allowed",
+    "provider_output_valid": false,
+    "request_made": true,
+    "reviewer_findings_merged": 0
+  },
+  "scenario": "provider_malformed_json",
+  "test_group": "contract",
+  "transport": {
+    "input_tokens": 150,
+    "latency_ms": 5.0,
+    "mode": "response",
+    "output_tokens": 10
+  }
+}

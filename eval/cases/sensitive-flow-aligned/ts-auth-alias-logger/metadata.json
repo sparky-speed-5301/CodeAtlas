@@ -1,0 +1,13 @@
+{
+  "case_id": "ts-auth-alias-logger",
+  "language": "typescript",
+  "category": "SENSITIVE_DATA_EXPOSURE",
+  "expected_status": "detected",
+  "expected_flow_type": "alias",
+  "expected_rule": "sensitive-to-sink",
+  "expected_severity": "high",
+  "expected_file": "src/auth.ts",
+  "expected_line": 6,
+  "abstention_allowed": false,
+  "description": "TypeScript auth = token; logger.info(auth)"
+}

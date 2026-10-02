@@ -1,0 +1,14 @@
+{
+  "case_id": "case-13-targeted-regression",
+  "scenario": "targeted_regression",
+  "token": "valid",
+  "run_tests": true,
+  "run_full_suite": false,
+  "expected": {
+    "exit": 0,
+    "status": "validated",
+    "tests_status": "passed",
+    "full_suite_requested": false,
+    "full_suite_status": "not_run"
+  }
+}

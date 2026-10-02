@@ -1,0 +1,16 @@
+{
+  "case_id": "case-05-multiple-targeted-tests",
+  "scenario": "multiple_targeted_tests",
+  "group": "execution",
+  "token": "valid",
+  "expected": {
+    "exit": 0,
+    "status": "validated",
+    "tests_status": "passed",
+    "syntax_valid": true,
+    "applies_cleanly": true,
+    "approval_verified": true,
+    "execution_allowed": true,
+    "cleanup_status": "completed"
+  }
+}

@@ -1,0 +1,13 @@
+{
+  "case_id": "py-interprocedural-call",
+  "language": "python",
+  "category": "SENSITIVE_DATA_EXPOSURE",
+  "expected_status": "abstained",
+  "expected_flow_type": "unknown",
+  "expected_rule": "sensitive-to-sink",
+  "expected_severity": "medium",
+  "expected_file": "src/auth.py",
+  "expected_line": null,
+  "abstention_allowed": true,
+  "description": "sensitive value passed through another function (unsupported interprocedural flow)"
+}

@@ -1,0 +1,1 @@
+{"case_id":"tp-github","language":"javascript","category":"buggy","severity":"high","expected_status":"detected","expected_finding_status":"detected","expected_redaction":"pass","expected_behavior":"Detect a GitHub token.","abstention_allowed":false,"tags":["true-positive","github"]}

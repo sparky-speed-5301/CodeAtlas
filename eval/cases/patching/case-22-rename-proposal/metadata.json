@@ -1,0 +1,19 @@
+{
+  "case_id": "case-22-rename-proposal",
+  "title": "Rename file operation policy rejection",
+  "target_files": [
+    "src/calc_new.py"
+  ],
+  "expected_status": "rejected",
+  "expected_policy_decision": "rejected",
+  "expected_valid": false,
+  "expected_applies_cleanly": false,
+  "expected_syntax_valid": null,
+  "expected_rejection_reason": "Renaming files is prohibited",
+  "application_allowed": false,
+  "original_worktree_must_remain_unchanged": true,
+  "tamper_hash": false,
+  "wrong_base_commit": false,
+  "invalid_token": false,
+  "no_token": false
+}

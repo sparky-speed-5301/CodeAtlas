@@ -1,0 +1,13 @@
+{
+  "case_id": "ts-type-token-only",
+  "language": "typescript",
+  "category": "SENSITIVE_DATA_EXPOSURE",
+  "expected_status": "review_only",
+  "expected_flow_type": "none",
+  "expected_rule": "none",
+  "expected_severity": "info",
+  "expected_file": "src/types.ts",
+  "expected_line": null,
+  "abstention_allowed": false,
+  "description": "type Token = string; compile-time type only with no runtime output"
+}

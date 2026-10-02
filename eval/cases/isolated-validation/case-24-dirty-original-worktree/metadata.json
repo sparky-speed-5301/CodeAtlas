@@ -1,0 +1,24 @@
+{
+  "base_commit": "real",
+  "case_id": "case-24-dirty-original-worktree",
+  "category": "isolated_validation",
+  "dirty_worktree": true,
+  "expected": {
+    "applies_cleanly": true,
+    "approval_verified": true,
+    "builds_not_run": true,
+    "cleanup_status": "completed",
+    "exit": 0,
+    "status": "validated",
+    "syntax_valid": true,
+    "tests_not_run": true,
+    "valid": true,
+    "worktree_unchanged": true
+  },
+  "proposal_file": "normal",
+  "retain_sandbox_on_failure": false,
+  "run_id": "default",
+  "scenario": "dirty_original_worktree_containment",
+  "title": "dirty_original_worktree_containment",
+  "token": "valid"
+}

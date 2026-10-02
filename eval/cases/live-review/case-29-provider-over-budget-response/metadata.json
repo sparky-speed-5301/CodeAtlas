@@ -1,0 +1,20 @@
+{
+  "case_id": "case-29-provider-over-budget-response",
+  "category": "live_review",
+  "config": {},
+  "description": "Oversized response exceeds the response-size budget and is rejected",
+  "dry_run": false,
+  "expected": {
+    "expect_transport_failure": "response_size",
+    "expected_policy": "allowed",
+    "provider_output_valid": false,
+    "request_made": true,
+    "reviewer_findings_merged": 0
+  },
+  "scenario": "provider_over_budget_response",
+  "test_group": "transport",
+  "transport": {
+    "error": "response_size",
+    "mode": "error"
+  }
+}

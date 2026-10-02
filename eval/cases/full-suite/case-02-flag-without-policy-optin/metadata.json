@@ -1,0 +1,13 @@
+{
+  "case_id": "case-02-flag-without-policy-optin",
+  "scenario": "flag_without_policy_optin",
+  "token": "valid",
+  "run_full_suite": true,
+  "expected": {
+    "exit": 1,
+    "status": "failed_validation",
+    "full_suite_requested": true,
+    "full_suite_policy_opted_in": false,
+    "full_suite_status": "blocked"
+  }
+}

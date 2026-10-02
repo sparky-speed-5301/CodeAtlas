@@ -1,0 +1,21 @@
+{
+  "allow_patch_suggestions": true,
+  "case_id": "case-36-invalid-patch-targets-unchanged-line",
+  "category": "live_patch",
+  "config": {},
+  "description": "invalid_patch_targets_unchanged_line",
+  "expected": {
+    "expected_policy": "allowed",
+    "expected_proposal_status": null,
+    "proposals_created": 0,
+    "rejection_reasons": [
+      "targets unchanged or deleted lines"
+    ],
+    "request_made": true,
+    "suggestions_accepted": 0,
+    "suggestions_received": 1,
+    "suggestions_rejected": 1
+  },
+  "scenario": "invalid_patch_targets_unchanged_line",
+  "test_group": "invalid"
+}

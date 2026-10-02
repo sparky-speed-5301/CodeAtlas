@@ -1,0 +1,14 @@
+{
+  "case_id": "case-08-blocker-human-review",
+  "category": "review_packet",
+  "scenario": "blocker_severity_policy_gate",
+  "description": "Blocker severity issue requires human approval gate",
+  "expected_packet_success": true,
+  "expected_policy": "requires_human_approval",
+  "expected_provider_valid": true,
+  "expected_truncated": false,
+  "expected_redacted": true,
+  "expected_merged_count": null,
+  "provider": "mock:clean",
+  "config": {}
+}

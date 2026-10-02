@@ -1,0 +1,8 @@
+{
+  "format": "static-contract-v1",
+  "entrypoint": "query.py:find_user",
+  "tests": [
+    {"name": "ordinary lookup", "input": {"name": "alice"}, "expected": {"sql": "SELECT * FROM users WHERE name = ?", "parameters": ["alice"]}},
+    {"name": "untrusted value stays data", "input": {"name": "' OR 1=1 --"}, "expected": {"sql": "SELECT * FROM users WHERE name = ?", "parameters": ["' OR 1=1 --"]}}
+  ]
+}

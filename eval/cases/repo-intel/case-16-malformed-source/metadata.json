@@ -1,0 +1,19 @@
+{
+  "case_id": "case-16-malformed-source",
+  "category": "repo_intel",
+  "scenario": "malformed_source",
+  "description": "Syntax error recorded as diagnostic without crashing review",
+  "expected_status": "detected",
+  "abstention_allowed": false,
+  "expected_changed_symbols": [
+    "sym::src/valid.py::function::root::good_fn"
+  ],
+  "expected_context_candidates": [
+    "src/valid.py"
+  ],
+  "expected_files_count": 2,
+  "expected_imports_count": 0,
+  "expected_symbols_count": 1,
+  "expected_unresolved_refs": 0,
+  "expected_parse_failures": 1
+}

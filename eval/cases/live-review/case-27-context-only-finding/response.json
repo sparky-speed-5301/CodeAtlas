@@ -1,0 +1,29 @@
+{
+  "summary": "Provider review of the changed function.",
+  "findings": [
+    {
+      "id": "CA-REV-CTX",
+      "file": "src/util.py",
+      "start_line": 1,
+      "end_line": 2,
+      "severity": "low",
+      "category": "CODE_QUALITY",
+      "claim": "Context-only observation on unchanged helper lines",
+      "impact": "Informational",
+      "evidence": [
+        "changed lines add 'total = total // 0'"
+      ],
+      "evidence_strength": "weak",
+      "confidence": 0.6,
+      "limitations": [],
+      "status": "detected",
+      "fixability": "review_required",
+      "provenance": {
+        "origin": "reviewer",
+        "context_only": true
+      }
+    }
+  ],
+  "limitations": [],
+  "abstentions": []
+}

@@ -1,0 +1,14 @@
+{
+  "case_id": "case-01-small-changed-func",
+  "category": "review_packet",
+  "scenario": "small_changed_function",
+  "description": "Small function modification in clean repository",
+  "expected_packet_success": true,
+  "expected_policy": "allowed",
+  "expected_provider_valid": true,
+  "expected_truncated": false,
+  "expected_redacted": true,
+  "expected_merged_count": null,
+  "provider": "mock:clean",
+  "config": {}
+}

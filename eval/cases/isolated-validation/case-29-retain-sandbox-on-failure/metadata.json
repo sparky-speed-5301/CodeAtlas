@@ -1,0 +1,24 @@
+{
+  "base_commit": "real",
+  "case_id": "case-29-retain-sandbox-on-failure",
+  "category": "isolated_validation",
+  "dirty_worktree": false,
+  "expected": {
+    "applies_cleanly": true,
+    "approval_verified": true,
+    "builds_not_run": true,
+    "cleanup_status": "retained",
+    "exit": 1,
+    "status": "failed_validation",
+    "syntax_valid": false,
+    "tests_not_run": true,
+    "valid": false,
+    "worktree_unchanged": true
+  },
+  "proposal_file": "normal",
+  "retain_sandbox_on_failure": true,
+  "run_id": "default",
+  "scenario": "retain_sandbox_on_failure",
+  "title": "retain_sandbox_on_failure",
+  "token": "valid"
+}

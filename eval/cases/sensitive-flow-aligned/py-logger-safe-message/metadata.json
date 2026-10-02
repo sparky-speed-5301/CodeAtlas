@@ -1,0 +1,13 @@
+{
+  "case_id": "py-logger-safe-message",
+  "language": "python",
+  "category": "SENSITIVE_DATA_EXPOSURE",
+  "expected_status": "review_only",
+  "expected_flow_type": "none",
+  "expected_rule": "none",
+  "expected_severity": "info",
+  "expected_file": "src/auth.py",
+  "expected_line": null,
+  "abstention_allowed": false,
+  "description": "logger.info('user authenticated') - safe message without sensitive data"
+}

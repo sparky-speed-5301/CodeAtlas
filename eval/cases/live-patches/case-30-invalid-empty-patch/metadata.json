@@ -1,0 +1,20 @@
+{
+  "allow_patch_suggestions": true,
+  "case_id": "case-30-invalid-empty-patch",
+  "category": "live_patch",
+  "config": {},
+  "description": "Empty unified diff is rejected at sanitization",
+  "expected": {
+    "expected_policy": "allowed",
+    "expected_proposal_status": null,
+    "proposals_created": 0,
+    "rejection_reasons": [],
+    "request_made": true,
+    "sanitizer_rejected": true,
+    "suggestions_accepted": 0,
+    "suggestions_received": 0,
+    "suggestions_rejected": 0
+  },
+  "scenario": "invalid_empty_patch",
+  "test_group": "invalid"
+}

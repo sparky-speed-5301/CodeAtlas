@@ -1,0 +1,17 @@
+{
+    "abstention_allowed":  false,
+    "unsupported_flow":  false,
+    "expected_status":  "review_only",
+    "flow_kind":  "negative",
+    "redaction":  "safe",
+    "case_id":  "negative-sanitized",
+    "category":  "clean",
+    "propagation_steps":  1,
+    "rule":  "dataflow",
+    "expected_redaction":  "safe",
+    "severity":  "medium",
+    "expected_behavior":  "review-only",
+    "tags":  [
+                 "clean"
+             ]
+}

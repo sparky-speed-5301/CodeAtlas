@@ -1,0 +1,29 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "codeatlas"
+version = "0.1.0"
+description = "Evidence-first, repository-aware software engineering quality platform"
+readme = "README.md"
+requires-python = ">=3.11"
+dependencies = ["typer>=0.12", "pydantic>=2.7"]
+
+[project.optional-dependencies]
+dev = ["pytest>=8", "ruff>=0.6", "mypy>=1.10"]
+
+[project.scripts]
+codeatlas = "codeatlas.cli:app"
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.pytest.ini_options]
+pythonpath = ["src", "."]
+testpaths = ["tests"]
+
+[tool.pyright]
+include = ["src", "tests", "eval"]
+extraPaths = ["."]
+

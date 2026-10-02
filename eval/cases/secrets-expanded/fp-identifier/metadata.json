@@ -1,0 +1,1 @@
+{"case_id":"fp-identifier","language":"python","category":"clean","severity":"low","expected_status":"review_only","expected_finding_status":"review_only","expected_behavior":"A variable name containing token is not a credential.","abstention_allowed":false,"tags":["false-positive-challenge"]}

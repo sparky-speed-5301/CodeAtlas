@@ -1,0 +1,21 @@
+{
+  "allow_patch_suggestions": true,
+  "case_id": "case-39-invalid-duplicate-suggestion",
+  "category": "live_patch",
+  "config": {},
+  "description": "Second identical suggestion for the same finding is rejected as duplicate",
+  "expected": {
+    "expected_policy": "allowed",
+    "expected_proposal_status": "requires_human_approval",
+    "proposals_created": 1,
+    "rejection_reasons": [
+      "duplicate suggestion"
+    ],
+    "request_made": true,
+    "suggestions_accepted": 1,
+    "suggestions_received": 2,
+    "suggestions_rejected": 1
+  },
+  "scenario": "invalid_duplicate_suggestion",
+  "test_group": "invalid"
+}

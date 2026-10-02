@@ -1,0 +1,9 @@
+{
+  "format": "static-contract-v1",
+  "entrypoint": "access.py:can_read",
+  "tests": [
+    {"name": "anonymous denied", "input": {"user": null, "document": {"owner_id": 1}}, "expected": {"return": false}},
+    {"name": "owner allowed", "input": {"user": {"id": 1}, "document": {"owner_id": 1}}, "expected": {"return": true}},
+    {"name": "other user denied", "input": {"user": {"id": 2}, "document": {"owner_id": 1}}, "expected": {"return": false}}
+  ]
+}

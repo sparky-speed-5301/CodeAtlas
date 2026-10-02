@@ -1,0 +1,30 @@
+{
+  "summary": "Provider review of the changed function.",
+  "findings": [
+    {
+      "id": "CA-REV-AMBIG",
+      "file": "src/app.py",
+      "start_line": 5,
+      "end_line": 6,
+      "severity": "low",
+      "category": "LOGIC_BUG",
+      "claim": "Possible uninitialized accumulator",
+      "impact": "Calling compute_total with a large total raises ZeroDivisionError",
+      "evidence": [
+        "changed lines add 'total = total // 0'"
+      ],
+      "evidence_strength": "weak",
+      "confidence": 0.5,
+      "limitations": [
+        "Could not confirm from bounded context"
+      ],
+      "status": "detected",
+      "fixability": "review_required",
+      "provenance": {
+        "origin": "reviewer"
+      }
+    }
+  ],
+  "limitations": [],
+  "abstentions": []
+}

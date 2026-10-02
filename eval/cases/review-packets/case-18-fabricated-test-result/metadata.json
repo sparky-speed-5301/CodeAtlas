@@ -1,0 +1,14 @@
+{
+  "case_id": "case-18-fabricated-test-result",
+  "category": "review_packet",
+  "scenario": "fabricated_test_result",
+  "description": "Provider claims execution of non-existent test file",
+  "expected_packet_success": true,
+  "expected_policy": "allowed",
+  "expected_provider_valid": false,
+  "expected_truncated": false,
+  "expected_redacted": true,
+  "expected_merged_count": null,
+  "provider": "mock:fabricated_test",
+  "config": {}
+}

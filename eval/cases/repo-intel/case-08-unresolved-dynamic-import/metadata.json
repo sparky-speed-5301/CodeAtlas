@@ -1,0 +1,19 @@
+{
+  "case_id": "case-08-unresolved-dynamic-import",
+  "category": "repo_intel",
+  "scenario": "unresolved_dynamic_import",
+  "description": "Runtime dynamic import variable flagged as unresolved",
+  "expected_status": "detected",
+  "abstention_allowed": false,
+  "expected_changed_symbols": [
+    "sym::src/loader.ts::async_function::root::load"
+  ],
+  "expected_context_candidates": [
+    "src/loader.ts"
+  ],
+  "expected_files_count": 1,
+  "expected_imports_count": 1,
+  "expected_symbols_count": 1,
+  "expected_unresolved_refs": 1,
+  "expected_parse_failures": 0
+}

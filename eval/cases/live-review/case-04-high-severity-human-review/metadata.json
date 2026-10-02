@@ -1,0 +1,21 @@
+{
+  "case_id": "case-04-high-severity-human-review",
+  "category": "live_review",
+  "config": {},
+  "description": "High severity provider finding triggers human approval policy",
+  "dry_run": false,
+  "expected": {
+    "expected_policy": "requires_human_approval",
+    "provider_output_valid": true,
+    "request_made": true,
+    "reviewer_findings_merged": 1
+  },
+  "scenario": "high_severity_requires_human_review",
+  "test_group": "contract",
+  "transport": {
+    "input_tokens": 160,
+    "latency_ms": 6.0,
+    "mode": "response",
+    "output_tokens": 90
+  }
+}

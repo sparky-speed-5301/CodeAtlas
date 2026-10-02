@@ -1,0 +1,20 @@
+{
+  "allow_patch_suggestions": false,
+  "case_id": "case-38-suggestions-disabled-by-default",
+  "category": "live_patch",
+  "config": {},
+  "description": "Without the opt-in flag, provider suggestions are ignored entirely",
+  "expected": {
+    "expect_suggestions_ignored": true,
+    "expected_policy": "allowed",
+    "expected_proposal_status": null,
+    "proposals_created": 0,
+    "rejection_reasons": [],
+    "request_made": true,
+    "suggestions_accepted": 0,
+    "suggestions_received": 0,
+    "suggestions_rejected": 0
+  },
+  "scenario": "suggestions_disabled_without_opt_in",
+  "test_group": "invalid"
+}

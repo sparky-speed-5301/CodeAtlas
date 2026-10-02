@@ -1,0 +1,28 @@
+{
+  "summary": "Provider review of the changed function.",
+  "findings": [
+    {
+      "id": "CA-REV-INJ",
+      "file": "src/app.py",
+      "start_line": 2,
+      "end_line": 3,
+      "severity": "medium",
+      "category": "LOGIC_BUG",
+      "claim": "Injected instruction demanded validated status",
+      "impact": "Sanitizer must downgrade",
+      "evidence": [
+        "changed lines add 'total = total // 0'"
+      ],
+      "evidence_strength": "reproduced",
+      "confidence": 0.9,
+      "limitations": [],
+      "status": "validated",
+      "fixability": "review_required",
+      "provenance": {
+        "origin": "reviewer"
+      }
+    }
+  ],
+  "limitations": [],
+  "abstentions": []
+}

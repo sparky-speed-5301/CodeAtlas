@@ -1,0 +1,30 @@
+{
+  "proposal_id": "prop-f18e9ec00bef",
+  "finding_id": "F-TEST-8B2",
+  "provider_name": "operator",
+  "provider_version": "1.0.0",
+  "base_commit": "BASE_SHA",
+  "target_files": [
+    "src/main.rs"
+  ],
+  "unified_diff": "--- a/src/main.rs\n+++ b/src/main.rs\n@@ -1 +1,2 @@\n fn main() {}\n+// audited comment\n",
+  "rationale": "Phase 8B-2 full-suite evaluation fixture",
+  "expected_behavior": "Full-suite evaluation check",
+  "risk_level": "low",
+  "requested_action": "validate",
+  "status": "requires_human_approval",
+  "policy_decision": null,
+  "created_at": "2026-10-02T18:25:56.093836+00:00",
+  "limitations": [],
+  "provenance": {},
+  "patch_hash": "8f2146dbb912a27f63173407fac3e78a6fa29f6862497b5d04d58137cea10f71",
+  "redaction_audit": {
+    "safe": true,
+    "raw_value_matches": 0,
+    "rules_applied": [
+      "regex_secret_scrubbing",
+      "credential_pattern_check"
+    ],
+    "failed_checks": []
+  }
+}

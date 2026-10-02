@@ -1,0 +1,1 @@
+{"case_id":"placeholder-template","language":"typescript","category":"clean","severity":"info","expected_status":"review_only","expected_finding_status":"review_only","expected_behavior":"Ignore a template placeholder.","abstention_allowed":false,"tags":["placeholder"]}

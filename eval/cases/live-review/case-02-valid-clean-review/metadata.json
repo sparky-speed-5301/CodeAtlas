@@ -1,0 +1,21 @@
+{
+  "case_id": "case-02-valid-clean-review",
+  "category": "live_review",
+  "config": {},
+  "description": "Provider returns no findings and a clean summary",
+  "dry_run": false,
+  "expected": {
+    "expected_policy": "allowed",
+    "provider_output_valid": true,
+    "request_made": true,
+    "reviewer_findings_merged": 0
+  },
+  "scenario": "valid_clean_review",
+  "test_group": "contract",
+  "transport": {
+    "input_tokens": 140,
+    "latency_ms": 4.0,
+    "mode": "response",
+    "output_tokens": 30
+  }
+}

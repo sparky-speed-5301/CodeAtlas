@@ -1,0 +1,10 @@
+{
+  "case_id": "py-sql-format",
+  "language": "python",
+  "category": "buggy",
+  "severity": "high",
+  "expected_status": "detected",
+  "abstention_allowed": false,
+  "expected_behavior": "Build a parameterized query so the user value cannot alter SQL syntax.",
+  "tags": ["injection", "database"]
+}

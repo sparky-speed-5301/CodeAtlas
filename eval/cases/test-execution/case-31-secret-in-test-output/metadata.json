@@ -1,0 +1,17 @@
+{
+  "case_id": "case-31-secret-in-test-output",
+  "scenario": "secret_in_test_output",
+  "group": "safety",
+  "token": "valid",
+  "expected": {
+    "exit": 0,
+    "status": "validated",
+    "tests_status": "passed",
+    "syntax_valid": true,
+    "applies_cleanly": true,
+    "approval_verified": true,
+    "execution_allowed": true,
+    "cleanup_status": "completed",
+    "redaction_applied": true
+  }
+}

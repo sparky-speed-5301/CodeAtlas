@@ -1,0 +1,15 @@
+{
+  "case_id": "case-05-unsupported-language",
+  "scenario": "unsupported_language",
+  "token": "valid",
+  "run_full_suite": true,
+  "test_config": {
+    "allow_full_suite": true
+  },
+  "expected": {
+    "exit": 1,
+    "status": "failed_validation",
+    "full_suite_requested": true,
+    "full_suite_status": "blocked"
+  }
+}

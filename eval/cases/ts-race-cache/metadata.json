@@ -1,0 +1,10 @@
+{
+  "case_id": "ts-race-cache",
+  "language": "typescript",
+  "category": "buggy",
+  "severity": "medium",
+  "expected_status": "detected",
+  "abstention_allowed": false,
+  "expected_behavior": "Coalesce concurrent cache misses into one loader call and share its result, including an empty string.",
+  "tags": ["concurrency", "cache"]
+}

@@ -1,0 +1,10 @@
+{
+  "format": "static-contract-v1",
+  "entrypoint": "email.py:is_email",
+  "tests": [
+    {"name": "simple email", "input": {"value": "alice@example.com"}, "expected": {"return": true}},
+    {"name": "empty rejected", "input": {"value": ""}, "expected": {"return": false}},
+    {"name": "whitespace rejected", "input": {"value": "alice @example.com"}, "expected": {"return": false}},
+    {"name": "missing host separator", "input": {"value": "alice@example"}, "expected": {"return": false}}
+  ]
+}

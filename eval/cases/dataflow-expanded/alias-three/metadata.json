@@ -1,0 +1,17 @@
+{
+    "abstention_allowed":  false,
+    "unsupported_flow":  false,
+    "expected_status":  "detected",
+    "flow_kind":  "alias",
+    "redaction":  "safe",
+    "case_id":  "alias-three",
+    "category":  "buggy",
+    "propagation_steps":  2,
+    "rule":  "command-injection",
+    "expected_redaction":  "safe",
+    "severity":  "high",
+    "expected_behavior":  "detect",
+    "tags":  [
+                 "flag-alias"
+             ]
+}

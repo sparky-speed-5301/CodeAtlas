@@ -1,0 +1,17 @@
+{
+  "case_id": "case-27-stale-proposal",
+  "scenario": "stale_proposal",
+  "group": "approval",
+  "token": "valid",
+  "base_commit": "stale",
+  "expected": {
+    "exit": 1,
+    "status": "failed_validation",
+    "tests_status": "not_run",
+    "syntax_valid": null,
+    "applies_cleanly": false,
+    "approval_verified": true,
+    "execution_allowed": false,
+    "cleanup_status": "not_applicable"
+  }
+}

@@ -1,0 +1,13 @@
+{
+  "case_id": "js-logger-direct-password",
+  "language": "javascript",
+  "category": "SENSITIVE_DATA_EXPOSURE",
+  "expected_status": "detected",
+  "expected_flow_type": "direct",
+  "expected_rule": "sensitive-to-sink",
+  "expected_severity": "high",
+  "expected_file": "src/auth.js",
+  "expected_line": 4,
+  "abstention_allowed": false,
+  "description": "JavaScript logger.error(password) direct flow"
+}

@@ -1,0 +1,14 @@
+{
+  "case_id": "case-04-changed-func-callee",
+  "category": "review_packet",
+  "scenario": "changed_function_with_callee",
+  "description": "Changed caller invoking downstream database callee",
+  "expected_packet_success": true,
+  "expected_policy": "allowed",
+  "expected_provider_valid": true,
+  "expected_truncated": false,
+  "expected_redacted": true,
+  "expected_merged_count": null,
+  "provider": "mock:clean",
+  "config": {}
+}

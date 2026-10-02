@@ -1,0 +1,21 @@
+{
+  "case_id": "case-20-duplicate-finding-ids",
+  "category": "live_review",
+  "config": {},
+  "description": "Two findings share one ID; the duplicate is excluded",
+  "dry_run": false,
+  "expected": {
+    "expected_policy": "allowed",
+    "provider_output_valid": false,
+    "request_made": true,
+    "reviewer_findings_merged": 1
+  },
+  "scenario": "duplicate_finding_ids",
+  "test_group": "contract",
+  "transport": {
+    "input_tokens": 160,
+    "latency_ms": 5.0,
+    "mode": "response",
+    "output_tokens": 95
+  }
+}

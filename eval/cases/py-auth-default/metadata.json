@@ -1,0 +1,10 @@
+{
+  "case_id": "py-auth-default",
+  "language": "python",
+  "category": "buggy",
+  "severity": "blocker",
+  "expected_status": "detected",
+  "abstention_allowed": false,
+  "expected_behavior": "Deny access when no authenticated principal is present.",
+  "tags": ["authorization", "default-deny"]
+}

@@ -1,0 +1,30 @@
+{
+  "proposal_id": "prop-52a44091fc3c",
+  "finding_id": "FIND-case-22-rename-proposal",
+  "provider_name": "eval-fixer",
+  "provider_version": "1.0.0",
+  "base_commit": "HEAD",
+  "target_files": [
+    "src/calc_new.py"
+  ],
+  "unified_diff": "rename from src/calc.py\nrename to src/calc_new.py\n--- a/src/calc.py\n+++ b/src/calc_new.py\n@@ -1,2 +1,2 @@\n def run():\n     return 42\n",
+  "rationale": "Rename file operation policy rejection",
+  "expected_behavior": "Resolve finding",
+  "risk_level": "low",
+  "requested_action": "validate",
+  "status": "proposed",
+  "policy_decision": null,
+  "created_at": "2026-10-02T08:34:16.825155+00:00",
+  "limitations": [],
+  "provenance": {},
+  "patch_hash": "8487ef383c889e20f179b234da8f2b632dc87920afc955a4bca23f5841a8eb88",
+  "redaction_audit": {
+    "safe": true,
+    "raw_value_matches": 0,
+    "rules_applied": [
+      "regex_secret_scrubbing",
+      "credential_pattern_check"
+    ],
+    "failed_checks": []
+  }
+}

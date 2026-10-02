@@ -1,0 +1,34 @@
+{
+  "proposal_id": "prop-07cd8c92579f",
+  "finding_id": "FIND-case-16-secret-introducing-patch",
+  "provider_name": "eval-fixer",
+  "provider_version": "1.0.0",
+  "base_commit": "HEAD",
+  "target_files": [
+    "src/calc.py"
+  ],
+  "unified_diff": "--- a/src/calc.py\n+++ b/src/calc.py\n@@ -1,2 +1,3 @@\n def run():\n+    KEY = 'AKIA1234567890ABCDEF'\n     return 42\n",
+  "rationale": "Secret introducing patch redaction failure",
+  "expected_behavior": "Resolve finding",
+  "risk_level": "low",
+  "requested_action": "validate",
+  "status": "proposed",
+  "policy_decision": null,
+  "created_at": "2026-10-02T08:34:16.704814+00:00",
+  "limitations": [
+    "Patch contains potentially unredacted sensitive content"
+  ],
+  "provenance": {},
+  "patch_hash": "55bad9a27c68cf40eb0f8a747fe1017700d7b3906af27f44b677ef0ff0680576",
+  "redaction_audit": {
+    "safe": false,
+    "raw_value_matches": 1,
+    "rules_applied": [
+      "regex_secret_scrubbing",
+      "credential_pattern_check"
+    ],
+    "failed_checks": [
+      "secret_pattern:(?i)(AKIA|ASIA)[A-Z0-9]{1"
+    ]
+  }
+}

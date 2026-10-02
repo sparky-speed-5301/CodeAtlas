@@ -1,0 +1,17 @@
+{
+  "case_id": "case-18-test-timeout",
+  "scenario": "test_timeout",
+  "group": "execution",
+  "token": "valid",
+  "test_timeout": 0.5,
+  "expected": {
+    "exit": 1,
+    "status": "failed_validation",
+    "tests_status": "timed_out",
+    "syntax_valid": true,
+    "applies_cleanly": true,
+    "approval_verified": true,
+    "execution_allowed": true,
+    "cleanup_status": "completed"
+  }
+}

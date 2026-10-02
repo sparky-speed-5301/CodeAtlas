@@ -1,0 +1,19 @@
+{
+  "case_id": "case-05-patch-adding-safe-null-check",
+  "title": "Patch adding safe null check",
+  "target_files": [
+    "src/auth.py"
+  ],
+  "expected_status": "validated",
+  "expected_policy_decision": "requires_human_approval",
+  "expected_valid": true,
+  "expected_applies_cleanly": true,
+  "expected_syntax_valid": true,
+  "expected_rejection_reason": null,
+  "application_allowed": true,
+  "original_worktree_must_remain_unchanged": true,
+  "tamper_hash": false,
+  "wrong_base_commit": false,
+  "invalid_token": false,
+  "no_token": false
+}

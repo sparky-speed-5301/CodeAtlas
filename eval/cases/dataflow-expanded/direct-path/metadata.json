@@ -1,0 +1,17 @@
+{
+    "abstention_allowed":  false,
+    "unsupported_flow":  false,
+    "expected_status":  "detected",
+    "flow_kind":  "direct",
+    "redaction":  "safe",
+    "case_id":  "direct-path",
+    "category":  "buggy",
+    "propagation_steps":  1,
+    "rule":  "path-traversal",
+    "expected_redaction":  "safe",
+    "severity":  "medium",
+    "expected_behavior":  "detect",
+    "tags":  [
+                 "flag-direct"
+             ]
+}

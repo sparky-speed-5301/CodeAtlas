@@ -1,0 +1,30 @@
+{
+  "proposal_id": "prop-05c6a58b268f",
+  "finding_id": "F-7C",
+  "provider_name": "operator",
+  "provider_version": "1.0.0",
+  "base_commit": "BASE_SHA",
+  "target_files": [
+    "src/app.py"
+  ],
+  "unified_diff": "--- ../../etc/passwd\n+++ b/src/app.py\n@@ -1,2 +1,3 @@\n def run():\n+    # guarded\n     return 42\n",
+  "rationale": "Operator-approved isolated validation fixture",
+  "expected_behavior": "Applies cleanly with valid syntax",
+  "risk_level": "low",
+  "requested_action": "validate",
+  "status": "proposed",
+  "policy_decision": null,
+  "created_at": "2026-10-02T15:59:21.593755+00:00",
+  "limitations": [],
+  "provenance": {},
+  "patch_hash": "11e96ab811803fdbc58f491491aeddb7dd0c6065cdbc36055f48d1da0e06554f",
+  "redaction_audit": {
+    "safe": true,
+    "raw_value_matches": 0,
+    "rules_applied": [
+      "regex_secret_scrubbing",
+      "credential_pattern_check"
+    ],
+    "failed_checks": []
+  }
+}

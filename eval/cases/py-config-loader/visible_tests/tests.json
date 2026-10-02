@@ -1,0 +1,9 @@
+{
+  "format": "static-contract-v1",
+  "entrypoint": "config.py:load",
+  "tests": [
+    {"name": "object accepted", "input": {"file_text": "{\"enabled\": true}"}, "expected": {"return": {"enabled": true}}},
+    {"name": "array rejected", "input": {"file_text": "[]"}, "expected": {"error": "ValueError"}},
+    {"name": "malformed JSON surfaced", "input": {"file_text": "{"}, "expected": {"error": "JSONDecodeError"}}
+  ]
+}

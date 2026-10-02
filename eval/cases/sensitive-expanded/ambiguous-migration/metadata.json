@@ -1,0 +1,1 @@
+{"case_id": "ambiguous-migration", "language": "python", "category": "ambiguous", "severity": "low", "expected_status": "abstained", "expected_finding_status": "abstained", "expected_redaction": "not_applicable", "expected_behavior": "ambiguous sensitive-data scenario.", "abstention_allowed": true, "rule": "password", "tags": ["ambiguous"]}

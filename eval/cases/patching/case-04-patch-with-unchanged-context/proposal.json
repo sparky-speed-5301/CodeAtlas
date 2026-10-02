@@ -1,0 +1,30 @@
+{
+  "proposal_id": "prop-0e565d23b9ce",
+  "finding_id": "FIND-case-04-patch-with-unchanged-context",
+  "provider_name": "eval-fixer",
+  "provider_version": "1.0.0",
+  "base_commit": "HEAD",
+  "target_files": [
+    "src/parser.py"
+  ],
+  "unified_diff": "--- a/src/parser.py\n+++ b/src/parser.py\n@@ -3,4 +3,5 @@\n def parse_data(raw):\n+    if not raw: return {}\n     header = raw[:10]\n     payload = raw[10:]\n     return payload\n",
+  "rationale": "Patch with unchanged context lines",
+  "expected_behavior": "Resolve finding",
+  "risk_level": "low",
+  "requested_action": "validate",
+  "status": "proposed",
+  "policy_decision": null,
+  "created_at": "2026-10-02T08:34:16.665322+00:00",
+  "limitations": [],
+  "provenance": {},
+  "patch_hash": "96c61536c6062f7f61e135f88b4e183acc9cdc8c2e933dd7db9fb7dafc1848b0",
+  "redaction_audit": {
+    "safe": true,
+    "raw_value_matches": 0,
+    "rules_applied": [
+      "regex_secret_scrubbing",
+      "credential_pattern_check"
+    ],
+    "failed_checks": []
+  }
+}

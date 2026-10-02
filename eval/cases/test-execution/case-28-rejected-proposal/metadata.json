@@ -1,0 +1,16 @@
+{
+  "case_id": "case-28-rejected-proposal",
+  "scenario": "rejected_proposal",
+  "group": "approval",
+  "token": "valid",
+  "expected": {
+    "exit": 1,
+    "status": "rejected",
+    "tests_status": "not_run",
+    "syntax_valid": null,
+    "applies_cleanly": false,
+    "approval_verified": false,
+    "execution_allowed": false,
+    "cleanup_status": "not_applicable"
+  }
+}

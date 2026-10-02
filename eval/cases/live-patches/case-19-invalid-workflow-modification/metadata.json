@@ -1,0 +1,21 @@
+{
+  "allow_patch_suggestions": true,
+  "case_id": "case-19-invalid-workflow-modification",
+  "category": "live_patch",
+  "config": {},
+  "description": "Provider patch modifying CI workflow is rejected by patch policy",
+  "expected": {
+    "expected_policy": "requires_human_approval",
+    "expected_proposal_status": null,
+    "proposals_created": 0,
+    "rejection_reasons": [
+      "workflow files is prohibited"
+    ],
+    "request_made": true,
+    "suggestions_accepted": 0,
+    "suggestions_received": 1,
+    "suggestions_rejected": 1
+  },
+  "scenario": "invalid_workflow_modification",
+  "test_group": "invalid"
+}

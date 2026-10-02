@@ -1,0 +1,30 @@
+{
+  "proposal_id": "prop-e3e7bc3dc2c7",
+  "finding_id": "FIND-case-29-syntax-breaking-patch",
+  "provider_name": "eval-fixer",
+  "provider_version": "1.0.0",
+  "base_commit": "HEAD",
+  "target_files": [
+    "src/calc.py"
+  ],
+  "unified_diff": "--- a/src/calc.py\n+++ b/src/calc.py\n@@ -1,2 +1,3 @@\n def run():\n+    def broken(:\n     return 42\n",
+  "rationale": "Syntax breaking patch rejected by validator",
+  "expected_behavior": "Resolve finding",
+  "risk_level": "low",
+  "requested_action": "validate",
+  "status": "proposed",
+  "policy_decision": null,
+  "created_at": "2026-10-02T08:34:16.843978+00:00",
+  "limitations": [],
+  "provenance": {},
+  "patch_hash": "f09c4ff23c83e34d3de0733d612faf1c7c60997d9b6e93a1e5f9a71e0c00e70c",
+  "redaction_audit": {
+    "safe": true,
+    "raw_value_matches": 0,
+    "rules_applied": [
+      "regex_secret_scrubbing",
+      "credential_pattern_check"
+    ],
+    "failed_checks": []
+  }
+}

@@ -1,0 +1,19 @@
+{
+  "case_id": "case-14-renamed-file",
+  "category": "repo_intel",
+  "scenario": "renamed_file",
+  "description": "Renamed source file tracked correctly in index and diff",
+  "expected_status": "detected",
+  "abstention_allowed": false,
+  "expected_changed_symbols": [
+    "sym::src/new_service.py::function::root::service_fn"
+  ],
+  "expected_context_candidates": [
+    "src/new_service.py"
+  ],
+  "expected_files_count": 1,
+  "expected_imports_count": 0,
+  "expected_symbols_count": 1,
+  "expected_unresolved_refs": 0,
+  "expected_parse_failures": 0
+}

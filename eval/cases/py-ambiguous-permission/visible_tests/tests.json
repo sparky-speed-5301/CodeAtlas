@@ -1,0 +1,8 @@
+{
+  "format": "static-contract-v1",
+  "entrypoint": "permission.py:can_edit",
+  "tests": [
+    {"name": "explicit editor", "input": {"user": {"id": 1, "team_id": 4}, "project": {"editors": [1], "teams": []}}, "expected": {"return": true}},
+    {"name": "team grant unspecified", "input": {"user": {"id": 2, "team_id": 4}, "project": {"editors": [], "teams": [4]}}, "expected": {"review_status": "ambiguous", "missing_context": "Whether project.teams grants edit or only read access"}}
+  ]
+}

@@ -1,0 +1,1 @@
+{"case_id": "tp-github-token", "language": "python", "category": "buggy", "severity": "high", "expected_status": "detected", "expected_finding_status": "detected", "expected_redaction": "pass", "expected_behavior": "true-positive sensitive-data scenario.", "abstention_allowed": false, "rule": "token", "tags": ["true-positive"]}

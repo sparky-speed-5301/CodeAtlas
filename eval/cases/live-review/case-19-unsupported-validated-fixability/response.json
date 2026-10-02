@@ -1,0 +1,28 @@
+{
+  "summary": "Provider review of the changed function.",
+  "findings": [
+    {
+      "id": "CA-REV-FIXVAL",
+      "file": "src/app.py",
+      "start_line": 5,
+      "end_line": 6,
+      "severity": "medium",
+      "category": "LOGIC_BUG",
+      "claim": "This is definitely fixed",
+      "impact": "Sanitizer must force review_required",
+      "evidence": [
+        "changed lines add 'total = total // 0'"
+      ],
+      "evidence_strength": "supported",
+      "confidence": 0.9,
+      "limitations": [],
+      "status": "detected",
+      "fixability": "validated",
+      "provenance": {
+        "origin": "reviewer"
+      }
+    }
+  ],
+  "limitations": [],
+  "abstentions": []
+}

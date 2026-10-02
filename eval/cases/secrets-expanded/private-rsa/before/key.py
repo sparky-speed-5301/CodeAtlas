@@ -1,0 +1,1 @@
+PRIVATE_KEY = "-----BEGIN RSA PRIVATE KEY-----"

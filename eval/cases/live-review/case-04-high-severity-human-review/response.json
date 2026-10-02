@@ -1,0 +1,28 @@
+{
+  "summary": "Provider review of the changed function.",
+  "findings": [
+    {
+      "id": "CA-REV-HIGH",
+      "file": "src/app.py",
+      "start_line": 5,
+      "end_line": 6,
+      "severity": "high",
+      "category": "LOGIC_BUG",
+      "claim": "Uninitialized accumulator can crash request handling",
+      "impact": "Calling compute_total with a large total raises ZeroDivisionError",
+      "evidence": [
+        "changed lines add 'total = total // 0'"
+      ],
+      "evidence_strength": "supported",
+      "confidence": 0.92,
+      "limitations": [],
+      "status": "detected",
+      "fixability": "review_required",
+      "provenance": {
+        "origin": "reviewer"
+      }
+    }
+  ],
+  "limitations": [],
+  "abstentions": []
+}

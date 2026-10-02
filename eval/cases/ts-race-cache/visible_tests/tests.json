@@ -1,0 +1,8 @@
+{
+  "format": "static-contract-v1",
+  "entrypoint": "cache.ts:getValue",
+  "tests": [
+    {"name": "concurrent misses share pending load", "input": {"schedule": ["call A", "call B before A resolves", "resolve load with fresh"]}, "expected": {"loader_calls": 1, "results": ["fresh", "fresh"]}},
+    {"name": "empty result remains cached", "input": {"schedule": ["call A", "resolve load with empty string", "call B"]}, "expected": {"loader_calls": 1, "results": ["", ""]}}
+  ]
+}

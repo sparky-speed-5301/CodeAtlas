@@ -1,0 +1,1 @@
+{"case_id":"fp-url","language":"typescript","category":"clean","severity":"low","expected_status":"review_only","expected_finding_status":"review_only","expected_behavior":"A URL without credentials is not a secret.","abstention_allowed":false,"tags":["false-positive-challenge"]}

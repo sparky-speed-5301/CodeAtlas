@@ -1,0 +1,21 @@
+{
+  "case_id": "case-18-fabricated-test-result",
+  "category": "live_review",
+  "config": {},
+  "description": "Finding claims a test that is not in the packet; rejected",
+  "dry_run": false,
+  "expected": {
+    "expected_policy": "allowed",
+    "provider_output_valid": false,
+    "request_made": true,
+    "reviewer_findings_merged": 0
+  },
+  "scenario": "fabricated_test_consultation",
+  "test_group": "adversarial",
+  "transport": {
+    "input_tokens": 160,
+    "latency_ms": 5.0,
+    "mode": "response",
+    "output_tokens": 85
+  }
+}

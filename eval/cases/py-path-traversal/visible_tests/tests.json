@@ -1,0 +1,9 @@
+{
+  "format": "static-contract-v1",
+  "entrypoint": "downloads.py:download",
+  "tests": [
+    {"name": "local file", "input": {"root": "/downloads", "requested": "hello.txt", "files": {"/downloads/hello.txt": "hello"}}, "expected": {"bytes_utf8": "hello"}},
+    {"name": "parent escape", "input": {"root": "/downloads", "requested": "../secret.txt", "files": {"/secret.txt": "secret"}}, "expected": {"error": "ValueError"}},
+    {"name": "absolute escape", "input": {"root": "/downloads", "requested": "/secret.txt"}, "expected": {"error": "ValueError"}}
+  ]
+}

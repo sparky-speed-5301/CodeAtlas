@@ -1,0 +1,19 @@
+{
+  "case_id": "case-12-workflow-modification",
+  "title": "Workflow file modification policy rejection",
+  "target_files": [
+    ".github/workflows/ci.yml"
+  ],
+  "expected_status": "rejected",
+  "expected_policy_decision": "rejected",
+  "expected_valid": false,
+  "expected_applies_cleanly": false,
+  "expected_syntax_valid": null,
+  "expected_rejection_reason": "Modifying CI/CD or workflow files is prohibited",
+  "application_allowed": false,
+  "original_worktree_must_remain_unchanged": true,
+  "tamper_hash": false,
+  "wrong_base_commit": false,
+  "invalid_token": false,
+  "no_token": false
+}

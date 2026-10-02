@@ -1,0 +1,21 @@
+{
+  "allow_patch_suggestions": true,
+  "case_id": "case-16-invalid-patch-conflict",
+  "category": "live_patch",
+  "config": {},
+  "description": "invalid_patch_conflict",
+  "expected": {
+    "expected_policy": "allowed",
+    "expected_proposal_status": null,
+    "proposals_created": 0,
+    "rejection_reasons": [
+      "stale base commit or patch conflict"
+    ],
+    "request_made": true,
+    "suggestions_accepted": 0,
+    "suggestions_received": 1,
+    "suggestions_rejected": 1
+  },
+  "scenario": "invalid_patch_conflict",
+  "test_group": "invalid"
+}

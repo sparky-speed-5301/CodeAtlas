@@ -1,0 +1,30 @@
+{
+  "proposal_id": "prop-27fc09115128",
+  "finding_id": "FIND-case-08-path-traversal",
+  "provider_name": "eval-fixer",
+  "provider_version": "1.0.0",
+  "base_commit": "HEAD",
+  "target_files": [
+    "../../etc/passwd"
+  ],
+  "unified_diff": "--- a/../../etc/passwd\n+++ b/../../etc/passwd\n@@ -1,1 +1,1 @@\n-a\n+b\n",
+  "rationale": "Path traversal rejection",
+  "expected_behavior": "Resolve finding",
+  "risk_level": "low",
+  "requested_action": "validate",
+  "status": "proposed",
+  "policy_decision": null,
+  "created_at": "2026-10-02T08:34:16.679554+00:00",
+  "limitations": [],
+  "provenance": {},
+  "patch_hash": "ea5b7bc43b6529ef9aa19a8c3d0799df3159f75c3680b4aef3bfc48ac0bdd3bc",
+  "redaction_audit": {
+    "safe": true,
+    "raw_value_matches": 0,
+    "rules_applied": [
+      "regex_secret_scrubbing",
+      "credential_pattern_check"
+    ],
+    "failed_checks": []
+  }
+}

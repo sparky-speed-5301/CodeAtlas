@@ -1,0 +1,20 @@
+{
+  "case_id": "case-04-changed-imported-symbol",
+  "category": "repo_intel",
+  "scenario": "changed_imported_symbol",
+  "description": "Imported local helper function modified to call imported symbol",
+  "expected_status": "detected",
+  "abstention_allowed": false,
+  "expected_changed_symbols": [
+    "sym::src/client.ts::function::root::run"
+  ],
+  "expected_context_candidates": [
+    "src/client.ts",
+    "src/api.ts"
+  ],
+  "expected_files_count": 2,
+  "expected_imports_count": 1,
+  "expected_symbols_count": 2,
+  "expected_unresolved_refs": 0,
+  "expected_parse_failures": 0
+}

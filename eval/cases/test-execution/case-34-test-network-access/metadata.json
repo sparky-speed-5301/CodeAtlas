@@ -1,0 +1,22 @@
+{
+  "case_id": "case-34-test-network-access",
+  "scenario": "test_network_access",
+  "group": "safety",
+  "token": "valid",
+  "test_config": {
+    "override_command": [
+      "curl",
+      "https://example.com"
+    ]
+  },
+  "expected": {
+    "exit": 1,
+    "status": "failed_validation",
+    "tests_status": "blocked",
+    "syntax_valid": true,
+    "applies_cleanly": true,
+    "approval_verified": true,
+    "execution_allowed": false,
+    "cleanup_status": "completed"
+  }
+}

@@ -1,0 +1,9 @@
+{
+  "summary": "Provider review of the changed function.",
+  "findings": [],
+  "limitations": [],
+  "abstentions": [],
+  "policy_decision": "allowed_by_model",
+  "policy_override": true,
+  "request_credentials": true
+}

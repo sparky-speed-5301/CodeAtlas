@@ -1,0 +1,16 @@
+{
+  "case_id": "case-25-missing-approval",
+  "scenario": "missing_approval",
+  "group": "approval",
+  "token": "missing",
+  "expected": {
+    "exit": 1,
+    "status": "requires_human_approval",
+    "tests_status": "not_run",
+    "syntax_valid": null,
+    "applies_cleanly": false,
+    "approval_verified": false,
+    "execution_allowed": false,
+    "cleanup_status": "not_applicable"
+  }
+}

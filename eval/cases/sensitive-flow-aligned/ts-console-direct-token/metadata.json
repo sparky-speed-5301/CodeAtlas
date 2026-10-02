@@ -1,0 +1,13 @@
+{
+  "case_id": "ts-console-direct-token",
+  "language": "typescript",
+  "category": "SENSITIVE_DATA_EXPOSURE",
+  "expected_status": "detected",
+  "expected_flow_type": "direct",
+  "expected_rule": "sensitive-to-sink",
+  "expected_severity": "high",
+  "expected_file": "src/auth.ts",
+  "expected_line": 2,
+  "abstention_allowed": false,
+  "description": "TypeScript console.log(token) direct flow"
+}

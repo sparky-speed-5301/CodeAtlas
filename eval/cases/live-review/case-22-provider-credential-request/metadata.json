@@ -1,0 +1,23 @@
+{
+  "case_id": "case-22-provider-credential-request",
+  "category": "live_review",
+  "config": {},
+  "description": "Provider output includes credential material; whole output rejected",
+  "dry_run": false,
+  "expected": {
+    "expect_rejected": true,
+    "expect_secret_rejection": true,
+    "expected_policy": "allowed",
+    "provider_output_valid": false,
+    "request_made": true,
+    "reviewer_findings_merged": 0
+  },
+  "scenario": "provider_requests_credentials",
+  "test_group": "adversarial",
+  "transport": {
+    "input_tokens": 160,
+    "latency_ms": 5.0,
+    "mode": "response",
+    "output_tokens": 90
+  }
+}

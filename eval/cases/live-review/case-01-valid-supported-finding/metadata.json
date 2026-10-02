@@ -1,0 +1,21 @@
+{
+  "case_id": "case-01-valid-supported-finding",
+  "category": "live_review",
+  "config": {},
+  "description": "Provider returns one well-anchored finding on changed lines",
+  "dry_run": false,
+  "expected": {
+    "expected_policy": "allowed",
+    "provider_output_valid": true,
+    "request_made": true,
+    "reviewer_findings_merged": 1
+  },
+  "scenario": "valid_finding_supported_by_deterministic_pipeline",
+  "test_group": "contract",
+  "transport": {
+    "input_tokens": 150,
+    "latency_ms": 5.0,
+    "mode": "response",
+    "output_tokens": 80
+  }
+}

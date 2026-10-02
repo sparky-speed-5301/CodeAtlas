@@ -1,0 +1,17 @@
+{
+  "case_id": "case-10-excessive-output",
+  "scenario": "excessive_output",
+  "token": "valid",
+  "run_full_suite": true,
+  "max_output_bytes": 500,
+  "test_config": {
+    "allow_full_suite": true
+  },
+  "expected": {
+    "exit": 0,
+    "status": "validated",
+    "full_suite_requested": true,
+    "full_suite_status": "passed",
+    "output_truncated": true
+  }
+}

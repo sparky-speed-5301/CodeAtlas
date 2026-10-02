@@ -1,0 +1,17 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://codeatlas.dev/schemas/patch.schema.json",
+  "title": "CodeAtlas Patch",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["finding_id", "status", "diff", "validation"],
+  "properties": {
+    "finding_id": {"type": "string", "pattern": "^CA-[A-Z0-9][A-Z0-9._-]*$"},
+    "status": {"enum": ["suggested", "validated", "rejected", "abstained"]},
+    "diff": {"type": "string"},
+    "validation": {"type": "object", "additionalProperties": false, "required": ["checks_run", "checks_passed", "errors"], "properties": {"checks_run": {"type": "array", "items": {"type": "string"}}, "checks_passed": {"type": "boolean"}, "errors": {"type": "array", "items": {"type": "string"}}}},
+    "commands": {"type": "array", "items": {"type": "string"}},
+    "results": {"type": "array", "items": {"type": "string"}}
+  },
+  "allOf": [{"if": {"properties": {"status": {"const": "validated"}}}, "then": {"properties": {"validation": {"properties": {"checks_passed": {"const": true}}}}}}]
+}

@@ -1,0 +1,12 @@
+{
+  "case_id": "case-01-disabled-by-default",
+  "scenario": "disabled_by_default",
+  "token": "valid",
+  "run_full_suite": false,
+  "expected": {
+    "exit": 0,
+    "status": "requires_human_approval",
+    "full_suite_requested": false,
+    "full_suite_status": "not_run"
+  }
+}

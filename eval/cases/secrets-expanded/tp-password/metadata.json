@@ -1,0 +1,1 @@
+{"case_id":"tp-password","language":"python","category":"buggy","severity":"high","expected_status":"detected","expected_finding_status":"detected","expected_redaction":"pass","expected_behavior":"Detect a literal password assignment.","abstention_allowed":false,"tags":["true-positive","password"]}

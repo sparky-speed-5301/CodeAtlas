@@ -1,0 +1,17 @@
+{
+    "abstention_allowed":  true,
+    "unsupported_flow":  false,
+    "expected_status":  "abstained",
+    "flow_kind":  "depth",
+    "redaction":  "safe",
+    "case_id":  "depth-limit",
+    "category":  "ambiguous",
+    "propagation_steps":  2,
+    "rule":  "dataflow",
+    "expected_redaction":  "safe",
+    "severity":  "medium",
+    "expected_behavior":  "abstain",
+    "tags":  [
+                 "review"
+             ]
+}
