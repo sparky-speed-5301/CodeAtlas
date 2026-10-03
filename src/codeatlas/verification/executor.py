@@ -48,6 +48,7 @@ def execute_test_command(
     limits: ResourceLimits | None = None,
     evidence: EvidenceLogger | None = None,
     sandbox_id: str | None = None,
+    proposal_id: str | None = None,
     extra_tokens: Sequence[str] = (),
     test_targets: Sequence[str] = (),
     runner: str = "",
@@ -312,6 +313,8 @@ def execute_test_command(
         network_allowed=res_limits.network_allowed,
         resource_limits=res_limits.model_dump(mode="json"),
         sandbox_id=sandbox_id,
+        proposal_id=proposal_id,
+        execution_started=not proc_failed,
         diagnostics_limitations=diag.get("diagnostics_limitations", []),
     )
 

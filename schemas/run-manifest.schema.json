@@ -73,6 +73,12 @@
     "automatic_application_attempted": {"type": ["boolean", "null"]},
     "automatic_application_blocked": {"type": ["boolean", "null"]},
     "approval_verified": {"type": ["boolean", "null"]},
+    "approval_scope": {"type": ["string", "null"]},
+    "proposal_id": {"type": ["string", "null"]},
+    "patch_hash": {"type": ["string", "null"]},
+    "test_evidence_attached": {"type": "boolean"},
+    "test_evidence_summary": {"type": "string", "maxLength": 4000},
+    "validation_limitations": {"type": "array", "items": {"type": "string"}},
     "isolated_validation_attempted": {"type": ["boolean", "null"]},
     "isolated_validation_status": {"type": ["string", "null"]},
     "sandbox_id": {"type": ["string", "null"]},
@@ -113,5 +119,26 @@
     "full_suite_blocked_reason": {"type": ["string", "null"]},
     "full_suite_command": {"type": "array", "items": {"type": "string"}},
     "full_suite_result": {"type": ["object", "null"], "additionalProperties": true}
-  }
+  },
+  "allOf": [
+    {
+      "if": {"required": ["proposal_id"], "properties": {"proposal_id": {"type": "string"}}},
+      "then": {
+        "required": ["approval_scope", "proposal_id", "patch_hash", "base_commit", "sandbox_id", "approval_verified", "test_evidence_attached", "test_evidence_summary", "validation_limitations", "network_isolation_verified"],
+        "properties": {"network_isolation_verified": {"type": "boolean"}, "approval_verified": {"type": "boolean"}}
+      }
+    },
+    {
+      "if": {"required": ["test_evidence_attached"], "properties": {"test_evidence_attached": {"const": true}}},
+      "then": {
+        "required": ["proposal_id", "sandbox_id", "approval_verified", "test_evidence_summary"],
+        "properties": {
+          "proposal_id": {"type": "string", "minLength": 1},
+          "sandbox_id": {"type": "string", "minLength": 1},
+          "approval_verified": {"const": true},
+          "test_evidence_summary": {"type": "string", "minLength": 1}
+        }
+      }
+    }
+  ]
 }

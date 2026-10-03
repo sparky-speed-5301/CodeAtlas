@@ -43,6 +43,17 @@ def evaluate_policy(
     blocking_reasons: list[str] = []
     needs_human = False
 
+    # Execution evidence never authorizes a patch. Even a full-suite pass is
+    # evidence of its executed scope only, and failures retain the human gate.
+    if packet.proposal_id is not None or packet.observed_test_evidence is not None or packet.test_evidence_exclusion_reason is not None:
+        needs_human = True
+        reasons.append("Observed validation does not grant patch approval; requires human approval")
+        reasons.append(f"Tests: targeted={packet.tests_status}, full_suite={packet.full_suite_status}")
+        if packet.test_evidence_exclusion_reason:
+            reasons.append(f"Test evidence excluded: {packet.test_evidence_exclusion_reason}")
+        if not packet.network_isolation_verified:
+            reasons.append("network_isolation_verified=false (policy/process enforcement only)")
+
     # Rule 1: Redaction failure is a fatal blocker
     if not packet.redaction_status.redacted or packet.redaction_status.failed_checks:
         msg = f"Redaction validation failed with {packet.redaction_status.raw_value_matches} raw match(es)"
@@ -50,7 +61,7 @@ def evaluate_policy(
         reasons.append(msg)
 
     # Rule 2: Abstain on truncated changed code if required by policy
-    if abstain_on_truncated:
+    if abstain_on_truncated and not blocking_reasons and not needs_human:
         has_truncated_changed_code = any(
             c.source_type in {"changed_code", "symbol"} and c.truncation_status != "full"
             for c in packet.context_candidates

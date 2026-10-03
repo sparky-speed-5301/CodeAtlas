@@ -132,6 +132,8 @@ def apply_patch_in_isolated_sandbox(
     full_suite_blocked_reason: str | None = None
     full_suite_command: list[str] | None = None
     full_suite_result: dict[str, Any] | None = None
+    test_result: TestResult | None = None
+    full_suite_test_plan: TestPlan | None = None
 
     def finish(**overrides: Any) -> PatchValidationResult:
         nonlocal full_suite_blocked_reason
@@ -183,6 +185,9 @@ def apply_patch_in_isolated_sandbox(
             "full_suite_blocked_reason": full_suite_blocked_reason,
             "full_suite_command": full_suite_command,
             "full_suite_result": full_suite_result,
+            "test_result": test_result,
+            "full_suite_test_plan": full_suite_test_plan,
+            "approval_scope": run_id,
         }
         payload.update(overrides)
         result = PatchValidationResult(**payload)
@@ -658,6 +663,7 @@ def apply_patch_in_isolated_sandbox(
                                 limits=limits,
                                 evidence=evidence,
                                 sandbox_id=sandbox_id,
+                                proposal_id=proposal.proposal_id,
                                 extra_tokens=tokens_to_redact,
                                 test_targets=plan.test_targets,
                                 runner=runner_name,
@@ -665,6 +671,7 @@ def apply_patch_in_isolated_sandbox(
                                 working_directory=plan.working_directory,
                             )
                             commands_run.extend(test_res.commands_run)
+                            test_result = test_res
                             tests_status = test_res.status
                             tests_run_list = list(plan.test_targets)
                             test_exit_code = test_res.exit_code
@@ -739,6 +746,7 @@ def apply_patch_in_isolated_sandbox(
                             policy=t_cfg,
                         )
 
+                    full_suite_test_plan = fs_plan
                     if fs_block_reason is not None:
                         _emit(evidence, "full_suite_blocked", sandbox_id=sandbox_id, reason=fs_block_reason)
                         full_suite_status = "blocked"
@@ -800,12 +808,14 @@ def apply_patch_in_isolated_sandbox(
                                 limits=fs_limits,
                                 evidence=evidence,
                                 sandbox_id=sandbox_id,
+                                proposal_id=proposal.proposal_id,
                                 extra_tokens=tokens_to_redact,
                                 test_targets=fs_plan.test_targets,
                                 runner=fs_runner_name,
                                 language=fs_plan.language,
                                 working_directory=fs_plan.working_directory,
                             )
+                            fs_res.full_suite = True
                             commands_run.extend(fs_res.commands_run)
                             full_suite_status = fs_res.status
                             full_suite_command = fs_res.command
@@ -912,7 +922,7 @@ def apply_patch_in_isolated_sandbox(
 
     if run_tests or run_full_suite:
         if proposal.status == PatchStatus.TESTS_PASSED:
-            proposal.transition_to(PatchStatus.VALIDATED)
+            proposal.transition_to(PatchStatus.FAILED_VALIDATION if failure else PatchStatus.VALIDATED)
         elif proposal.status in {
             PatchStatus.TESTS_FAILED,
             PatchStatus.TEST_TIMEOUT,
@@ -942,6 +952,7 @@ def apply_patch_in_isolated_sandbox(
     return finish(
         valid=is_valid,
         applies_cleanly=applied_cleanly,
+        patch_applied_in_isolated_sandbox=applied_cleanly,
         syntax_valid=syntax_valid,
         type_check_status="not_run",
         tests_status=tests_status,

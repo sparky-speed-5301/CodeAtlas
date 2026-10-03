@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from typing import Any
+from typing import Annotated, Any
 from pydantic import BaseModel, ConfigDict, Field
 
 
@@ -37,10 +37,10 @@ class OutputRedactionAudit(BaseModel):
     model_config = ConfigDict(extra="ignore")
 
     safe: bool = True
-    raw_value_matches: int = 0
-    rules_applied: list[str] = Field(default_factory=list)
-    redacted_items_count: int = 0
-    targets_audited: list[str] = Field(default_factory=list)
+    raw_value_matches: int = Field(default=0, ge=0, le=1_000_000_000)
+    rules_applied: list[Annotated[str, Field(max_length=128)]] = Field(default_factory=list, max_length=20)
+    redacted_items_count: int = Field(default=0, ge=0, le=1_000_000_000)
+    targets_audited: list[Annotated[str, Field(max_length=128)]] = Field(default_factory=list, max_length=64)
 
 
 class TestPlan(BaseModel):
@@ -99,6 +99,8 @@ class TestResult(BaseModel):
     failures: list[str] = Field(default_factory=list)
     resource_limits: dict[str, Any] = Field(default_factory=dict)
     sandbox_id: str | None = None
+    proposal_id: str | None = None
+    execution_started: bool = False
     diagnostics_limitations: list[str] = Field(default_factory=list)
     full_suite: bool = False
 

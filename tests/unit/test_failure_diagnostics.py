@@ -133,6 +133,10 @@ def test_review_packet_attachment_bounds() -> None:
 
     class DummyProposal:
         proposal_id = "prop-123"
+        base_commit = "a" * 40
+        unified_diff = "fixture"
+        from codeatlas.patching.proposal import compute_patch_hash
+        patch_hash = compute_patch_hash(unified_diff)
 
     # Should not attach if test was not run
     not_run_res = TestResult(status="not_run", execution_allowed=False)
@@ -144,6 +148,9 @@ def test_review_packet_attachment_bounds() -> None:
     executed_res = TestResult(
         status="failed",
         execution_allowed=True,
+        execution_started=True,
+        proposal_id="prop-123",
+        language="python",
         runner="pytest",
         command=["pytest", "tests/"],
         tests_run=["tests/test_calc.py"],
@@ -156,13 +163,23 @@ def test_review_packet_attachment_bounds() -> None:
         redaction_audit={"safe": True},
     )
 
-    pkt_attached = attach_observed_test_evidence(packet.model_copy(), DummyProposal(), executed_res)
+    from codeatlas.patching.models import PatchValidationResult
+    from codeatlas.verification.models import TestPlan
+    plan = TestPlan(language="python", exact_command=executed_res.command, test_targets=executed_res.tests_run)
+    validation = PatchValidationResult(
+        proposal_id="prop-123", sandbox_id="sandbox-test-1", base_commit=DummyProposal.base_commit,
+        patch_hash=DummyProposal.patch_hash, approval_verified=True,
+        applies_cleanly=True, patch_applied_in_isolated_sandbox=True, syntax_valid=True,
+        execution_allowed=True, test_execution_attempted=True, tests_status="failed",
+        test_plan=plan.model_dump(),
+    )
+    pkt_attached = attach_observed_test_evidence(packet.model_copy(), DummyProposal(), executed_res, validation)
     assert pkt_attached.observed_test_evidence is not None
     ev = pkt_attached.observed_test_evidence
 
     assert ev.proposal_id == "prop-123"
     assert ev.sandbox_id == "sandbox-test-1"
-    assert ev.result == "failed"
+    assert ev.status == "failed"
     assert len(ev.failed_test_names) <= 10
     assert len(ev.failure_summary) <= 500
     assert len(ev.stack_trace_summary.splitlines()) <= 6

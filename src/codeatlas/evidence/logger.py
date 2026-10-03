@@ -20,6 +20,7 @@ SAFE_FIELDS = frozenset({
     "suggestion_id", "risk_level", "valid", "applies_cleanly",
     # Isolated-validation metadata (Phase 7C): identifiers and aggregates only.
     "resulting_diff_hash", "retained",
+    "network_isolation_verified",
 })
 
 

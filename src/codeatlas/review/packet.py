@@ -6,13 +6,27 @@ import hashlib
 import json
 import re
 from pathlib import Path
-from typing import Any, Mapping, Sequence
+from typing import Annotated, Any, Literal, Mapping, Sequence, TYPE_CHECKING
 
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import BaseModel, ConfigDict, Field, ValidationError, model_validator
 
 from codeatlas.findings.models import Finding
 from codeatlas.git.models import Diff, LineRange
 from codeatlas.repository.models import ContextCandidate, RepositoryIndex, Symbol
+from codeatlas.verification.models import OutputRedactionAudit, TestPlan, TestResult
+from codeatlas.verification.diagnostics import MAX_FAILED_TESTS, MAX_STACK_FRAMES, MAX_SUMMARY_LENGTH, MAX_OUTPUT_BYTES
+from codeatlas.verification.command_policy import validate_test_command
+from codeatlas.verification.redaction import redact_test_output
+
+if TYPE_CHECKING:
+    from codeatlas.patching.models import PatchProposal, PatchValidationResult
+
+OBSERVED_TEST_DISCLAIMER = (
+    "Observed test evidence covers only the executed scope and does not prove patch correctness or absence of other regressions."
+)
+NETWORK_LIMITATION = "Network policy is process/policy enforcement only; OS-level network isolation is not independently verified."
+MAX_EVIDENCE_BYTES = 16_000
+BoundedText = Annotated[str, Field(max_length=512)]
 
 SECRET_PATTERNS = [
     re.compile(r"(?i)(AKIA|ASIA)[A-Z0-9]{16}"),
@@ -72,20 +86,45 @@ class ContextItem(BaseModel):
 class ObservedTestEvidence(BaseModel):
     """Bounded, observed test execution evidence attached to a ReviewPacket."""
 
-    model_config = ConfigDict(extra="ignore")
+    model_config = ConfigDict(extra="forbid", frozen=True)
 
-    proposal_id: str
-    sandbox_id: str
-    test_runner: str
-    command: list[str] = Field(default_factory=list)
-    target_tests: list[str] = Field(default_factory=list)
-    result: str = "not_run"  # passed, failed, timed_out, blocked, error
-    failure_summary: str | None = None
-    failed_test_names: list[str] = Field(default_factory=list)
-    stack_trace_summary: str | None = None
-    duration_ms: float = 0.0
-    limitations: list[str] = Field(default_factory=list)
-    observed_evidence_only: bool = True
+    proposal_id: str = Field(min_length=1, max_length=128)
+    sandbox_id: str = Field(min_length=1, max_length=128)
+    runner: Literal["pytest", "unittest", "vitest", "jest"]
+    language: Literal["python", "typescript", "javascript"]
+    command: list[BoundedText] = Field(min_length=1, max_length=64)
+    targets: list[BoundedText] = Field(max_length=64)
+    status: Literal["passed", "failed", "timed_out", "error"]
+    tests_passed: int = Field(ge=0, le=1_000_000_000)
+    tests_failed: int = Field(ge=0, le=1_000_000_000)
+    tests_skipped: int = Field(ge=0, le=1_000_000_000)
+    failed_test_names: list[Annotated[str, Field(max_length=160)]] = Field(max_length=MAX_FAILED_TESTS)
+    failure_summary: str = Field(max_length=MAX_SUMMARY_LENGTH)
+    stack_trace_summary: str = Field(default="", max_length=2000)
+    duration_ms: float = Field(ge=0, le=31_536_000_000, allow_inf_nan=False)
+    output_truncated: bool
+    redaction_audit: OutputRedactionAudit
+    network_policy_requested: str = Field(max_length=64)
+    network_policy_enforced: bool
+    network_isolation_verified: bool
+    limitations: list[BoundedText] = Field(max_length=20)
+    full_suite: bool = False
+    observed_evidence_only: Literal[True] = True
+
+    @model_validator(mode="after")
+    def bounded_observation(self) -> ObservedTestEvidence:
+        if not self.redaction_audit.safe:
+            raise ValueError("Observed evidence requires successful output redaction")
+        if len(self.stack_trace_summary.splitlines()) > MAX_STACK_FRAMES * 2:
+            raise ValueError("Stack summary exceeds frame budget")
+        diagnostics = self.failure_summary + self.stack_trace_summary + "".join(self.failed_test_names)
+        if len(diagnostics.encode("utf-8")) > MAX_OUTPUT_BYTES:
+            raise ValueError("Diagnostics exceed byte budget")
+        if len(self.model_dump_json().encode("utf-8")) > MAX_EVIDENCE_BYTES:
+            raise ValueError("Observed evidence exceeds byte budget")
+        if OBSERVED_TEST_DISCLAIMER not in self.limitations:
+            raise ValueError("Observed evidence disclaimer is required")
+        return self
 
 
 class ReviewPacket(BaseModel):
@@ -113,6 +152,12 @@ class ReviewPacket(BaseModel):
     truncated: bool = False
     excluded_candidates: list[dict[str, Any]] = Field(default_factory=list)
     observed_test_evidence: ObservedTestEvidence | None = None
+    proposal_id: str | None = None
+    sandbox_id: str | None = None
+    tests_status: str = "not_run"
+    full_suite_status: str = "not_run"
+    test_evidence_exclusion_reason: str | None = None
+    network_isolation_verified: bool = False
 
 
 def redact_text(text: str) -> tuple[str, list[str]]:
@@ -448,64 +493,125 @@ def assemble_review_packet(
 
 def attach_observed_test_evidence(
     packet: ReviewPacket,
-    proposal: Any,
-    test_result: Any,
+    proposal: PatchProposal,
+    test_result: TestResult | None,
+    validation: PatchValidationResult | None = None,
+    *,
+    test_plan: TestPlan | None = None,
 ) -> ReviewPacket:
-    """Attach bounded, redacted observed test evidence to a review packet.
+    """Fail-closed attachment of an actual execution record to its isolated patch.
 
-    Enforces:
-    - Test actually ran (execution_allowed is True and status != 'not_run').
-    - Output is verified redacted.
-    - Proposal ID and Sandbox ID are explicitly recorded.
-    - Limits on failed tests (10), stack frames (3), summary length (500), output bytes (4000).
-    - Failed tests are explicitly marked as observed evidence and not proof of patch correctness outside scope.
+    A validation report is mandatory: IDs supplied by a caller alone are not
+    proof of approval or isolated application. Rejected attempts clear stale evidence.
     """
-    if not test_result or not getattr(test_result, "execution_allowed", False):
+    packet = packet.model_copy(deep=True)
+    packet.observed_test_evidence = None
+    packet.network_isolation_verified = False
+    for limitation in (OBSERVED_TEST_DISCLAIMER, NETWORK_LIMITATION):
+        if limitation not in packet.limitations:
+            packet.limitations.append(limitation)
+
+    def exclude(reason: str) -> ReviewPacket:
+        packet.test_evidence_exclusion_reason = reason
         return packet
 
-    if getattr(test_result, "status", "not_run") == "not_run":
-        return packet
+    if validation:
+        packet.tests_status = validation.tests_status
+        packet.full_suite_status = validation.full_suite_status or "not_run"
+    if not test_result or test_result.status in {"not_run", "blocked"}:
+        blocked = "blocked" in {packet.tests_status, packet.full_suite_status}
+        return exclude(test_result.status if test_result else ("blocked" if blocked else "not_run"))
+    if not test_result.execution_allowed or not test_result.execution_started:
+        return exclude("execution_not_observed")
+    if validation is None or validation.approval_verified is not True:
+        return exclude("approval_not_verified")
+    if not validation.patch_applied_in_isolated_sandbox or not validation.applies_cleanly or validation.syntax_valid is not True:
+        return exclude("isolated_patch_application_not_verified")
+    if not validation.execution_allowed or not validation.test_execution_attempted:
+        return exclude("execution_not_observed")
+    if not proposal.proposal_id or proposal.proposal_id != validation.proposal_id or test_result.proposal_id != proposal.proposal_id:
+        return exclude("proposal_identity_mismatch")
+    if not validation.sandbox_id or test_result.sandbox_id != validation.sandbox_id:
+        return exclude("sandbox_identity_mismatch")
+    if packet.proposal_id not in {None, proposal.proposal_id} or packet.sandbox_id not in {None, validation.sandbox_id}:
+        return exclude("packet_identity_mismatch")
+    # An original review packet describes base..head; a remediation is based
+    # on that reviewed head. Validation-only packets have just a base commit.
+    packet_revision = packet.head_commit or packet.base_commit
+    if validation.base_commit != proposal.base_commit or packet_revision not in {None, proposal.base_commit} or validation.patch_hash != proposal.patch_hash:
+        return exclude("patch_identity_mismatch")
+    from codeatlas.patching.proposal import compute_patch_hash
+    if not proposal.patch_hash or compute_patch_hash(proposal.unified_diff) != proposal.patch_hash:
+        return exclude("patch_identity_mismatch")
+    if test_result.redaction_audit.get("safe") is not True:
+        return exclude("output_redaction_failed")
+    if not packet.redaction_status.redacted or packet.redaction_status.failed_checks:
+        return exclude("packet_redaction_failed")
+    try:
+        _, output_audit = redact_test_output(test_result.model_dump_json(), target_name="execution_result")
+        if not output_audit.safe or output_audit.raw_value_matches:
+            return exclude("output_redaction_failed")
+        plan = test_plan or TestPlan.model_validate(validation.test_plan or {})
+        if (plan.exact_command != test_result.command or plan.test_targets != test_result.tests_run
+                or plan.language != test_result.language or plan.full_suite != test_result.full_suite):
+            return exclude("test_plan_mismatch")
+        expected_status = validation.full_suite_status if plan.full_suite else validation.tests_status
+        if expected_status != test_result.status:
+            return exclude("test_status_mismatch")
+        if test_result.status == "passed" and test_result.tests_failed:
+            return exclude("test_status_mismatch")
+        if plan.full_suite and not (validation.full_suite_requested and validation.full_suite_policy_opted_in):
+            return exclude("full_suite_not_authorized")
+        command_check = validate_test_command(test_result.command)
+        if not command_check.allowed or command_check.executable != test_result.runner:
+            # The command policy reports the executable prefix, e.g. python.
+            prefix = ["python", "-m", test_result.runner]
+            if not command_check.allowed or test_result.command[:3] != prefix:
+                return exclude("unsupported_runner_or_command")
+        data = {
+            key: getattr(test_result, key) for key in (
+                "proposal_id", "sandbox_id", "runner", "language", "command", "status",
+                "tests_passed", "tests_failed", "tests_skipped", "failed_test_names",
+                "failure_summary", "stack_trace_summary", "duration_ms", "output_truncated",
+                "redaction_audit", "network_policy_requested", "network_policy_enforced", "full_suite",
+            )
+        }
+        data["targets"] = test_result.tests_run
+        data["network_isolation_verified"] = False  # No OS-isolation verifier exists yet.
+        limits = [OBSERVED_TEST_DISCLAIMER, NETWORK_LIMITATION]
+        if test_result.output_truncated:
+            limits.append("Output was truncated; diagnostic counts and summaries may be incomplete.")
+        limits.extend(plan.limitations + test_result.diagnostics_limitations)
+        data["limitations"] = list(dict.fromkeys(limits))
+        # Check all evidence metadata as well as output, before truncation can hide a secret.
+        _, fresh_audit = redact_test_output(json.dumps(data), target_name="observed_test_evidence")
+        if not fresh_audit.safe or fresh_audit.raw_value_matches:
+            return exclude("output_redaction_failed")
 
-    redaction_audit = getattr(test_result, "redaction_audit", {}) or {}
-    if isinstance(redaction_audit, dict) and not redaction_audit.get("safe", True):
-        return packet
+        def bounded(text: str, size: int) -> str:
+            return text.encode("utf-8")[:size].decode("utf-8", errors="ignore")
 
-    proposal_id = getattr(proposal, "proposal_id", "") if proposal else ""
-    sandbox_id = getattr(test_result, "sandbox_id", "sandbox") or "sandbox"
-    test_runner = getattr(test_result, "runner", "") or getattr(test_result, "language", "python")
-    raw_command = list(getattr(test_result, "command", []) or getattr(test_result, "commands_run", []))
-    target_tests = list(getattr(test_result, "tests_run", []))
-    result_status = getattr(test_result, "status", "not_run")
-
-    raw_summary = getattr(test_result, "failure_summary", "") or ""
-    summary = raw_summary[:500] if raw_summary else None
-
-    failed_names = list(getattr(test_result, "failed_test_names", []))[:10]
-    raw_stack = getattr(test_result, "stack_trace_summary", "") or ""
-    stack_lines = raw_stack.splitlines()[:6]
-    stack_trace = "\n".join(stack_lines) if stack_lines else None
-
-    dur_ms = float(getattr(test_result, "duration_ms", 0.0) or 0.0)
-
-    evidence_limitations = list(getattr(test_result, "diagnostics_limitations", []) or [])
-    evidence_limitations.append(
-        "Observed test evidence reflects tested scope only; does not prove patch correctness or regression absence elsewhere."
-    )
-
-    packet.observed_test_evidence = ObservedTestEvidence(
-        proposal_id=proposal_id,
-        sandbox_id=sandbox_id,
-        test_runner=test_runner,
-        command=raw_command,
-        target_tests=target_tests,
-        result=result_status,
-        failure_summary=summary,
-        failed_test_names=failed_names,
-        stack_trace_summary=stack_trace,
-        duration_ms=dur_ms,
-        limitations=evidence_limitations,
-        observed_evidence_only=True,
-    )
+        data["failed_test_names"] = [bounded(n, 160) for n in test_result.failed_test_names[:MAX_FAILED_TESTS]]
+        data["failure_summary"] = bounded(test_result.failure_summary, MAX_SUMMARY_LENGTH)
+        data["stack_trace_summary"] = bounded("\n".join(test_result.stack_trace_summary.splitlines()[:MAX_STACK_FRAMES * 2]), 1800)
+        data["limitations"] = [bounded(lim, 512) for lim in data["limitations"][:19]]
+        if (data["failed_test_names"] != test_result.failed_test_names
+                or data["failure_summary"] != test_result.failure_summary
+                or data["stack_trace_summary"] != test_result.stack_trace_summary
+                or data["limitations"] != list(dict.fromkeys(limits))):
+            data["limitations"].append("Evidence diagnostics or limitations were bounded for review.")
+        packet.observed_test_evidence = ObservedTestEvidence.model_validate(data)
+    except (ValidationError, ValueError):
+        return exclude("unbounded_or_invalid_result")
+    packet.proposal_id = proposal.proposal_id
+    packet.sandbox_id = validation.sandbox_id
+    packet.test_evidence_exclusion_reason = None
+    review_config = packet.configuration.get("review", {})
+    budget = review_config.get("max_packet_bytes", 100_000) if isinstance(review_config, dict) else 100_000
+    if len(packet.model_dump_json().encode("utf-8")) > budget:
+        packet.observed_test_evidence = None
+        return exclude("packet_byte_budget_exceeded")
+    packet.packet_size_statistics.total_bytes = len(packet.model_dump_json().encode("utf-8"))
     return packet
 
 

@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from typing import Any
 from pydantic import BaseModel, ConfigDict, Field
+from codeatlas.verification.models import TestPlan, TestResult
 
 
 class PatchStatus:
@@ -75,6 +76,9 @@ VALID_STATUS_TRANSITIONS: dict[str, set[str]] = {
     },
     PatchStatus.TESTS_PASSED: {
         PatchStatus.VALIDATED,
+        PatchStatus.TEST_EXECUTION_STARTED,
+        PatchStatus.TEST_BLOCKED,
+        PatchStatus.FAILED_VALIDATION,
     },
     PatchStatus.TESTS_FAILED: {
         PatchStatus.FAILED_VALIDATION,
@@ -201,6 +205,11 @@ class PatchValidationResult(BaseModel):
     full_suite_blocked_reason: str | None = None
     full_suite_command: list[str] | None = None
     full_suite_result: dict[str, Any] | None = None
+    # Phase 8C: retain the actual execution records, never reconstruct observations.
+    test_result: TestResult | None = None
+    full_suite_test_plan: TestPlan | None = None
+    approval_scope: str | None = None
+    patch_applied_in_isolated_sandbox: bool = False
 
 
 class PatchProposal(BaseModel):

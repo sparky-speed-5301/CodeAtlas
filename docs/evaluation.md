@@ -409,3 +409,21 @@ token-echo in rejection messages was removed in this phase).
 ```bash
 python eval/eval_isolated_validation.py --cases eval/cases/isolated-validation --output eval/results/isolated-validation.jsonl
 ```
+
+## Phase 8C: Observed Test Evidence Contracts
+
+`python eval/eval_observed_evidence.py` runs ten deterministic cases: targeted
+pass/failure, full-suite pass/failure, blocked execution, not-run, redaction
+failure, identity mismatch, truncated output, and unsupported runner. Each case
+reports attachment, identity, redaction exclusion, bounds, human-approval policy,
+network-isolation visibility, and JSON Schema checks. The denominator is ten
+contract cases; this is not a patch-correctness benchmark. Fixtures reuse
+`TestPlan`, `TestResult`, the diagnostics parser, and the output redaction audit.
+
+The evaluation validates every checked-in JSON Schema and validates generated
+packets (against `ReviewPacket.model_json_schema()`), observed evidence, and
+human-approval manifests. Unit tests also reject out-of-bounds or incomplete
+schema payloads. CLI integration tests exercise actual isolated targeted and
+full-suite runs, including failed runs and both scopes in sequence. Run the
+Phase 8A/8B regressions with `python eval/eval_test_execution.py` and
+`python eval/eval_full_suite.py`.

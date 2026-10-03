@@ -183,6 +183,47 @@ def patch_inspect(
     typer.echo(f"Rationale:        {prop.rationale}")
 
 
+def _validation_review_outputs(prop, res, repo, run_id, evidence_output):
+    """Render and export the same packet/manifest for both validation commands."""
+    from codeatlas.evidence import EvidenceLogger
+    from codeatlas.orchestrator.validation import build_validation_review
+    from codeatlas.review.rendering import render_test_evidence
+
+    if evidence_output:
+        with EvidenceLogger(evidence_output) as evidence:
+            packet, manifest = build_validation_review(
+                prop, res, repository=str(Path(repo).resolve()), run_id=run_id, evidence=evidence,
+            )
+    else:
+        packet, manifest = build_validation_review(
+            prop, res, repository=str(Path(repo).resolve()), run_id=run_id,
+        )
+    rendered = render_test_evidence(packet)
+    typer.echo(rendered)
+    return {
+        "review_packet": packet.model_dump(mode="json"),
+        "human_approval_manifest": manifest.model_dump(mode="json"),
+        "markdown_summary": rendered,
+    }
+
+
+def _write_separate_validation_outputs(
+    artifacts, packet_output, manifest_output, markdown_output, repo, protected_paths, approval_token
+):
+    from codeatlas.orchestrator.artifacts import ArtifactOutputError, write_validation_artifacts
+
+    try:
+        write_validation_artifacts(
+            artifacts, packet_output=packet_output, manifest_output=manifest_output,
+            markdown_output=markdown_output,
+            repository_root=Path(repo), protected_paths=[p for p in protected_paths if p is not None],
+            extra_tokens=[approval_token] if approval_token else [],
+        )
+    except ArtifactOutputError as error:
+        typer.echo(f"Error: {error}", err=True)
+        raise typer.Exit(code=1)
+
+
 @patch_app.command(name="validate")
 def patch_validate(
     proposal: str = typer.Option(..., "--proposal", help="Path to patch proposal JSON file."),
@@ -194,7 +235,10 @@ def patch_validate(
     test_timeout: float = typer.Option(30.0, "--test-timeout", help="Test execution timeout in seconds."),
     max_output_bytes: int = typer.Option(100_000, "--max-output-bytes", help="Maximum output bytes to capture."),
     retain_sandbox_on_failure: bool = typer.Option(False, "--retain-sandbox-on-failure", help="Keep sandbox on failure."),
-    report_output: Optional[str] = typer.Option(None, "--report-output", help="Write validation report JSON here."),
+    report_output: Optional[str] = typer.Option(None, "--report-output", metavar="PATH", help="Write validation report JSON here."),
+    packet_output: Optional[str] = typer.Option(None, "--packet-output", metavar="PATH", help="Write the generated ReviewPacket as separate JSON."),
+    manifest_output: Optional[str] = typer.Option(None, "--manifest-output", metavar="PATH", help="Write the generated human-approval manifest as separate JSON."),
+    markdown_output: Optional[str] = typer.Option(None, "--markdown-output", metavar="PATH", help="Write human-readable validation summary Markdown here."),
     evidence_output: Optional[str] = typer.Option(None, "--evidence-output", help="Write validation lifecycle JSONL here."),
     run_id: str = typer.Option("default", "--run-id", help="Approval scope run ID."),
     config: Optional[str] = typer.Option(None, "--config", help="Path to optional configuration JSON file."),
@@ -234,6 +278,7 @@ def patch_validate(
             prop,
             repository_root=Path(repo).resolve(),
             allow_isolated_apply=False,
+            run_id=run_id,
         )
         typer.echo(f"Valid:            {res.valid}")
         dec = prop.policy_decision.get("decision") if prop.policy_decision else "none"
@@ -247,17 +292,24 @@ def patch_validate(
             for warn in res.warnings:
                 typer.echo(f"  - {warn}")
 
+        artifacts = _validation_review_outputs(prop, res, repo, run_id, evidence_output)
         if report_output:
             report_path = Path(report_output)
             report_path.parent.mkdir(parents=True, exist_ok=True)
             report = res.model_dump(mode="json", exclude_none=True)
             report["proposal_status"] = prop.status
+            report["review_packet"] = artifacts["review_packet"]
+            report["human_approval_manifest"] = artifacts["human_approval_manifest"]
             report_path.write_text(
                 json.dumps(report, indent=2, sort_keys=True) + "\n",
                 encoding="utf-8",
             )
             typer.echo(f"Report output: {report_output}")
 
+        _write_separate_validation_outputs(
+            artifacts, packet_output, manifest_output, markdown_output, repo,
+            [proposal, config, report_output, evidence_output], approval_token,
+        )
         if not res.valid:
             raise typer.Exit(code=1)
         return
@@ -302,6 +354,7 @@ def patch_validate(
         typer.echo(f"Error: test validation failed: {type(err).__name__}: {err}", err=True)
         raise typer.Exit(code=1)
 
+    artifacts = _validation_review_outputs(prop, res, repo, run_id, evidence_output)
     typer.echo(f"Proposal ID:        {prop.proposal_id}")
     typer.echo(f"Sandbox ID:         {res.sandbox_id or 'none'}")
     typer.echo(f"Test Runner:        {res.test_runner or 'none'}")
@@ -349,12 +402,18 @@ def patch_validate(
         report_path.parent.mkdir(parents=True, exist_ok=True)
         report = res.model_dump(mode="json", exclude_none=True)
         report["proposal_status"] = prop.status
+        report["review_packet"] = artifacts["review_packet"]
+        report["human_approval_manifest"] = artifacts["human_approval_manifest"]
         report_path.write_text(
             json.dumps(report, indent=2, sort_keys=True) + "\n",
             encoding="utf-8",
         )
         typer.echo(f"Report output: {report_output}")
 
+    _write_separate_validation_outputs(
+        artifacts, packet_output, manifest_output, markdown_output, repo,
+        [proposal, config, report_output, evidence_output], approval_token,
+    )
     if not res.valid or (run_tests and res.tests_status != "passed") or (run_full_suite and res.full_suite_status != "passed"):
         raise typer.Exit(code=1)
 
@@ -368,7 +427,10 @@ def patch_apply_isolated(
         None, "--approval-token",
         help="Scoped human approval token. Omitting it fails closed before any application.",
     ),
-    report_output: Optional[str] = typer.Option(None, "--report-output", help="Write the validation report JSON here."),
+    report_output: Optional[str] = typer.Option(None, "--report-output", metavar="PATH", help="Write the validation report JSON here."),
+    packet_output: Optional[str] = typer.Option(None, "--packet-output", metavar="PATH", help="Write the generated ReviewPacket as separate JSON."),
+    manifest_output: Optional[str] = typer.Option(None, "--manifest-output", metavar="PATH", help="Write the generated human-approval manifest as separate JSON."),
+    markdown_output: Optional[str] = typer.Option(None, "--markdown-output", metavar="PATH", help="Write human-readable validation summary Markdown here."),
     evidence_output: Optional[str] = typer.Option(None, "--evidence-output", help="Write validation lifecycle JSONL here."),
     run_id: str = typer.Option("default", "--run-id", help="Approval scope run ID (must match token generation)."),
     retain_sandbox_on_failure: bool = typer.Option(
@@ -451,6 +513,7 @@ def patch_apply_isolated(
         typer.echo(f"Error: isolated validation failed: {type(err).__name__}: {err}", err=True)
         raise typer.Exit(code=1)
 
+    artifacts = _validation_review_outputs(prop, res, repo, run_id, evidence_output)
     typer.echo(f"Valid:              {res.valid}")
     typer.echo(f"Approval Verified:  {res.approval_verified}")
     typer.echo(f"Applies Cleanly:    {res.applies_cleanly}")
@@ -486,12 +549,18 @@ def patch_apply_isolated(
         report_path.parent.mkdir(parents=True, exist_ok=True)
         report = res.model_dump(mode="json", exclude_none=True)
         report["proposal_status"] = prop.status
+        report["review_packet"] = artifacts["review_packet"]
+        report["human_approval_manifest"] = artifacts["human_approval_manifest"]
         report_path.write_text(
             json.dumps(report, indent=2, sort_keys=True) + "\n",
             encoding="utf-8",
         )
         typer.echo(f"Report output: {report_output}")
 
+    _write_separate_validation_outputs(
+        artifacts, packet_output, manifest_output, markdown_output, repo,
+        [proposal, config, report_output, evidence_output], approval_token,
+    )
     if not res.valid or not res.applies_cleanly or (run_tests and res.tests_status != "passed") or (run_full_suite and res.full_suite_status != "passed"):
         raise typer.Exit(code=1)
 

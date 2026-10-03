@@ -83,6 +83,12 @@ class RunManifest(BaseModel):
     automatic_application_attempted: bool | None = None
     automatic_application_blocked: bool | None = None
     approval_verified: bool | None = None
+    approval_scope: str | None = None
+    proposal_id: str | None = None
+    patch_hash: str | None = None
+    test_evidence_attached: bool = False
+    test_evidence_summary: str = Field(default="", max_length=4000)
+    validation_limitations: list[str] = Field(default_factory=list)
     isolated_validation_attempted: bool | None = None
     isolated_validation_status: str | None = None
     sandbox_id: str | None = None

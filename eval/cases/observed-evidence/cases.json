@@ -1,0 +1,12 @@
+[
+  {"case_id": "targeted-pass", "status": "passed", "attached": true},
+  {"case_id": "targeted-failure", "status": "failed", "attached": true},
+  {"case_id": "full-suite-pass", "status": "passed", "full_suite": true, "attached": true},
+  {"case_id": "full-suite-failure", "status": "failed", "full_suite": true, "attached": true},
+  {"case_id": "blocked-execution", "status": "blocked", "attached": false, "reason": "blocked"},
+  {"case_id": "not-run", "status": "not_run", "attached": false, "reason": "not_run"},
+  {"case_id": "redaction-failure", "status": "failed", "redaction_safe": false, "attached": false, "reason": "output_redaction_failed"},
+  {"case_id": "identity-mismatch", "status": "passed", "wrong_identity": true, "attached": false, "reason": "proposal_identity_mismatch"},
+  {"case_id": "truncated-output", "status": "failed", "truncated": true, "attached": true},
+  {"case_id": "unsupported-runner", "status": "passed", "runner": "custom-script", "attached": false, "reason": "unsupported_runner_or_command"}
+]
