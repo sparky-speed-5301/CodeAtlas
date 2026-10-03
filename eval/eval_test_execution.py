@@ -68,6 +68,17 @@ def evaluate_test_execution_case(case_dir: Path) -> dict[str, Any]:
                 target = work / rel_path.relative_to(case_dir / "base")
                 target.parent.mkdir(parents=True, exist_ok=True)
                 target.write_text(rel_path.read_text(encoding="utf-8"), encoding="utf-8", newline="\n")
+                try:
+                    mode = rel_path.stat().st_mode
+                    if bool(mode & 0o111) or (
+                        rel_path.as_posix().endswith("node_modules/.bin/vitest")
+                        or rel_path.as_posix().endswith("node_modules/.bin/jest")
+                    ):
+                        target.chmod(mode | 0o755)
+                    else:
+                        target.chmod(mode)
+                except OSError:
+                    pass
         _git(work, "add", "-A")
         _git(work, "commit", "-qm", "base")
         base_sha = _git(work, "rev-parse", "HEAD")

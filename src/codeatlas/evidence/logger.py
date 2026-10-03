@@ -21,6 +21,8 @@ SAFE_FIELDS = frozenset({
     # Isolated-validation metadata (Phase 7C): identifiers and aggregates only.
     "resulting_diff_hash", "retained",
     "network_isolation_verified",
+    # GitHub PR integration (Phase 9A): identifiers and outcomes only.
+    "pr", "comment_id", "sha", "mode",
 })
 
 

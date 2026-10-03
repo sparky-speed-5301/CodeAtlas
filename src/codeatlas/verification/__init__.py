@@ -20,6 +20,12 @@ from .runner import (
     VitestTestRunner,
     get_test_runner,
 )
+from .runner_selection import (
+    find_js_runner,
+    find_js_runner_executable,
+    is_file_executable,
+    resolve_runner_command,
+)
 
 __all__ = [
     "CommandValidation",
@@ -39,4 +45,8 @@ __all__ = [
     "execute_test_command",
     "redact_test_output",
     "audit_and_redact_results",
+    "find_js_runner",
+    "find_js_runner_executable",
+    "is_file_executable",
+    "resolve_runner_command",
 ]

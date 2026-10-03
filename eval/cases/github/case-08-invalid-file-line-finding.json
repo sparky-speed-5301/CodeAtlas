@@ -1,0 +1,43 @@
+{
+  "anchor_probe": {
+    "end_line": 51,
+    "file": "src/app.py",
+    "ranges": [
+      [
+        2,
+        3
+      ]
+    ],
+    "ranges_file": "src/app.py",
+    "start_line": 50
+  },
+  "base_tree": {
+    "src/app.py": "def f(x):\n    return x\n"
+  },
+  "case_id": "case-08-invalid-file-line-finding",
+  "existing_comments": [],
+  "expected": {
+    "body_secret_free": true,
+    "comments_planned": 0,
+    "comments_posted": 0,
+    "diff_fetched": false,
+    "duplicate_suppressed": 0,
+    "metadata_fetched": false,
+    "raises": null,
+    "worktree_unchanged": true,
+    "write_calls": 0
+  },
+  "files": [
+    {
+      "filename": "src/app.py",
+      "status": "modified"
+    }
+  ],
+  "head_tree": {
+    "src/app.py": "def f(x):\n    token = 'AKIAIOSFODNN7EXAMPLE'\n    return x\n"
+  },
+  "parse_raw": null,
+  "post": false,
+  "scenario": "invalid_file_line_not_anchored",
+  "transport_fault": null
+}

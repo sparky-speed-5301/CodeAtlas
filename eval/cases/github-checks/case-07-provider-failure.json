@@ -1,0 +1,38 @@
+{
+  "base_tree": {
+    "src/app.py": "def f(x):\n    return x\n"
+  },
+  "case_id": "case-07-provider-failure",
+  "check": false,
+  "config": {},
+  "existing_check_runs": [],
+  "existing_comments": [],
+  "expected": {
+    "body_secret_free": true,
+    "check_created": 0,
+    "check_updated": 0,
+    "comments_planned": 0,
+    "inline_endpoint": 0,
+    "issue_endpoint": 0,
+    "partial_write": false,
+    "raises": "GitHubNetworkError",
+    "summary_posted": 0,
+    "summary_updated": 0,
+    "worktree_unchanged": true,
+    "write_calls": 0
+  },
+  "files": [
+    {
+      "filename": "src/app.py",
+      "status": "modified"
+    }
+  ],
+  "head_tree": {
+    "src/app.py": "def f(x):\n    token = 'AKIAIOSFODNN7EXAMPLE'\n    return x\n"
+  },
+  "inline": false,
+  "post": false,
+  "scenario": "check_provider_failure_fails_closed",
+  "summary": false,
+  "transport_fault": "network"
+}

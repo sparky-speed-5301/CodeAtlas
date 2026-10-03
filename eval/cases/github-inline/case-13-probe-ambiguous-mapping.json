@@ -1,0 +1,16 @@
+{
+  "case_id": "case-13-probe-ambiguous-mapping",
+  "diff": "--- a/src/app.py\n+++ b/src/app.py\n@@ -1,2 +1,3 @@\n def f(x):\n+    a = 1\n     return x\n",
+  "expected": {
+    "decision": "fallback",
+    "inline_details": null,
+    "reason": "ambiguous_line_mapping"
+  },
+  "finding": {
+    "end_line": 2,
+    "file": "src/app.py",
+    "start_line": 1
+  },
+  "kind": "probe",
+  "scenario": "ambiguous_mapping_fallback"
+}

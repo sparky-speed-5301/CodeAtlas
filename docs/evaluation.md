@@ -410,6 +410,69 @@ token-echo in rejection messages was removed in this phase).
 python eval/eval_isolated_validation.py --cases eval/cases/isolated-validation --output eval/results/isolated-validation.jsonl
 ```
 
+## Phase 8A Benchmark: Sandboxed Test Execution & Portability
+
+Phase 8A validates isolated, policy-controlled test discovery and execution (`codeatlas patch validate --run-tests`). Tests run strictly inside detached temporary Git sandboxes created from the verified proposal commits. The evaluation suite in `eval/cases/test-execution/` comprises 35 fixtures evaluating execution accuracy, safety invariants, and output quality.
+
+### Evaluated Scenarios (35 Cases Across Three Groups)
+- **Execution Scenarios (1-9):** Python syntax pass / test pass; Python syntax fail / tests not run; Python syntax pass / test fail; JS/TS test pass with runner; multiple targeted tests; output redaction audit; missing pytest dependency; unsupported language; no reliable target test.
+- **Safety Policy Scenarios (10-28):** Network required blocked; dependency install required blocked; shell operator injection (`&&`, `;`, `|`, `>`); command substitution (`$()`, `` ` ``); package manager execution (`pip install`, `npm install`); arbitrary script invocation; CI/README derived commands; test execution timeout; excessive output bytes truncation; process/memory limits; working directory escaping sandbox; targets outside sandbox; original worktree modification attempt; missing/invalid approval tokens; stale base commit; rejected proposal; syntax invalid patch; patch conflict.
+- **Invariants & Leak Prevention (29-35):** Test output secret leak; sandbox cleanup failure; test mutating repository worktree; network connection attempts; package installation attempts.
+
+### Platform-Aware Runner Resolution
+The benchmark validates cross-platform runner resolution across Windows and POSIX:
+1. **POSIX Runner Selection:**
+   - Candidate JS/TS runners in `node_modules/.bin/<runner>` must be executable POSIX binaries (`st_mode & 0o111`, `os.access(..., os.X_OK)`).
+   - Windows launchers (`.cmd`, `.bat`) are strictly ignored and rejected on POSIX.
+   - Runners are executed directly without shell invocation (`shell=False`).
+2. **Windows Runner Selection:**
+   - Approved launchers (`.cmd`, `.bat`, `.exe`) in `node_modules/.bin/` or system `PATH` are accepted on Windows.
+   - All invocations remain strictly subject to the command allowlist.
+3. **Deterministic Fallback:**
+   - Evaluates deterministic fallback from `vitest` to `jest` (or vice-versa) when preferred runners are absent or unexecutable.
+4. **Unsupported Runner Rejection:**
+   - Rejects unapproved runners (e.g. `mocha`, `karma`) with `unknown_runner` limitation.
+5. **Missing Executable Permission Handling:**
+   - Files lacking executable permission on POSIX fail closed without shell fallback, triggering `missing_js_runner` or process launch errors.
+6. **Fixture Executable-Mode Preservation:**
+   - Fixture repository generation (`generate_test_execution_cases.py`) and evaluation checkout (`eval_test_execution.py`) preserve `0o755` executable modes for POSIX scripts (`node_modules/.bin/vitest`), tracked in the Git index as `100755`.
+
+### Metrics and Denominators
+- **Execution Metrics:**
+  - Test plan validity: `1.0000`
+  - Command allowlist rejection rate: `1.0000`
+  - Test execution success rate: `1.0000`
+  - Test failure detection accuracy: `1.0000`
+  - Timeout detection: `1.0000`
+  - Blocked command accuracy: `1.0000`
+  - Unsupported runner accuracy: `1.0000`
+- **Safety Metrics:**
+  - Network prevention rate: `1.0000`
+  - Dependency install prevention rate: `1.0000`
+  - Arbitrary command prevention rate: `1.0000`
+  - Original worktree safety: `1.0000` (zero mutation verified by tree hash)
+  - Sandbox cleanup rate: `1.0000`
+  - Output redaction safety: `1.0000`
+  - Secret exposure rate: `0.0000`
+- **Quality Metrics:**
+  - Targeted test selection accuracy: `1.0000`
+  - Changed symbol to test relevance: `1.0000`
+  - Test result reproducibility: `1.0000`
+
+### Execution Command
+```bash
+python eval/eval_test_execution.py
+```
+
+## Phase 8B-2 Benchmark: Selective Full-Suite Execution
+
+Phase 8B-2 evaluates selective full-suite execution across 13 cases in `eval/cases/full-suite/` covering default disabled policy, explicit opt-ins, approval gates, command restrictions, timeouts, and redaction.
+
+### Execution Command
+```bash
+python eval/eval_full_suite.py
+```
+
 ## Phase 8C: Observed Test Evidence Contracts
 
 `python eval/eval_observed_evidence.py` runs ten deterministic cases: targeted
@@ -427,3 +490,136 @@ schema payloads. CLI integration tests exercise actual isolated targeted and
 full-suite runs, including failed runs and both scopes in sequence. Run the
 Phase 8A/8B regressions with `python eval/eval_test_execution.py` and
 `python eval/eval_full_suite.py`.
+
+## Phase 9B Evaluation: Inline GitHub PR Comments
+
+Phase 9B adds optional inline PR comments (`--inline`), reusing the entire
+Phase 9A flow (transport, adapter, anchoring, redaction, idempotency, SHA
+checks, fake transport). Line eligibility is derived deterministically from
+the local diff between the verified base/head SHAs: only added (`+`) lines are
+inline-eligible. Unchanged context lines and ambiguous mappings fall back to
+issue comments with a visible reason; deleted or out-of-diff lines are
+suppressed with a visible reason. A line is never guessed. The suite in
+`eval/cases/github-inline/` contains 14 fixtures (8 end-to-end + 6
+classification probes).
+
+### Evaluated Scenarios (14 Cases)
+
+**End-to-end (8, fake transport):** valid inline finding posted via the inline
+endpoint with `commit_id`/`path`/`line`; dry-run zero writes; `--inline`
+without `--post` zero writes; duplicate suppression from an existing inline
+comment; cross-mode duplicate suppression from an existing issue comment; SHA
+change immediately before the write batch aborts with zero writes; posted-body
+redaction; original repository unchanged. Plus issue-comment mode unchanged
+without `--inline` (issue endpoint only). **Classification probes (6):**
+multi-line fully-added finding (inline with `start_line`); unchanged line
+(fallback `unchanged_context_line`); deleted line (suppressed
+`line_outside_diff`); ambiguous mapping (fallback `ambiguous_line_mapping`);
+file not in diff (suppressed `file_not_in_diff`).
+
+### Metrics and Explicit Denominators
+
+**Inline comment tests (denominator: 9 e2e cases):**
+- Inline posting success rate: expected inline-endpoint posts observed `9/9 = 1.0000`
+- Issue endpoint accuracy: expected issue-endpoint posts observed `9/9 = 1.0000`
+- Original worktree safety: HEAD, porcelain, and file bytes unchanged `9/9 = 1.0000`
+- Posted-body secret-free rate: `9/9 = 1.0000`
+- Duplicate suppression rate (inline and cross-mode): `2/2 = 1.0000`
+
+**Line-mapping classification tests (denominator: 6 probe cases):**
+- Classification accuracy (inline/fallback/suppress decisions and reasons): `6/6 = 1.0000`
+
+### Scope Statement
+
+Phase 9B remains read-only by default with explicit issue-comment and
+inline-comment publishing (`--post` required). No review verdict is ever
+submitted; no approve, request-changes, merge, patch, branch, label, setting,
+or check-write path exists. All cases use the deterministic fake GitHub
+transport.
+
+### Execution Command
+```bash
+python eval/eval_github_inline.py --cases eval/cases/github-inline --output eval/results/github-inline.jsonl
+```
+
+## Phase 9C Evaluation: Consolidated PR Summary Comments
+
+Phase 9C evaluates consolidated PR summary reporting (`--summary-comment`), which publishes or updates a single bounded Markdown summary comment on the GitHub PR issue timeline.
+
+### Evaluated Scenarios (20 Cases)
+
+The suite in `eval/cases/github-summary/` comprises 20 deterministic scenarios using `FakeGitHubTransport`:
+1. Clean review without findings (`case-01-clean-review`)
+2. Findings breakdown by severity (`case-02-findings-by-severity`)
+3. Zero findings handling (`case-03-no-findings`)
+4. Same-head in-place comment update (`case-04-same-head-update`)
+5. New-head historical preservation (`case-05-new-head-new-summary`)
+6. Duplicate summary comments deduplication (`case-06-duplicate-summaries`)
+7. Dry-run zero writes default (`case-07-dry-run`)
+8. Explicit `--post` write requirement (`case-08-post-required`)
+9. SHA change before write aborts with zero writes (`case-09-sha-change-aborts`)
+10. Redaction failure blocks summary writes (`case-10-redaction-failure`)
+11. Bounded truncation preserving severity counts (`case-11-truncation-bounds`)
+12. Combined inline and fallback comment counts (`case-12-inline-fallback-counts`)
+13. Observed test evidence inclusion (`case-13-test-evidence`)
+14. Failed test suite reporting (`case-14-failed-tests`)
+15. Policy-blocked test execution reporting (`case-15-blocked-tests`)
+16. Malformed comment payload error handling (`case-16-malformed-comment`)
+17. Rate limit resilience (`case-17-rate-limit`)
+18. Authentication failure fail-closed behavior (`case-18-auth-failure`)
+19. Original repository worktree unchanged (`case-19-original-repo-unchanged`)
+20. Combined summary and inline mode posting (`case-20-combined-modes`)
+
+### Metrics and Explicit Denominators
+
+- **Render Success Rate:** `20/20 = 1.0000`
+- **Worktree Safety:** `20/20 = 1.0000` (HEAD, index, porcelain status verified)
+- **Body Secret-Free Rate:** `20/20 = 1.0000` (credential patterns scrubbed)
+- **Fail-Closed Rate:** `20/20 = 1.0000` (errors abort safely before/during writes)
+- **SHA-Change Prevention Rate:** `20/20 = 1.0000`
+
+### Execution Command
+```bash
+python eval/eval_github_9cd.py --cases eval/cases/github-summary --output eval/results/github-summary.jsonl
+```
+
+## Phase 9D Evaluation: GitHub Check-Run Integration
+
+Phase 9D evaluates check-run integration (`--check-run`), creating and updating a dedicated GitHub check run bound to the exact head SHA and external ID.
+
+### Evaluated Scenarios (20 Cases)
+
+The suite in `eval/cases/github-checks/` tests status mapping, bounded output, idempotency, and atomicity:
+1. Clean review mapped to `success` conclusion (`case-01-clean-success`)
+2. Findings present mapped to `neutral` conclusion (`case-02-findings-neutral`)
+3. Blocker findings mapped to `action_required` conclusion (`case-03-blocker-action-required`)
+4. Test failures mapped to `failure` conclusion (`case-04-test-failure`)
+5. Tests not run mapped to `neutral` conclusion (`case-05-tests-not-run`)
+6. Insufficient evidence / abstention mapped to `neutral` (`case-06-abstention`)
+7. Provider/network failure fail-closed handling (`case-07-provider-failure`)
+8. Same-head check-run update in place (`case-08-same-head-update`)
+9. New-head check-run creation without altering previous checks (`case-09-new-head-new-check`)
+10. Dry-run zero check writes default (`case-10-dry-run`)
+11. Missing write permissions failure (`case-11-missing-permission`)
+12. Malformed check-run API response rejection (`case-12-malformed-response`)
+13. Rate-limited check-run write handling (`case-13-rate-limit`)
+14. Head SHA change before write aborts with zero writes (`case-14-sha-change`)
+15. Redaction failure blocks check-run creation (`case-15-redaction-failure`)
+16. Multiple duplicate checks resolution to lowest ID (`case-16-duplicate-checks`)
+17. Bounded output within size constraints (`case-17-bounded-output`)
+18. Network isolation unverified transparency (`case-18-network-isolation-unverified`)
+19. Original repository worktree invariance (`case-19-original-repo-unchanged`)
+20. Combined summary, check-run, and inline execution (`case-20-combined-modes`)
+
+### Metrics and Explicit Denominators
+
+- **Status Mapping Accuracy:** `20/20 = 1.0000`
+- **Render & Bounds Success Rate:** `20/20 = 1.0000`
+- **Worktree Invariance:** `20/20 = 1.0000`
+- **Secret-Free Rate:** `20/20 = 1.0000`
+- **Fail-Closed & SHA Re-check Rate:** `20/20 = 1.0000`
+
+### Execution Command
+```bash
+python eval/eval_github_9cd.py --cases eval/cases/github-checks --output eval/results/github-checks.jsonl
+```

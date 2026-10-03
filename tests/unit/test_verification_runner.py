@@ -17,6 +17,13 @@ from codeatlas.verification.runner import (
     VitestTestRunner,
     get_test_runner,
 )
+from codeatlas.verification.runner_selection import (
+    find_js_runner,
+    find_js_runner_executable,
+    is_file_executable,
+    resolve_runner_command,
+    set_simulated_executable,
+)
 
 
 def test_command_allowlist_allowed() -> None:
@@ -136,3 +143,162 @@ def test_runner_protocol_implementations(tmp_path: Path) -> None:
     assert isinstance(get_test_runner("python"), PytestTestRunner)
     assert isinstance(get_test_runner("typescript"), VitestTestRunner)
     assert get_test_runner("rust") is None
+
+
+def test_runner_selection_linux_posix(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setattr("shutil.which", lambda cmd: None)
+    bin_dir = tmp_path / "node_modules" / ".bin"
+    bin_dir.mkdir(parents=True)
+    posix_vitest = bin_dir / "vitest"
+    posix_vitest.write_text("#!/usr/bin/env python\nprint('posix')\n")
+    posix_vitest.chmod(0o755)
+
+    cmd_vitest = bin_dir / "vitest.cmd"
+    cmd_vitest.write_text("@echo off\n")
+
+    # On POSIX (platform='linux'), must select POSIX executable, NEVER .cmd launcher
+    resolved = find_js_runner_executable(tmp_path, "vitest", platform="linux")
+    assert resolved == posix_vitest
+    assert resolved != cmd_vitest
+
+    cmd_resolved = resolve_runner_command(tmp_path, ["vitest", "run"], platform="linux")
+    assert cmd_resolved[0] == str(posix_vitest)
+    assert not cmd_resolved[0].endswith(".cmd")
+
+    # Validation on POSIX rejects .cmd launchers
+    assert validate_test_command(["node_modules/.bin/vitest.cmd", "tests/foo.ts"], platform="linux").allowed is False
+
+
+def test_runner_selection_windows_launcher(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setattr("shutil.which", lambda cmd: None)
+    bin_dir = tmp_path / "node_modules" / ".bin"
+    bin_dir.mkdir(parents=True)
+    posix_vitest = bin_dir / "vitest"
+    posix_vitest.write_text("#!/usr/bin/env python\n")
+    cmd_vitest = bin_dir / "vitest.cmd"
+    cmd_vitest.write_text("@echo off\n")
+
+    # On Windows, may select .cmd launcher
+    resolved = find_js_runner_executable(tmp_path, "vitest", platform="win32")
+    assert resolved == cmd_vitest
+
+    cmd_resolved = resolve_runner_command(tmp_path, ["vitest", "run"], platform="win32")
+    assert cmd_resolved[0] == str(cmd_vitest)
+
+    # Validation on Windows allows .cmd launcher
+    assert validate_test_command(["node_modules/.bin/vitest.cmd", "tests/foo.ts"], platform="win32").allowed is True
+
+
+def test_runner_missing_executable_permission(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setattr("shutil.which", lambda cmd: None)
+    bin_dir = tmp_path / "node_modules" / ".bin"
+    bin_dir.mkdir(parents=True)
+    posix_vitest = bin_dir / "vitest"
+    posix_vitest.write_text("#!/usr/bin/env python\n")
+    posix_vitest.chmod(0o644)  # lacks execute permission
+    set_simulated_executable(posix_vitest, False)
+    try:
+        # Should not be executable on POSIX
+        assert is_file_executable(posix_vitest, platform="linux") is False
+
+        # Runner is not executable, and no system fallback exists
+        resolved = find_js_runner_executable(tmp_path, "vitest", platform="linux")
+        assert resolved is None
+
+        # Test plan discovery fails with missing runner
+        src = tmp_path / "src" / "calc.ts"
+        src.parent.mkdir(parents=True)
+        src.write_text("export function add() {}\n")
+        test = tmp_path / "tests" / "calc.test.ts"
+        test.parent.mkdir(parents=True)
+        test.write_text("// test\n")
+
+        plan, blocked = discover_test_plan(tmp_path, ["src/calc.ts"], platform="linux")
+        assert blocked is not None
+        assert "missing_js_runner" in plan.limitations
+    finally:
+        set_simulated_executable(None)
+
+
+def test_runner_unavailable(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setattr("shutil.which", lambda cmd: None)
+    # Neither vitest nor jest installed in sandbox
+    src = tmp_path / "src" / "calc.ts"
+    src.parent.mkdir(parents=True)
+    src.write_text("export function add() {}\n")
+    test = tmp_path / "tests" / "calc.test.ts"
+    test.parent.mkdir(parents=True)
+    test.write_text("// test\n")
+
+    assert find_js_runner(tmp_path, platform="linux") is None
+    assert find_js_runner(tmp_path, platform="win32") is None
+
+    plan, blocked = discover_test_plan(tmp_path, ["src/calc.ts"], platform="linux")
+    assert blocked is not None
+    assert "missing_js_runner" in plan.limitations
+
+    plan_win, blocked_win = discover_test_plan(tmp_path, ["src/calc.ts"], platform="win32")
+    assert blocked_win is not None
+    assert "missing_js_runner" in plan_win.limitations
+
+
+def test_runner_deterministic_fallback(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setattr("shutil.which", lambda cmd: None)
+    bin_dir = tmp_path / "node_modules" / ".bin"
+    bin_dir.mkdir(parents=True)
+
+    jest_bin = bin_dir / "jest"
+    jest_bin.write_text("#!/usr/bin/env python\n")
+    jest_bin.chmod(0o755)
+
+    # Vitest is not available, but jest is:
+    # 1. No preference -> falls back to jest
+    assert find_js_runner(tmp_path, platform="linux") == "jest"
+    # 2. Vitest preferred -> falls back to jest
+    assert find_js_runner(tmp_path, preference="vitest", platform="linux") == "jest"
+
+    # Now add vitest
+    vitest_bin = bin_dir / "vitest"
+    vitest_bin.write_text("#!/usr/bin/env python\n")
+    vitest_bin.chmod(0o755)
+
+    # Default order prefers vitest
+    assert find_js_runner(tmp_path, platform="linux") == "vitest"
+    # Preference jest selects jest
+    assert find_js_runner(tmp_path, preference="jest", platform="linux") == "jest"
+
+
+def test_unsupported_runner_rejection(tmp_path: Path) -> None:
+    src = tmp_path / "src" / "calc.ts"
+    src.parent.mkdir(parents=True)
+    src.write_text("export function add() {}\n")
+    test = tmp_path / "tests" / "calc.test.ts"
+    test.parent.mkdir(parents=True)
+    test.write_text("// test\n")
+
+    # Unsupported runner rejected by discovery
+    plan, blocked = discover_test_plan(tmp_path, ["src/calc.ts"], runner_preference="mocha")
+    assert blocked is not None
+    assert "unapproved" in blocked.lower()
+    assert "unknown_runner" in plan.limitations
+
+    plan, blocked = discover_test_plan(tmp_path, ["src/calc.ts"], runner_preference="karma")
+    assert blocked is not None
+    assert "unknown_runner" in plan.limitations
+
+
+def test_phase8a_safety_behavior(tmp_path: Path) -> None:
+    # Metacharacters rejected
+    for op in ["&", "|", ";", "$", "`", "<", ">"]:
+        val = validate_test_command(["pytest", op])
+        assert val.allowed is False
+
+    # Prohibited commands rejected
+    for prog in ["curl", "wget", "bash", "sh", "powershell", "pip", "npm"]:
+        val = validate_test_command([prog, "arg"])
+        assert val.allowed is False
+
+    # Redaction active
+    redacted, audit = redact_test_output("Simulated AKIAIOSFODNN7EXAMPLE key")
+    assert "AKIAIOSFODNN7EXAMPLE" not in redacted
+    assert audit.raw_value_matches >= 1

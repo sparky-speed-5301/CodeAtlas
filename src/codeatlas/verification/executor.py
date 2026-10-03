@@ -14,6 +14,7 @@ from codeatlas.git.executable import run_git
 
 from .models import ResourceLimits, TestPlan, TestResult
 from .redaction import audit_and_redact_results
+from .runner_selection import resolve_runner_command
 
 
 def _sanitized_env(sandbox_path: Path) -> dict[str, str]:
@@ -54,6 +55,7 @@ def execute_test_command(
     runner: str = "",
     language: str = "",
     working_directory: str = ".",
+    platform: str = sys.platform,
 ) -> TestResult:
     """Execute an approved test command within the detached sandbox worktree.
 
@@ -82,17 +84,7 @@ def execute_test_command(
     # Snapshot sandbox status before test execution to detect unexpected mutations
     pre_test_status = run_git(["status", "--porcelain"], cwd=sandbox_path, check=False)
 
-    # If python executable is needed, ensure it points to sys.executable
-    cmd_to_run = list(command)
-    if cmd_to_run and cmd_to_run[0] == "python":
-        cmd_to_run[0] = sys.executable
-    elif cmd_to_run and cmd_to_run[0] in {"vitest", "jest"}:
-        local_cmd = sandbox_path / "node_modules" / ".bin" / f"{cmd_to_run[0]}.cmd"
-        local_bin = sandbox_path / "node_modules" / ".bin" / cmd_to_run[0]
-        if local_cmd.is_file():
-            cmd_to_run[0] = str(local_cmd)
-        elif local_bin.is_file():
-            cmd_to_run[0] = str(local_bin)
+    cmd_to_run = resolve_runner_command(sandbox_path, command, platform=platform)
 
     started = time.perf_counter()
     stdout_raw = ""

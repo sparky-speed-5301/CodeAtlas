@@ -41,6 +41,11 @@ def _save_case(
         fp = base_dir / rel_path
         fp.parent.mkdir(parents=True, exist_ok=True)
         fp.write_text(content, encoding="utf-8", newline="\n")
+        if rel_path.startswith("node_modules/.bin/") and not rel_path.endswith((".cmd", ".bat")):
+            try:
+                fp.chmod(fp.stat().st_mode | 0o755)
+            except OSError:
+                pass
 
     prop = create_patch_proposal(
         finding_id=finding_id,

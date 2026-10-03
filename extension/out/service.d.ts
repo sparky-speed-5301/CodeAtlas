@@ -1,0 +1,51 @@
+import { ChildProcess } from 'child_process';
+import { HealthStatus, ServiceCommandParseResult, ServiceHealth, ServiceLifecycleOptions, ServiceMode, ServiceStartResult, ServiceStopResult } from './types';
+export declare const SETUP_MESSAGE = "Configure codeatlas.serviceUrl or .codeatlas/service.json, or use CodeAtlas: Start Local Service. Managed auto-start requires serviceMode=managed and autoStartService=true.";
+export declare function validateServiceUrl(value: unknown): string;
+export declare function managedUrl(host: string, port: number): string;
+export declare function parseServiceCommand(command: unknown): ServiceCommandParseResult;
+export declare function safeHealth(raw: any): ServiceHealth;
+export declare class ServiceLifecycleManager {
+    serviceMode: ServiceMode;
+    serviceHost: string;
+    servicePort: number;
+    serviceCommand: string;
+    explicitServiceUrl: string | null;
+    autoStartService: boolean;
+    workspaceRoot: string | null;
+    trusted: boolean;
+    clientFactory: (url: string) => any;
+    onChange: () => void;
+    onCrash: (message: string) => void;
+    managedProcess: (ChildProcess & {
+        _codeatlasExit?: Promise<void>;
+        _codeatlasStop?: () => void;
+    }) | null;
+    managedPid: number | null;
+    owned: boolean;
+    currentUrl: string | null;
+    lastHealth: ServiceHealth | null;
+    lastHealthStatus: HealthStatus;
+    lastHealthCheck: string | null;
+    lastErrorMessage: string | null;
+    message: string;
+    stdoutBuffer: string;
+    stderrBuffer: string;
+    maxLogBytes: number;
+    private _epoch;
+    private _disposed;
+    private _starting;
+    private _stopping;
+    constructor(options?: ServiceLifecycleOptions);
+    resolveServiceUrl(): string | null;
+    discover(): Promise<string | null>;
+    checkHealth(client?: any): Promise<ServiceHealth | {
+        status: string;
+    }>;
+    startManagedService(options?: any): Promise<ServiceStartResult>;
+    private _start;
+    stopManagedService(): Promise<ServiceStopResult>;
+    restartManagedService(options?: any): Promise<ServiceStartResult>;
+    waitForStartup(): Promise<void>;
+    dispose(): Promise<void>;
+}

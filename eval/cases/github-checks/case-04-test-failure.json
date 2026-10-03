@@ -1,0 +1,15 @@
+{
+  "args": {
+    "findings": [],
+    "policy_decision": "allowed",
+    "tests_status": "failed"
+  },
+  "case_id": "case-04-test-failure",
+  "expected": {
+    "conclusion": "failure"
+  },
+  "fn": "map_check_conclusion",
+  "kind": "probe",
+  "scenario": "check_test_failure_conclusion",
+  "summary": false
+}

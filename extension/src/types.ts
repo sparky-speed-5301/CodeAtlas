@@ -1,0 +1,250 @@
+/**
+ * Type definitions for CodeAtlas VS Code Extension.
+ * Defines types for service status, configuration profiles, lifecycle states,
+ * findings, locations, evidence, review status, patch proposals, validation results,
+ * API errors, and command contexts.
+ */
+
+import * as vscode from 'vscode';
+
+// ---------------------------------------------------------------------------
+// Service & Lifecycle Types
+// ---------------------------------------------------------------------------
+
+export type ServiceMode = 'external' | 'managed' | 'disabled';
+
+export type HealthStatus =
+  | 'unknown'
+  | 'healthy'
+  | 'unreachable'
+  | 'starting'
+  | 'stopping'
+  | 'stopped'
+  | 'crashed'
+  | 'disabled'
+  | 'not_configured'
+  | 'error'
+  | 'stale';
+
+export interface ServiceHealth {
+  status: 'ok';
+  service: 'codeatlas-service';
+  version: string;
+  pid: number | null;
+  active_reviews: number | null;
+  provider: 'mock' | 'live' | 'deterministic' | 'mixed' | 'unknown' | string;
+}
+
+export interface ServiceLifecycleOptions {
+  serviceMode?: ServiceMode;
+  serviceHost?: string;
+  servicePort?: number;
+  serviceCommand?: string;
+  serviceUrl?: string | null;
+  autoStartService?: boolean;
+  workspaceRoot?: string | null;
+  trusted?: boolean;
+  clientFactory?: (url: string) => any;
+  onChange?: () => void;
+  onCrash?: (message: string) => void;
+}
+
+export interface ServiceStartResult {
+  started: boolean;
+  alreadyRunning?: boolean;
+  pid?: number | null;
+  url: string;
+  health: ServiceHealth;
+}
+
+export interface ServiceStopResult {
+  stopped: boolean;
+  pid?: number | null;
+  message?: string;
+}
+
+export interface ServiceCommandParseResult {
+  executable: string;
+  args: string[];
+}
+
+// ---------------------------------------------------------------------------
+// Configuration Profile Types
+// ---------------------------------------------------------------------------
+
+export type ProfileProvider = 'mock' | 'live';
+export type ProfileCommentMode = 'summary' | 'inline' | 'both';
+
+export interface Profile {
+  provider: ProfileProvider;
+  model: string;
+  timeout: number;
+  maxFindings: number;
+  enableLiveReviewer: boolean;
+  enablePatchSuggestions: boolean;
+  enableTestExecution: boolean;
+  enableFullSuiteExecution: boolean;
+  githubDryRun: boolean;
+  commentMode: ProfileCommentMode;
+}
+
+export type RawProfile = Record<string, unknown>;
+
+// ---------------------------------------------------------------------------
+// Finding & Location Types
+// ---------------------------------------------------------------------------
+
+export type FindingSeverity = 'blocker' | 'high' | 'medium' | 'low' | 'info';
+
+export interface FindingLocation {
+  file: string;
+  line?: number;
+  start_line?: number;
+  end_line?: number;
+}
+
+export interface SymbolContext {
+  name?: string;
+  kind?: string;
+  start_line?: number;
+  end_line?: number;
+}
+
+export interface FindingContext {
+  changed_lines?: number[];
+  containing_symbol?: SymbolContext | null;
+  relevant_imports?: string[];
+  relevant_references?: string[];
+  related_tests?: string[];
+  retrieved_context_candidates?: unknown[];
+  truncation_status?: boolean;
+  evidence_sources?: string[];
+}
+
+export interface Finding extends FindingLocation {
+  id: string;
+  category: string;
+  severity: FindingSeverity | string;
+  claim: string;
+  line: number;
+  confidence?: number | string;
+  evidence_strength?: string;
+  status?: string;
+  start_line?: number;
+  end_line?: number;
+  dismissed?: boolean;
+  impact?: string;
+  policy_decision?: string;
+  test_result?: string;
+  limitations?: string[];
+  deterministic_evidence?: unknown;
+  context?: FindingContext;
+}
+
+export interface FindingCounts {
+  total?: number;
+  blocker?: number;
+  high?: number;
+  medium?: number;
+  low?: number;
+  info?: number;
+}
+
+export interface FindingDetail extends Finding {
+  deterministic_evidence?: unknown;
+  limitations?: string[];
+  context?: FindingContext;
+}
+
+// ---------------------------------------------------------------------------
+// Review Status Types
+// ---------------------------------------------------------------------------
+
+export type ReviewRunStatus = 'pending' | 'running' | 'completed' | 'failed' | 'cancelled';
+
+export interface ReviewStatus {
+  run_id?: string;
+  status: ReviewRunStatus | string;
+  progress_text?: string;
+  policy_decision?: string;
+  finding_counts?: FindingCounts;
+  test_status?: string;
+  patch_validation_status?: string;
+  errors?: string[];
+}
+
+export interface StartReviewOptions {
+  base?: string;
+  head?: string;
+  review_provider?: string;
+  provider_model?: string;
+  provider_timeout?: number;
+  allow_patch_suggestions?: boolean;
+  max_findings?: number;
+}
+
+export interface FindingsResponse {
+  findings: Finding[];
+  count?: number;
+}
+
+// ---------------------------------------------------------------------------
+// Patch Proposals & Validation Types
+// ---------------------------------------------------------------------------
+
+export interface PatchProposal {
+  proposal_id: string;
+  finding_id: string;
+  diff?: string;
+  status?: string;
+  created_at?: string;
+  [key: string]: unknown;
+}
+
+export interface ValidationResult {
+  valid: boolean;
+  approval_verified: boolean;
+  status: string;
+  proposal_id?: string;
+  test_status?: string;
+  full_suite_status?: string;
+  errors?: string[];
+}
+
+export interface ExplanationResult {
+  finding_id: string;
+  category: string;
+  explanation: string;
+  remediation_advice: string;
+}
+
+// ---------------------------------------------------------------------------
+// API Error & Command Context Types
+// ---------------------------------------------------------------------------
+
+export interface ApiError {
+  message: string;
+  statusCode?: number;
+  code?: string;
+}
+
+export interface FindingQuickPickItem extends vscode.QuickPickItem {
+  finding: Finding;
+}
+
+export interface ProfileQuickPickItem extends vscode.QuickPickItem {
+  profileName: string;
+}
+
+export interface ExtensionSession {
+  dispose(): Promise<void>;
+}
+
+export interface ExtensionActivationResult {
+  ready: Promise<string | null>;
+  serviceManager: any;
+  profileManager: any;
+  statusProvider: any;
+  client: any;
+  dispose: () => Promise<void>;
+}

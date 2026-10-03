@@ -1,0 +1,40 @@
+{
+  "base_tree": {
+    "src/app.py": "def f(x):\n    return x\n"
+  },
+  "case_id": "case-06-duplicate-summaries",
+  "check": false,
+  "config": {},
+  "existing_check_runs": [],
+  "existing_comments": [
+    "__SUMMARY_MARKER__",
+    "__SUMMARY_MARKER__"
+  ],
+  "expected": {
+    "body_secret_free": true,
+    "check_created": 0,
+    "check_updated": 0,
+    "inline_endpoint": 0,
+    "issue_endpoint": 0,
+    "partial_write": false,
+    "raises": null,
+    "summary_posted": 0,
+    "summary_updated": 1,
+    "worktree_unchanged": true,
+    "write_calls": 1
+  },
+  "files": [
+    {
+      "filename": "src/app.py",
+      "status": "modified"
+    }
+  ],
+  "head_tree": {
+    "src/app.py": "def f(x):\n    token = 'AKIAIOSFODNN7EXAMPLE'\n    return x\n"
+  },
+  "inline": false,
+  "post": true,
+  "scenario": "duplicate_summaries_lowest_id_updated",
+  "summary": true,
+  "transport_fault": null
+}

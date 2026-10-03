@@ -1,0 +1,396 @@
+{
+  "name": "codeatlas",
+  "displayName": "CodeAtlas",
+  "description": "Evidence-first, repository-aware code review for VS Code",
+  "version": "0.1.0",
+  "publisher": "codeatlas",
+  "engines": {
+    "vscode": "^1.85.0"
+  },
+  "categories": [
+    "Linters",
+    "Programming Languages",
+    "Security"
+  ],
+  "main": "./out/extension.js",
+  "scripts": {
+    "compile": "tsc -p ./",
+    "watch": "tsc -watch -p ./",
+    "pretest": "npm run compile",
+    "test": "node test_sync.js && node test_lifecycle.js && node test_migration.js"
+  },
+  "activationEvents": [
+    "onStartupFinished"
+  ],
+  "capabilities": {
+    "untrustedWorkspaces": {
+      "supported": "limited",
+      "description": "Managed service startup requires workspace trust.",
+      "restrictedConfigurations": [
+        "codeatlas.serviceCommand",
+        "codeatlas.autoStartService"
+      ]
+    }
+  },
+  "contributes": {
+    "viewsContainers": {
+      "activitybar": [
+        {
+          "id": "codeatlas-sidebar",
+          "title": "CodeAtlas",
+          "icon": "resources/icon.svg"
+        }
+      ]
+    },
+    "views": {
+      "codeatlas-sidebar": [
+        {
+          "id": "codeatlas.statusView",
+          "name": "Review Status",
+          "type": "tree"
+        },
+        {
+          "id": "codeatlas.findingsView",
+          "name": "Findings",
+          "type": "tree"
+        },
+        {
+          "id": "codeatlas.contextView",
+          "name": "Finding Context",
+          "type": "tree"
+        }
+      ]
+    },
+    "commands": [
+      {
+        "command": "codeatlas.startReview",
+        "title": "CodeAtlas: Start Review",
+        "icon": "$(play)"
+      },
+      {
+        "command": "codeatlas.cancelReview",
+        "title": "CodeAtlas: Cancel Review",
+        "icon": "$(stop)"
+      },
+      {
+        "command": "codeatlas.refresh",
+        "title": "CodeAtlas: Refresh",
+        "icon": "$(refresh)"
+      },
+      {
+        "command": "codeatlas.findFinding",
+        "title": "CodeAtlas: Find Finding",
+        "icon": "$(search)"
+      },
+      {
+        "command": "codeatlas.explainCurrentFinding",
+        "title": "CodeAtlas: Explain Current Finding",
+        "icon": "$(comment)"
+      },
+      {
+        "command": "codeatlas.openFindingLocation",
+        "title": "CodeAtlas: Go to Finding"
+      },
+      {
+        "command": "codeatlas.showFindingDetails",
+        "title": "CodeAtlas: Show Finding Details"
+      },
+      {
+        "command": "codeatlas.explainFinding",
+        "title": "CodeAtlas: Explain Finding"
+      },
+      {
+        "command": "codeatlas.showContext",
+        "title": "CodeAtlas: Show Context"
+      },
+      {
+        "command": "codeatlas.generateDraftFix",
+        "title": "CodeAtlas: Generate Draft Fix"
+      },
+      {
+        "command": "codeatlas.validateApprovedFix",
+        "title": "CodeAtlas: Validate Approved Fix"
+      },
+      {
+        "command": "codeatlas.copyFinding",
+        "title": "CodeAtlas: Copy Finding"
+      },
+      {
+        "command": "codeatlas.dismissFinding",
+        "title": "CodeAtlas: Dismiss Finding"
+      },
+      {
+        "command": "codeatlas.filterSeverity",
+        "title": "CodeAtlas: Filter by Severity"
+      },
+      {
+        "command": "codeatlas.filterCategory",
+        "title": "CodeAtlas: Filter by Category"
+      },
+      {
+        "command": "codeatlas.startLocalService",
+        "title": "CodeAtlas: Start Local Service",
+        "icon": "$(server-process)"
+      },
+      {
+        "command": "codeatlas.stopLocalService",
+        "title": "CodeAtlas: Stop Local Service",
+        "icon": "$(primitive-square)"
+      },
+      {
+        "command": "codeatlas.restartLocalService",
+        "title": "CodeAtlas: Restart Local Service",
+        "icon": "$(sync)"
+      },
+      {
+        "command": "codeatlas.selectConfigurationProfile",
+        "title": "CodeAtlas: Select Configuration Profile",
+        "icon": "$(gear)"
+      },
+      {
+        "command": "codeatlas.openConfiguration",
+        "title": "CodeAtlas: Open Configuration"
+      },
+      {
+        "command": "codeatlas.checkServiceHealth",
+        "title": "CodeAtlas: Check Service Health",
+        "icon": "$(pulse)"
+      }
+    ],
+    "menus": {
+      "view/title": [
+        {
+          "command": "codeatlas.startReview",
+          "when": "view == codeatlas.statusView",
+          "group": "navigation@1"
+        },
+        {
+          "command": "codeatlas.cancelReview",
+          "when": "view == codeatlas.statusView",
+          "group": "navigation@2"
+        },
+        {
+          "command": "codeatlas.refresh",
+          "when": "view == codeatlas.statusView || view == codeatlas.findingsView",
+          "group": "navigation@3"
+        },
+        {
+          "command": "codeatlas.filterSeverity",
+          "when": "view == codeatlas.findingsView",
+          "group": "navigation@1"
+        }
+      ],
+      "view/item/context": [
+        {
+          "command": "codeatlas.showFindingDetails",
+          "when": "view == codeatlas.findingsView",
+          "group": "inline@1"
+        },
+        {
+          "command": "codeatlas.explainFinding",
+          "when": "view == codeatlas.findingsView",
+          "group": "inline@2"
+        },
+        {
+          "command": "codeatlas.generateDraftFix",
+          "when": "view == codeatlas.findingsView",
+          "group": "inline@3"
+        },
+        {
+          "command": "codeatlas.dismissFinding",
+          "when": "view == codeatlas.findingsView",
+          "group": "inline@4"
+        }
+      ]
+    },
+    "configuration": {
+      "title": "CodeAtlas",
+      "properties": {
+        "codeatlas.serviceUrl": {
+          "type": "string",
+          "default": "http://127.0.0.1:8765",
+          "description": "Explicit HTTP localhost URL overrides workspace discovery. The default shown here is only a hint until explicitly configured. Credentials, paths and queries are rejected."
+        },
+        "codeatlas.provider": {
+          "type": "string",
+          "default": "mock",
+          "enum": [
+            "mock",
+            "live"
+          ],
+          "description": "Reviewer provider backend."
+        },
+        "codeatlas.model": {
+          "type": "string",
+          "default": "",
+          "description": "Optional model identifier for live reviewer."
+        },
+        "codeatlas.timeout": {
+          "type": "number",
+          "default": 30,
+          "minimum": 0.1,
+          "maximum": 300,
+          "description": "Request timeout in seconds."
+        },
+        "codeatlas.maxFindings": {
+          "type": "integer",
+          "default": 50,
+          "minimum": 1,
+          "maximum": 200,
+          "description": "Maximum number of findings to display."
+        },
+        "codeatlas.enableLiveReviewer": {
+          "type": "boolean",
+          "default": false,
+          "description": "Enable live LLM reviewer provider (requires external API key in environment, never in settings)."
+        },
+        "codeatlas.enablePatchSuggestions": {
+          "type": "boolean",
+          "default": false,
+          "description": "Enable draft patch suggestions in reviews."
+        },
+        "codeatlas.enableTestExecution": {
+          "type": "boolean",
+          "default": false,
+          "description": "Enable targeted test execution during isolated validation."
+        },
+        "codeatlas.enableFullSuiteExecution": {
+          "type": "boolean",
+          "default": false,
+          "description": "Enable full-suite execution during isolated validation."
+        },
+        "codeatlas.githubDryRun": {
+          "type": "boolean",
+          "default": true,
+          "description": "Require dry-run mode for any GitHub PR operations."
+        },
+        "codeatlas.commentMode": {
+          "type": "string",
+          "default": "summary",
+          "enum": [
+            "summary",
+            "inline",
+            "both"
+          ],
+          "description": "GitHub PR commenting mode."
+        },
+        "codeatlas.serviceMode": {
+          "type": "string",
+          "default": "external",
+          "enum": [
+            "external",
+            "managed",
+            "disabled"
+          ],
+          "description": "Service discovery mode: external, managed by extension, or disabled."
+        },
+        "codeatlas.serviceCommand": {
+          "type": "string",
+          "default": "codeatlas serve",
+          "description": "Direct executable command: codeatlas serve or python -m codeatlas.cli serve. Quote executable paths containing spaces. No shell syntax, extra flags, or inline credentials."
+        },
+        "codeatlas.serviceHost": {
+          "type": "string",
+          "default": "127.0.0.1",
+          "enum": [
+            "127.0.0.1",
+            "localhost"
+          ],
+          "description": "Host interface to bind or connect to (must be localhost / 127.0.0.1)."
+        },
+        "codeatlas.servicePort": {
+          "type": "integer",
+          "default": 8765,
+          "minimum": 1,
+          "maximum": 65535,
+          "description": "Port for CodeAtlas service."
+        },
+        "codeatlas.autoStartService": {
+          "type": "boolean",
+          "default": false,
+          "description": "Automatically start managed service on extension activation when in managed mode."
+        },
+        "codeatlas.healthCheckInterval": {
+          "type": "number",
+          "default": 30,
+          "minimum": 0,
+          "maximum": 86400,
+          "description": "Seconds between background health checks. Zero disables polling. Health checks never start reviews or restart crashed services."
+        },
+        "codeatlas.activeProfile": {
+          "type": "string",
+          "default": "default",
+          "description": "Active configuration profile name."
+        },
+        "codeatlas.profilePath": {
+          "type": "string",
+          "default": ".codeatlas/profiles.json",
+          "pattern": "^\\.codeatlas/[a-zA-Z0-9_-][a-zA-Z0-9_.-]*\\.json$",
+          "description": "Workspace-relative JSON file directly inside .codeatlas/. Symlinks and files larger than 64 KiB are rejected."
+        },
+        "codeatlas.profiles": {
+          "type": "object",
+          "scope": "application",
+          "default": {},
+          "description": "User profiles containing only non-secret settings. Workspace profiles with the same name take precedence. Never put credentials, prompts, or provider output here.",
+          "maxProperties": 100,
+          "additionalProperties": {
+            "type": "object",
+            "additionalProperties": false,
+            "properties": {
+              "provider": {
+                "type": "string",
+                "enum": [
+                  "mock",
+                  "live"
+                ]
+              },
+              "model": {
+                "type": "string",
+                "maxLength": 128
+              },
+              "timeout": {
+                "type": "number",
+                "minimum": 0.1,
+                "maximum": 300
+              },
+              "maxFindings": {
+                "type": "integer",
+                "minimum": 1,
+                "maximum": 200
+              },
+              "enableLiveReviewer": {
+                "type": "boolean"
+              },
+              "enablePatchSuggestions": {
+                "type": "boolean"
+              },
+              "enableTestExecution": {
+                "type": "boolean"
+              },
+              "enableFullSuiteExecution": {
+                "type": "boolean"
+              },
+              "githubDryRun": {
+                "type": "boolean"
+              },
+              "commentMode": {
+                "type": "string",
+                "enum": [
+                  "summary",
+                  "inline",
+                  "both"
+                ]
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "devDependencies": {
+    "@types/node": "^26.6.4",
+    "@types/vscode": "^1.140.0",
+    "typescript": "^7.0.2"
+  }
+}

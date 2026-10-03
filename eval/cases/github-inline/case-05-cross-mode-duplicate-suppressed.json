@@ -1,0 +1,35 @@
+{
+  "base_tree": {
+    "src/app.py": "def f(x):\n    return x\n"
+  },
+  "case_id": "case-05-cross-mode-duplicate-suppressed",
+  "existing_comments": [
+    "__POSTED_MARKER__"
+  ],
+  "existing_inline_comments": [],
+  "expected": {
+    "body_secret_free": true,
+    "comments_planned": 0,
+    "comments_posted": 0,
+    "duplicate_suppressed": 1,
+    "inline_endpoint": 0,
+    "issue_endpoint": 0,
+    "raises": null,
+    "worktree_unchanged": true,
+    "write_calls": 0
+  },
+  "files": [
+    {
+      "filename": "src/app.py",
+      "status": "modified"
+    }
+  ],
+  "head_tree": {
+    "src/app.py": "def f(x):\n    token = 'AKIAIOSFODNN7EXAMPLE'\n    return x\n"
+  },
+  "inline": true,
+  "kind": "e2e",
+  "post": false,
+  "scenario": "inline_duplicate_from_issue_suppressed",
+  "transport_fault": null
+}

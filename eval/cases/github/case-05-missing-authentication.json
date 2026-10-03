@@ -1,0 +1,31 @@
+{
+  "base_tree": {
+    "src/app.py": "def f(x):\n    return x\n"
+  },
+  "case_id": "case-05-missing-authentication",
+  "existing_comments": [],
+  "expected": {
+    "body_secret_free": true,
+    "comments_planned": 0,
+    "comments_posted": 0,
+    "diff_fetched": false,
+    "duplicate_suppressed": 0,
+    "metadata_fetched": false,
+    "raises": "GitHubAuthError",
+    "worktree_unchanged": true,
+    "write_calls": 0
+  },
+  "files": [
+    {
+      "filename": "src/app.py",
+      "status": "modified"
+    }
+  ],
+  "head_tree": {
+    "src/app.py": "def f(x):\n    token = 'AKIAIOSFODNN7EXAMPLE'\n    return x\n"
+  },
+  "parse_raw": null,
+  "post": false,
+  "scenario": "missing_authentication_fails_closed",
+  "transport_fault": "missing_auth"
+}

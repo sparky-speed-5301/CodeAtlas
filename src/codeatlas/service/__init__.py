@@ -1,0 +1,47 @@
+"""CodeAtlas local HTTP review service for VS Code and local IDE integrations."""
+
+from .models import (
+    CancelResponse,
+    ExplainRequest,
+    ExplainResponse,
+    FindingContext,
+    FindingDetailResponse,
+    FindingsListResponse,
+    FindingSummary,
+    HealthResponse,
+    LifecycleState,
+    PatchProposalRequest,
+    PatchProposalResponse,
+    ReviewCreateRequest,
+    ReviewStatusResponse,
+    ValidateProposalRequest,
+    ValidateProposalResponse,
+)
+from .server import CodeAtlasServer, ReviewHttpHandler, create_server, run_service
+from .state import ReviewRunRecord, ReviewStateManager, ServicePathError, validate_service_repo_path
+
+__all__ = [
+    "CancelResponse",
+    "CodeAtlasServer",
+    "ExplainRequest",
+    "ExplainResponse",
+    "FindingContext",
+    "FindingDetailResponse",
+    "FindingSummary",
+    "FindingsListResponse",
+    "HealthResponse",
+    "LifecycleState",
+    "PatchProposalRequest",
+    "PatchProposalResponse",
+    "ReviewCreateRequest",
+    "ReviewHttpHandler",
+    "ReviewRunRecord",
+    "ReviewStateManager",
+    "ReviewStatusResponse",
+    "ServicePathError",
+    "ValidateProposalRequest",
+    "ValidateProposalResponse",
+    "create_server",
+    "run_service",
+    "validate_service_repo_path",
+]

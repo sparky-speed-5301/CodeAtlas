@@ -9,6 +9,9 @@ from pathlib import Path
 from typing import Any, Sequence
 
 from .models import ResourceLimits, TestPlan
+from .runner_selection import find_js_runner
+
+_find_js_runner = find_js_runner
 
 
 def _detect_language(changed_files: Sequence[str]) -> str | None:
@@ -30,25 +33,6 @@ def _is_pytest_available() -> bool:
     return importlib.util.find_spec("pytest") is not None
 
 
-def _find_js_runner(sandbox_path: Path) -> str | None:
-    """Check for an existing vitest or jest executable in the sandbox or system."""
-    vitest_local = sandbox_path / "node_modules" / ".bin" / "vitest"
-    vitest_cmd = sandbox_path / "node_modules" / ".bin" / "vitest.cmd"
-    if vitest_local.is_file() or vitest_cmd.is_file():
-        return "vitest"
-
-    jest_local = sandbox_path / "node_modules" / ".bin" / "jest"
-    jest_cmd = sandbox_path / "node_modules" / ".bin" / "jest.cmd"
-    if jest_local.is_file() or jest_cmd.is_file():
-        return "jest"
-
-    if shutil.which("vitest"):
-        return "vitest"
-    if shutil.which("jest"):
-        return "jest"
-    return None
-
-
 def discover_test_plan(
     sandbox_path: Path,
     changed_files: Sequence[str] = (),
@@ -58,6 +42,7 @@ def discover_test_plan(
     limits: ResourceLimits | None = None,
     runner_preference: str | None = None,
     policy: dict[str, Any] | None = None,
+    platform: str = sys.platform,
 ) -> tuple[TestPlan, str | None]:
     """Discover targeted or full-suite tests for changed files and symbols.
 
@@ -264,7 +249,22 @@ def discover_test_plan(
                     "No test files found in repository for full-suite execution",
                 )
 
-            js_runner = _find_js_runner(sandbox_path)
+            if runner_preference and runner_preference.lower() not in {"vitest", "jest"}:
+                return (
+                    TestPlan(
+                        language="typescript",
+                        test_files=test_files_sorted,
+                        test_targets=test_files_sorted,
+                        discovery_reason=f"Unknown or unapproved JS/TS runner '{runner_preference}'",
+                        confidence=0.0,
+                        limitations=["unknown_runner"],
+                        timeout=timeout,
+                        full_suite=True,
+                    ),
+                    f"Unapproved JS/TS runner '{runner_preference}'",
+                )
+
+            js_runner = find_js_runner(sandbox_path, preference=runner_preference, platform=platform)
             if not js_runner or pol.get("missing_runner"):
                 return (
                     TestPlan(
@@ -416,7 +416,22 @@ def discover_test_plan(
                 "No reliable targeted test files found in repository for changed files",
             )
 
-        js_runner = _find_js_runner(sandbox_path)
+        if runner_preference and runner_preference.lower() not in {"vitest", "jest"}:
+            return (
+                TestPlan(
+                    language="typescript",
+                    test_files=test_files_sorted,
+                    test_targets=test_files_sorted,
+                    discovery_reason=f"Unknown or unapproved JS/TS runner '{runner_preference}'",
+                    confidence=0.0,
+                    limitations=["unknown_runner"],
+                    timeout=timeout,
+                    full_suite=False,
+                ),
+                f"Unapproved JS/TS runner '{runner_preference}'",
+            )
+
+        js_runner = find_js_runner(sandbox_path, preference=runner_preference, platform=platform)
         if not js_runner or pol.get("missing_runner"):
             return (
                 TestPlan(

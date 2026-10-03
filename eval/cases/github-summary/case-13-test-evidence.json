@@ -1,0 +1,25 @@
+{
+  "args": {
+    "base_sha": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+    "findings": [],
+    "head_sha": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+    "policy_decision": "allowed",
+    "pr_number": 1,
+    "repo_slug": "o/r",
+    "review_mode": "post",
+    "run_id": "run-1",
+    "test_failure_count": 0,
+    "test_pass_count": 12,
+    "tests_status": "passed"
+  },
+  "case_id": "case-13-test-evidence",
+  "expected": {
+    "contains": [
+      "Targeted tests: passed",
+      "12 passed, 0 failed"
+    ]
+  },
+  "fn": "render_summary_comment",
+  "kind": "probe",
+  "scenario": "summary_test_evidence_rendered"
+}

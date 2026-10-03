@@ -1,0 +1,18 @@
+{
+  "args": {
+    "findings": [
+      {
+        "severity": "blocker"
+      }
+    ],
+    "policy_decision": "requires_human_approval"
+  },
+  "case_id": "case-03-blocker-action-required",
+  "expected": {
+    "conclusion": "action_required"
+  },
+  "fn": "map_check_conclusion",
+  "kind": "probe",
+  "scenario": "check_blocker_action_required",
+  "summary": false
+}

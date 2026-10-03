@@ -1,0 +1,16 @@
+{
+  "args": {
+    "findings": [],
+    "full_suite_status": "passed",
+    "policy_decision": "allowed",
+    "tests_status": "passed"
+  },
+  "case_id": "case-01-clean-success",
+  "expected": {
+    "conclusion": "success"
+  },
+  "fn": "map_check_conclusion",
+  "kind": "probe",
+  "scenario": "check_clean_review_success",
+  "summary": false
+}

@@ -42,6 +42,14 @@ python eval/run_eval.py --real-analyzer --cases eval/cases/sensitive-flow-aligne
 python eval/eval_repo_intel.py --cases eval/cases/repo-intel --output eval/results/repo-intel.jsonl
 python eval/eval_review_packets.py --cases eval/cases/review-packets --output eval/results/review-packets.jsonl
 python eval/eval_patching.py --cases eval/cases/patching --output eval/results/patching.jsonl
+python eval/eval_github.py --cases eval/cases/github
+python eval/eval_github_inline.py --cases eval/cases/github-inline
+python eval/eval_github_9cd.py --cases eval/cases/github-summary
+python eval/eval_github_9cd.py --cases eval/cases/github-checks
+codeatlas github review --repo OWNER/REPO --pr 123 --dry-run
+codeatlas github review --repo OWNER/REPO --pr 123 --summary-comment --dry-run
+codeatlas github review --repo OWNER/REPO --pr 123 --check-run --dry-run
+codeatlas github review --repo OWNER/REPO --pr 123 --summary-comment --inline --check-run --post
 codeatlas patch inspect --proposal PATH
 codeatlas patch validate --proposal PATH --repo PATH --base BASE
 codeatlas patch apply-isolated --proposal PATH --repo PATH --base BASE --approval-token TOKEN
@@ -60,6 +68,23 @@ intelligence, and bounded packet assembly; it never executes files in the target
 findings. Use `--no-analyzers` to collect metadata and symbols only. Use `--no-index-repository`
 to disable index construction. The evaluation runner is static and never executes files in a case.
 See `docs/` for scope, architecture, non-goals, threats, limitations, and metrics.
+
+## Phase 9C & 9D: GitHub Pull-Request Integration
+
+CodeAtlas provides automated, fail-closed GitHub PR reviews (`codeatlas github review`):
+- **Dry-run by default:** Performs zero writes unless explicit `--post` is provided.
+- **Consolidated Summary Comment (`--summary-comment`):** Renders a single bounded Markdown comment with status, finding counts, validation notes, and findings table. Idempotent via HTML comment markers.
+- **Check-Run Integration (`--check-run`):** Creates or updates a GitHub check run reporting review conclusions (`success`, `neutral`, `action_required`, `failure`). Bound by external run ID.
+- **Inline Comments (`--inline`):** Posts comments anchored strictly to added (`+`) diff lines with issue comment fallbacks for unchanged/context lines.
+- **Fail-Closed Safety:** Halts all writes immediately if remote head SHA changes, if redaction finds sensitive patterns, or if comments exceed bounds. Never merges, creates branches, or submits GitHub review approval verdicts.
+
+
+## Phase 8A: Isolated & Platform-Aware Test Execution
+
+Patch validation supports optional sandboxed test execution (`codeatlas patch validate --run-tests`):
+- **POSIX Platform:** Discovers and executes local executable binaries (`node_modules/.bin/<runner>`) directly without `.cmd` launchers or shell fallback.
+- **Windows Platform:** Discovers approved `.cmd`, `.bat`, or `.exe` launchers safely within the strict command allowlist.
+- **Deterministic & Safe:** Automatically falls back between approved runners (`vitest`, `jest`), rejects unapproved runners, enforces strict timeouts, truncates excessive output, redacts secrets, blocks network and package installs, and guarantees zero worktree mutation.
 
 ## Phase 8C: Observed test evidence in human review
 

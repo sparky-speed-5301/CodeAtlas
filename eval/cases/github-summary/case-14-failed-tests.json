@@ -1,0 +1,29 @@
+{
+  "args": {
+    "base_sha": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+    "failed_test_names": [
+      "test_a",
+      "test_b"
+    ],
+    "findings": [],
+    "head_sha": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+    "policy_decision": "allowed",
+    "pr_number": 1,
+    "repo_slug": "o/r",
+    "review_mode": "post",
+    "run_id": "run-1",
+    "test_failure_count": 3,
+    "tests_status": "failed"
+  },
+  "case_id": "case-14-failed-tests",
+  "expected": {
+    "contains": [
+      "Targeted tests: failed",
+      "test_a",
+      "test_b"
+    ]
+  },
+  "fn": "render_summary_comment",
+  "kind": "probe",
+  "scenario": "summary_failed_tests_rendered"
+}

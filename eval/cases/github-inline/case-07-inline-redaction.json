@@ -1,0 +1,33 @@
+{
+  "base_tree": {
+    "src/app.py": "def f(x):\n    return x\n"
+  },
+  "case_id": "case-07-inline-redaction",
+  "existing_comments": [],
+  "existing_inline_comments": [],
+  "expected": {
+    "body_secret_free": true,
+    "comments_planned": 1,
+    "comments_posted": 1,
+    "duplicate_suppressed": 0,
+    "inline_endpoint": 1,
+    "issue_endpoint": 0,
+    "raises": null,
+    "worktree_unchanged": true,
+    "write_calls": 1
+  },
+  "files": [
+    {
+      "filename": "src/app.py",
+      "status": "modified"
+    }
+  ],
+  "head_tree": {
+    "src/app.py": "def f(x):\n    token = 'AKIAIOSFODNN7EXAMPLE'\n    return x\n"
+  },
+  "inline": true,
+  "kind": "e2e",
+  "post": true,
+  "scenario": "inline_bodies_redacted",
+  "transport_fault": null
+}

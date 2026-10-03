@@ -1,0 +1,38 @@
+{
+  "base_tree": {
+    "src/app.py": "def f(x):\n    return x\n"
+  },
+  "case_id": "case-20-combined-modes",
+  "check": true,
+  "config": {},
+  "existing_check_runs": [],
+  "existing_comments": [],
+  "expected": {
+    "body_secret_free": true,
+    "check_created": 1,
+    "check_updated": 0,
+    "comments_planned": 3,
+    "inline_endpoint": 1,
+    "issue_endpoint": 0,
+    "partial_write": false,
+    "raises": null,
+    "summary_posted": 1,
+    "summary_updated": 0,
+    "worktree_unchanged": true,
+    "write_calls": 3
+  },
+  "files": [
+    {
+      "filename": "src/app.py",
+      "status": "modified"
+    }
+  ],
+  "head_tree": {
+    "src/app.py": "def f(x):\n    token = 'AKIAIOSFODNN7EXAMPLE'\n    return x\n"
+  },
+  "inline": true,
+  "post": true,
+  "scenario": "combined_summary_check_inline_write_order",
+  "summary": true,
+  "transport_fault": null
+}

@@ -1,0 +1,24 @@
+{
+  "args": {
+    "base_sha": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+    "findings": [],
+    "full_suite_status": "blocked",
+    "head_sha": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+    "policy_decision": "allowed",
+    "pr_number": 1,
+    "repo_slug": "o/r",
+    "review_mode": "post",
+    "run_id": "run-1",
+    "test_execution_attempted": false
+  },
+  "case_id": "case-15-blocked-tests",
+  "expected": {
+    "contains": [
+      "Full suite: blocked",
+      "not proven"
+    ]
+  },
+  "fn": "render_summary_comment",
+  "kind": "probe",
+  "scenario": "summary_blocked_tests_rendered"
+}

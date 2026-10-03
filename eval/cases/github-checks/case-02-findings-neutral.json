@@ -1,0 +1,19 @@
+{
+  "args": {
+    "findings": [
+      {
+        "severity": "medium"
+      }
+    ],
+    "policy_decision": "requires_human_approval",
+    "tests_status": null
+  },
+  "case_id": "case-02-findings-neutral",
+  "expected": {
+    "conclusion": "neutral"
+  },
+  "fn": "map_check_conclusion",
+  "kind": "probe",
+  "scenario": "check_findings_neutral",
+  "summary": false
+}

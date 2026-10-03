@@ -1,0 +1,14 @@
+{
+  "args": {
+    "findings": [],
+    "policy_decision": "abstain"
+  },
+  "case_id": "case-06-abstention",
+  "expected": {
+    "conclusion": "neutral"
+  },
+  "fn": "map_check_conclusion",
+  "kind": "probe",
+  "scenario": "check_abstention_neutral",
+  "summary": false
+}

@@ -1,0 +1,15 @@
+{
+  "args": {
+    "findings": [],
+    "policy_decision": "allowed",
+    "tests_status": null
+  },
+  "case_id": "case-05-tests-not-run",
+  "expected": {
+    "conclusion": "neutral"
+  },
+  "fn": "map_check_conclusion",
+  "kind": "probe",
+  "scenario": "check_tests_not_run_neutral",
+  "summary": false
+}

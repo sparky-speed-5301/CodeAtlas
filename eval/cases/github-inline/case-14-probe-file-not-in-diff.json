@@ -1,0 +1,16 @@
+{
+  "case_id": "case-14-probe-file-not-in-diff",
+  "diff": "--- a/src/app.py\n+++ b/src/app.py\n@@ -1,2 +1,3 @@\n def f(x):\n+    a = 1\n     return x\n",
+  "expected": {
+    "decision": "suppress",
+    "inline_details": null,
+    "reason": "file_not_in_diff"
+  },
+  "finding": {
+    "end_line": 1,
+    "file": "src/other.py",
+    "start_line": 1
+  },
+  "kind": "probe",
+  "scenario": "unsupported_position_suppressed"
+}

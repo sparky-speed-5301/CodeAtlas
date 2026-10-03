@@ -1,0 +1,20 @@
+{
+  "case_id": "case-10-probe-multi-line",
+  "diff": "--- a/src/app.py\n+++ b/src/app.py\n@@ -1,2 +1,4 @@\n def f(x):\n+    a = 1\n+    b = 2\n+    c = 3\n     return x\n",
+  "expected": {
+    "decision": "inline",
+    "inline_details": {
+      "line": 4,
+      "path": "src/app.py",
+      "start_line": 2
+    },
+    "reason": null
+  },
+  "finding": {
+    "end_line": 4,
+    "file": "src/app.py",
+    "start_line": 2
+  },
+  "kind": "probe",
+  "scenario": "multi_line_finding_inline"
+}

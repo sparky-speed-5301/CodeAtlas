@@ -1,0 +1,31 @@
+{
+  "base_tree": {
+    "src/app.py": "def f(x):\n    return x\n"
+  },
+  "case_id": "case-07-valid-anchored-finding",
+  "existing_comments": [],
+  "expected": {
+    "body_secret_free": true,
+    "comments_planned": 1,
+    "comments_posted": 1,
+    "diff_fetched": false,
+    "duplicate_suppressed": 0,
+    "metadata_fetched": false,
+    "raises": null,
+    "worktree_unchanged": true,
+    "write_calls": 1
+  },
+  "files": [
+    {
+      "filename": "src/app.py",
+      "status": "modified"
+    }
+  ],
+  "head_tree": {
+    "src/app.py": "def f(x):\n    token = 'AKIAIOSFODNN7EXAMPLE'\n    return x\n"
+  },
+  "parse_raw": null,
+  "post": true,
+  "scenario": "valid_anchored_finding_posted",
+  "transport_fault": null
+}

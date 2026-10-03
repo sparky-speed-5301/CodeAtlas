@@ -565,5 +565,114 @@ def patch_apply_isolated(
         raise typer.Exit(code=1)
 
 
+github_app = typer.Typer(help="Read-only GitHub pull-request review (no patches, merges, or approvals).")
+app.add_typer(github_app, name="github")
+
+
+@github_app.command(name="review")
+def github_review(
+    repo: str = typer.Option(..., "--repo", help="GitHub repository slug (OWNER/REPO)."),
+    pr: int = typer.Option(..., "--pr", min=1, help="Pull-request number."),
+    local_repo: str = typer.Option(".", "--local-repo", help="Path to the local Git checkout containing the PR commits."),
+    post: bool = typer.Option(False, "--post", help="Publish review comments. Without this flag the run is draft/dry-run."),
+    inline: bool = typer.Option(False, "--inline", help="Post inline comments on added diff lines (falls back to issue comments with a visible reason otherwise)."),
+    summary_comment: bool = typer.Option(False, "--summary-comment", help="Post one consolidated, idempotent summary comment for this head SHA."),
+    check_run: bool = typer.Option(False, "--check-run", help="Create or update a CodeAtlas check run for the head SHA (never a review verdict)."),
+    dry_run: bool = typer.Option(False, "--dry-run", help="Force dry-run mode; never publishes anything."),
+    review_provider: Optional[str] = typer.Option(None, "--review-provider", help="Optional reviewer provider (e.g. mock:echo_changed)."),
+    json_output: Optional[str] = typer.Option(None, "--json-output", help="Write the GitHub review report JSON here."),
+    evidence_output: Optional[str] = typer.Option(None, "--evidence-output", help="Write lifecycle JSONL here."),
+) -> None:
+    """Review a GitHub pull request read-only and optionally post comments.
+
+    Default is draft/dry-run mode with zero write requests.  --post is
+    required to publish comments; posting never approves, merges, applies
+    patches, or changes repository state.
+    """
+    from codeatlas.github import GitHubError, run_github_pr_review
+
+    if post and dry_run:
+        typer.echo("Error: --post and --dry-run are mutually exclusive.", err=True)
+        raise typer.Exit(code=1)
+
+    try:
+        report = run_github_pr_review(
+            repo,
+            pr,
+            local_repo=local_repo,
+            post=post,
+            inline=inline,
+            summary_comment=summary_comment,
+            check_run=check_run,
+            review_provider=review_provider,
+            evidence_output=evidence_output,
+            json_output=json_output,
+        )
+    except GitHubError as error:
+        typer.echo(f"Error: {error}", err=True)
+        raise typer.Exit(code=1)
+
+    typer.echo("CodeAtlas GitHub PR review (read-only)")
+    typer.echo(f"Repository:       {report.repository}")
+    typer.echo(f"Pull request:     #{report.pr_number}")
+    typer.echo(f"Head SHA:         {report.head_sha[:12]}")
+    typer.echo(f"Mode:             {report.mode}")
+    typer.echo(f"Findings:         {report.findings_total} total, {report.findings_anchored} diff-anchored")
+    typer.echo(f"Comments planned: {report.comments_planned}")
+    if post:
+        typer.echo(f"Comments posted:  {report.comments_posted} (inline: {report.inline_comments_posted}, issue: {report.issue_comments_posted})")
+        typer.echo(f"Duplicates skipped: {report.comments_skipped_duplicate}")
+    typer.echo(f"Unanchored suppressed: {report.comments_suppressed_unanchored}")
+    typer.echo(f"Redacted suppressed: {report.comments_suppressed_redacted}")
+    if inline:
+        typer.echo(f"Issue-comment fallbacks: {report.comments_fallback_issue}")
+        for reason in report.fallback_reasons:
+            typer.echo(f"  fallback: {reason}")
+        typer.echo(f"Outside-diff suppressed: {report.comments_suppressed_outside_diff}")
+    if summary_comment:
+        outcome = "updated" if report.summary_comment_updated else "posted" if report.summary_comment_posted else "not written"
+        typer.echo(f"Summary comment:  {outcome}"
+                   + (f" (id {report.summary_comment_id})" if report.summary_comment_id else ""))
+        if report.summary_comment_truncated:
+            typer.echo("Summary truncated deterministically to fit the size limit.")
+        if report.summary_comment_failure_reason:
+            typer.echo(f"Summary failure:  {report.summary_comment_failure_reason}")
+    if check_run:
+        if report.check_run_created or report.check_run_updated:
+            typer.echo(f"Check run:        {report.check_run_conclusion} (id {report.check_run_id})")
+        elif report.check_run_failure_reason:
+            typer.echo(f"Check run:        not written ({report.check_run_failure_reason})")
+        else:
+            typer.echo(f"Check run:        {report.check_run_conclusion or 'computed'} (dry-run)")
+    if report.partial_write:
+        typer.echo("Partial write:    some write groups were skipped; see errors", err=True)
+    typer.echo(f"Write calls:      {report.write_calls}")
+    typer.echo(f"Policy decision:  {report.review_policy}")
+    if json_output:
+        typer.echo(f"JSON output:      {json_output}")
+    if report.errors:
+        for error in report.errors:
+            typer.echo(f"Error: {error}", err=True)
+        raise typer.Exit(code=1)
+
+
+@app.command()
+def serve(
+    host: str = typer.Option("127.0.0.1", "--host", help="Host address to bind (defaults to localhost)."),
+    port: int = typer.Option(8765, "--port", min=1, max=65535, help="Port to listen on."),
+) -> None:
+    """Start local HTTP service for VS Code and IDE integrations."""
+    from codeatlas.service import run_service
+
+    if host not in {"127.0.0.1", "localhost", "::1"}:
+        typer.echo(f"Warning: binding to non-localhost address '{host}'. Do not expose publicly.", err=True)
+
+    try:
+        run_service(host=host, port=port)
+    except OSError as err:
+        typer.echo(f"Failed to start service on {host}:{port}: {err}", err=True)
+        raise typer.Exit(code=1)
+
+
 if __name__ == "__main__":
     app()

@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import re
 import shlex
+import sys
 from pathlib import Path
 from typing import Any, Sequence
 
@@ -39,6 +40,7 @@ def validate_test_command(
     allowed_targets: Sequence[str] | None = None,
     allow_empty_targets: bool = False,
     policy: dict[str, Any] | None = None,
+    platform: str = sys.platform,
 ) -> CommandValidation:
     """Validate a command array against strict Phase 8A allowlist rules.
 
@@ -89,7 +91,15 @@ def validate_test_command(
 
     # Check for prohibited command patterns
     cmd_lower = [p.lower() for p in parts]
-    first_arg = Path(cmd_lower[0]).name.lower()
+    first_raw = Path(cmd_lower[0]).name.lower()
+    if platform != "win32" and first_raw.endswith((".cmd", ".bat")):
+        return CommandValidation(
+            allowed=False,
+            rejection_reason=f"Windows launcher '{first_raw}' is not allowed on POSIX",
+            rules_evaluated=rules_evaluated + ["platform_launcher_check"],
+        )
+
+    first_arg = first_raw
     if first_arg.endswith((".exe", ".cmd", ".bat")):
         first_arg = first_arg.rsplit(".", 1)[0]
 

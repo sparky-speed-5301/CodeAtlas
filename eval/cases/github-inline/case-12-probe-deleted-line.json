@@ -1,0 +1,16 @@
+{
+  "case_id": "case-12-probe-deleted-line",
+  "diff": "--- a/src/app.py\n+++ b/src/app.py\n@@ -1,2 +1,2 @@\n-def gone():\n+def here():\n     return 1\n",
+  "expected": {
+    "decision": "suppress",
+    "inline_details": null,
+    "reason": "line_outside_diff"
+  },
+  "finding": {
+    "end_line": 99,
+    "file": "src/app.py",
+    "start_line": 99
+  },
+  "kind": "probe",
+  "scenario": "deleted_line_suppressed"
+}
