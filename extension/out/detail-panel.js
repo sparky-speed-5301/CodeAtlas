@@ -22,11 +22,15 @@ function getFindingWebviewHtml(detail) {
 </head>
 <body>
   <h2>${safeStr(detail.claim)}</h2>
-  <p><span class="badge">[${safeStr((detail.severity || '').toUpperCase())}]</span> <code>${safeStr(detail.category)}</code> - ${safeStr(detail.file)}:${detail.line}</p>
+  <p><span class="badge">[${safeStr((detail.severity || '').toUpperCase())}]</span> <code>${safeStr(detail.category)}</code> - ${safeStr(detail.file)}:${safeStr(detail.line)}</p>
 
   <table>
-    <tr><th>Confidence</th><td>${detail.confidence ?? 'unknown'}</td></tr>
+    <tr><th>Confidence</th><td>${safeStr(detail.confidence ?? 'unknown')}</td></tr>
     <tr><th>Evidence Strength</th><td>${safeStr(detail.evidence_strength)}</td></tr>
+    <tr><th>Quality Decision</th><td>${safeStr(detail.quality_decision || 'review_only')} (${safeStr(detail.quality_score ?? 0)})</td></tr>
+    <tr><th>Changed-Line Support</th><td>${safeStr(detail.changed_line_support ?? 0)}</td></tr>
+    <tr><th>Repository Context Support</th><td>${safeStr(detail.repository_context_support ?? 0)}</td></tr>
+    <tr><th>Ambiguity</th><td>${safeStr(detail.ambiguity_score ?? 0)}</td></tr>
     <tr><th>Status</th><td>${safeStr(detail.status)}</td></tr>
     <tr><th>Impact</th><td>${safeStr(detail.impact)}</td></tr>
     <tr><th>Policy Decision</th><td>${safeStr(detail.policy_decision)}</td></tr>
@@ -47,6 +51,8 @@ function getFindingWebviewHtml(detail) {
   <ul>
     ${(detail.limitations || []).map((l) => `<li>${safeStr(l)}</li>`).join('')}
   </ul>
+  ${detail.abstention_reason ? `<h3>Abstention Reason</h3><p>${safeStr(detail.abstention_reason)}</p>` : ''}
+  ${detail.quality_limitations?.length ? `<h3>Quality Limitations</h3><ul>${detail.quality_limitations.map((l) => `<li>${safeStr(l)}</li>`).join('')}</ul>` : ''}
 
   <script>
     const vscode = acquireVsCodeApi();

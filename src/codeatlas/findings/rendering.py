@@ -36,6 +36,7 @@ def render_markdown(findings: Iterable[Finding | Mapping[str, Any]]) -> str:
                 f"**Location:** `{location}`  ",
                 f"**Category:** {item.get('category', '')}  ",
                 f"**Confidence:** {item.get('confidence', '')}",
+                f"**Quality:** {item.get('quality_decision', 'review_only')} (score {float(item.get('quality_score', 0.0) or 0.0):.2f})",
                 "",
                 str(item.get("claim", "")),
                 "",
@@ -43,6 +44,14 @@ def render_markdown(findings: Iterable[Finding | Mapping[str, Any]]) -> str:
                 "",
             ]
         )
+        explanation = (item.get("provenance") or {}).get("quality_explanation")
+        if explanation:
+            sections.extend([f"**Quality explanation:** {str(explanation)[:2000]}", ""])
+        if item.get("abstention_reason"):
+            sections.extend([f"**Abstention:** {str(item['abstention_reason'])[:1200]}", ""])
+        quality_limitations = [str(value)[:300] for value in (item.get("quality_limitations") or [])[:10]]
+        if quality_limitations:
+            sections.extend(["**Quality limitations:**", *[f"- {value}" for value in quality_limitations], ""])
     return "\n".join(sections)
 
 

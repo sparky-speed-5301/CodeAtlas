@@ -14,7 +14,7 @@ def test_extension_package_json():
     manifest = json.loads(package_json.read_text(encoding="utf-8"))
     assert manifest["name"] == "codeatlas"
     assert manifest["publisher"] == "codeatlas"
-    assert manifest["main"] in ("./extension.js", "./out/extension.js")
+    assert manifest["main"] == "./out/extension.js"
 
     # Verify ViewContainers and Views
     contributes = manifest.get("contributes", {})
@@ -158,3 +158,38 @@ def test_extension_node_sync_suite():
     )
     assert result.returncode == 0, f"Node test suite failed:\nSTDOUT:\n{result.stdout}\nSTDERR:\n{result.stderr}"
     assert "All Phase 10C VS Code extension unit tests passed successfully!" in result.stdout
+
+
+def test_extension_packaging_and_smoke_configuration():
+    ext_dir = Path(__file__).resolve().parents[2] / "extension"
+    package_json = ext_dir / "package.json"
+    manifest = json.loads(package_json.read_text(encoding="utf-8"))
+
+    assert manifest["main"] == "./out/extension.js"
+    scripts = manifest.get("scripts", {})
+    assert scripts.get("package") == "node package.js"
+    assert scripts.get("verify:package") == "node verify_package.js"
+    assert scripts.get("install:verify") == "node verify_package.js"
+    assert scripts.get("test:smoke") == "node test_smoke.js"
+    assert scripts.get("test:packaging") == "node test_packaging.js"
+
+    assert manifest.get("license") == "Apache-2.0"
+    repo = manifest.get("repository", {})
+    repo_url = repo.get("url") if isinstance(repo, dict) else str(repo)
+    assert repo_url is not None and "github.com/sparky-speed-5301/CodeAtlas" in str(repo_url)
+
+    vscodeignore = ext_dir / ".vscodeignore"
+    assert vscodeignore.exists()
+    ignore_text = vscodeignore.read_text(encoding="utf-8")
+    assert "src/**" in ignore_text
+    assert "test/**" in ignore_text
+    assert "test_*.js" in ignore_text
+    assert "tsconfig.json" in ignore_text
+
+    assert (ext_dir / "LICENSE").exists()
+    assert (ext_dir / "CHANGELOG.md").exists()
+    assert (ext_dir / "package.js").exists()
+    assert (ext_dir / "verify_package.js").exists()
+    assert (ext_dir / "test_packaging.js").exists()
+    assert (ext_dir / "test_smoke.js").exists()
+    assert (ext_dir / "test" / "smoke_runner.js").exists()

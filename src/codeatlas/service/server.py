@@ -6,7 +6,6 @@ import json
 import logging
 import os
 import re
-import socket
 from datetime import datetime, timezone
 from http import HTTPStatus
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
@@ -15,6 +14,7 @@ from urllib.parse import parse_qs, urlparse
 
 from codeatlas.service.models import (
     ExplainRequest,
+    FindingFeedbackRequest,
     HealthResponse,
     PatchProposalRequest,
     ReviewCreateRequest,
@@ -266,6 +266,21 @@ class ReviewHttpHandler(BaseHTTPRequestHandler):
                     )
                 except KeyError as err:
                     self._send_error_json(HTTPStatus.NOT_FOUND, str(err), "not_found")
+                return
+
+            # 7. POST /reviews/{run_id}/findings/{finding_id}/feedback
+            m_feedback = re.match(r"^/reviews/([^/]+)/findings/([^/]+)/feedback$", path)
+            if m_feedback:
+                run_id = m_feedback.group(1)
+                finding_id = m_feedback.group(2)
+                try:
+                    req = FindingFeedbackRequest.model_validate(body)
+                    result = self.state_manager.set_finding_feedback(run_id, finding_id, req.feedback)
+                    self._send_json(HTTPStatus.OK, result.model_dump())
+                except KeyError as err:
+                    self._send_error_json(HTTPStatus.NOT_FOUND, str(err), "not_found")
+                except Exception as err:
+                    self._send_error_json(HTTPStatus.BAD_REQUEST, f"Invalid finding feedback: {err}", "bad_request")
                 return
 
             self._send_error_json(HTTPStatus.NOT_FOUND, f"Endpoint '{path}' not found", "not_found")

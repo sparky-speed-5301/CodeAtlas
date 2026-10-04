@@ -235,7 +235,7 @@ def test_approval_token_scope_and_verification():
     # Mismatched base commit
     ok, err = verify_approval_token(token, prop, base_commit="wrong-commit")
     assert ok is False
-    assert "does not match" in err
+    assert err is not None and "does not match" in err
 
     # Tampered path scope
     prop.target_files = ["src/other.py"]

@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from pathlib import Path
 from re import Pattern
 
@@ -22,7 +22,7 @@ class AnalysisContext:
     @property
     def snapshot_path(self) -> Path:
         path = getattr(self.snapshot, "path", self.snapshot)
-        return Path(path)
+        return Path(str(path))
 
 
 @dataclass(frozen=True)

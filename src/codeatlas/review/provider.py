@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from typing import Any, Protocol, Sequence
+from typing import Any, Protocol
 from pydantic import BaseModel, ConfigDict, Field
 
 from codeatlas.review.packet import ReviewPacket

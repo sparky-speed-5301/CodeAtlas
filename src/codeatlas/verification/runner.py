@@ -17,6 +17,7 @@ from .models import CommandValidation, ResourceLimits, TestPlan, TestResult
 class TestRunner(Protocol):
     """Protocol defining test discovery, command validation, and sandboxed execution."""
 
+    __test__: bool = False
     name: str
     supported_languages: set[str]
 
@@ -45,9 +46,6 @@ class TestRunner(Protocol):
     ) -> TestResult:
         """Execute the test plan in the provided sandbox worktree."""
         ...
-
-
-TestRunner.__test__ = False
 
 
 class BaseTestRunner:

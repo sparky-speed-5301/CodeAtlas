@@ -38,6 +38,7 @@ exports.sortFindingsBySeverity = sortFindingsBySeverity;
 exports.normalizePath = normalizePath;
 exports.pathMatches = pathMatches;
 exports.clampLine = clampLine;
+exports.findingLineBounds = findingLineBounds;
 exports.findFindingsAtCursor = findFindingsAtCursor;
 exports.updateDecorations = updateDecorations;
 exports.disposeDecorations = disposeDecorations;
@@ -78,6 +79,18 @@ function clampLine(line, maxLines) {
         return maxLines;
     return num;
 }
+/**
+ * Normalize a finding's line bounds for editor use.
+ *
+ * Malformed or stale service data can carry inverted ranges (end < start);
+ * constructing a vscode.Range from such data throws and aborts the entire
+ * decoration pass, so bounds are always ordered and clamped here.
+ */
+function findingLineBounds(finding, maxLines) {
+    const start = clampLine(finding.start_line || finding.line || 1, maxLines);
+    const end = clampLine(finding.end_line || finding.line || (finding.start_line || 1), maxLines);
+    return end >= start ? { start, end } : { start: end, end: start };
+}
 function findFindingsAtCursor(findings, docPath, cursorLine) {
     if (!findings || !docPath || !cursorLine)
         return [];
@@ -86,8 +99,7 @@ function findFindingsAtCursor(findings, docPath, cursorLine) {
             return false;
         if (!pathMatches(docPath, f.file))
             return false;
-        const start = f.start_line || f.line || 1;
-        const end = f.end_line || f.line || 1;
+        const { start, end } = findingLineBounds(f);
         return cursorLine >= start && cursorLine <= end;
     });
     return sortFindingsBySeverity(matches);
@@ -169,9 +181,8 @@ function updateDecorations(editor, findings, activeFinding) {
             continue;
         if (pathMatches(docPath, f.file)) {
             const docLines = editor.document.lineCount;
-            const startLine = clampLine(f.start_line || f.line || 1, docLines) - 1;
-            const endLine = clampLine(f.end_line || f.line || 1, docLines) - 1;
-            const range = new vscode.Range(startLine, 0, endLine, 999);
+            const bounds = findingLineBounds(f, docLines);
+            const range = new vscode.Range(bounds.start - 1, 0, bounds.end - 1, 999);
             const hoverText = new vscode.MarkdownString();
             hoverText.appendMarkdown(`**CodeAtlas [${(f.severity || 'INFO').toUpperCase()}]:** ${f.claim}\n\n`);
             hoverText.appendMarkdown(`- **Category:** \`${f.category}\`\n`);

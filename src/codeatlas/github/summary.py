@@ -16,11 +16,14 @@ _DRIVE_PATH_RE = re.compile(r"[A-Za-z]:\\(?:[^\\\s]+\\?)*")
 _ABS_PATH_RE = re.compile(r"(?<![\w.])/[\w.\-/]{3,}")
 
 
-def _scrub_private_paths(text: str) -> str:
+def scrub_private_paths(text: str) -> str:
     """Replace absolute local filesystem paths with a placeholder."""
     text = _DRIVE_PATH_RE.sub("<local-path>", text)
     text = _ABS_PATH_RE.sub("<local-path>", text)
     return text
+
+
+_scrub_private_paths = scrub_private_paths
 
 
 def summary_marker(pr_number: int, head_sha: str) -> str:
@@ -29,8 +32,6 @@ def summary_marker(pr_number: int, head_sha: str) -> str:
 
 
 def parse_summary_marker(body: str) -> dict[str, str] | None:
-    import re
-
     match = re.search(
         r"codeatlas:summary pr=(?P<pr>\d+)\s+head=(?P<head>[0-9a-f]+)\s+mode=(?P<mode>summary)(?:\s+schema=(?P<schema>\S+))?",
         body,
@@ -41,7 +42,7 @@ def parse_summary_marker(body: str) -> dict[str, str] | None:
 
 
 def _clip(text: str, limit: int) -> str:
-    text = _scrub_private_paths(str(text).replace("\n", " ").strip())
+    text = _scrub_private_paths(text.replace("\n", " ").strip())
     return text if len(text) <= limit else text[: limit - 1] + "…"
 
 
@@ -69,7 +70,7 @@ def _origin_counts(findings: list[dict[str, Any]]) -> dict[str, int]:
     return counts
 
 
-def _status_label(decision: str) -> str:
+def status_label(decision: str) -> str:
     if decision in {"blocked"}:
         return "Blocked by policy"
     if decision == "abstain":
@@ -79,6 +80,9 @@ def _status_label(decision: str) -> str:
     if decision == "review_only":
         return "Review only"
     return "Clean"
+
+
+_status_label = status_label
 
 
 def _finding_rows(
@@ -172,6 +176,12 @@ def render_summary_comment(
     lines.append(f"| Deterministic findings | {origins['deterministic']} |")
     lines.append(f"| Provider findings | {origins['reviewer']} |")
     lines.append(f"| Merged findings | {origins['merged']} |")
+    quality_counts: dict[str, int] = {}
+    for finding in findings:
+        decision = str(finding.get("quality_decision", "review_only"))
+        quality_counts[decision] = quality_counts.get(decision, 0) + 1
+    for decision, count in sorted(quality_counts.items()):
+        lines.append(f"| Quality: {decision} | {count} |")
     lines.append(f"| Invalid findings rejected | {invalid_finding_count} |")
     lines.append(f"| Policy-blocked findings | {policy_blocked_count} |")
     lines.append(f"| Planned inline comments | {planned_inline} |")
@@ -268,7 +278,7 @@ def _tests_label(status: str | None) -> str:
     if status == "failed":
         return "failed"
     if status:
-        return str(status)
+        return status
     return "not run"
 
 
@@ -278,5 +288,9 @@ __all__ = [
     "MAX_SUMMARY_BYTES",
     "parse_summary_marker",
     "render_summary_comment",
+    "scrub_private_paths",
+    "status_label",
     "summary_marker",
+    "_scrub_private_paths",
+    "_status_label",
 ]

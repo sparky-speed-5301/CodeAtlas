@@ -59,7 +59,7 @@ async function runMigrationTests() {
   });
 
   // 2. Command registration
-  await test('2. Command registration registers all 21 contribution point commands', async () => {
+  await test('2. Command registration registers all 22 contribution point commands', async () => {
     const registeredCommands = new Set();
     const origRegister = mockVsCode.commands.registerCommand;
     mockVsCode.commands.registerCommand = (id, handler) => {
@@ -82,6 +82,7 @@ async function runMigrationTests() {
         'codeatlas.generateDraftFix',
         'codeatlas.validateApprovedFix',
         'codeatlas.copyFinding',
+        'codeatlas.copyComparisonRange',
         'codeatlas.dismissFinding',
         'codeatlas.filterSeverity',
         'codeatlas.filterCategory',

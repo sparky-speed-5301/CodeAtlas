@@ -30,6 +30,8 @@ def map_check_conclusion(
         return "failure"
     if any(str(f.get("severity")) == "blocker" for f in findings):
         return "action_required"
+    if any(str(f.get("quality_decision")) == "abstain" for f in findings):
+        return "neutral"
     if tests_status == "failed" or full_suite_status == "failed":
         return "failure"
     if findings:
@@ -87,10 +89,10 @@ def render_check_summary(
         "Patch correctness is not proven by this run._",
     ]
     if evidence_limitations:
-        from .summary import _scrub_private_paths
+        from .summary import scrub_private_paths
 
         lines.extend(["", "**Limitations:**"])
-        lines.extend(f"- {_scrub_private_paths(str(l))[:300]}" for l in evidence_limitations[:10])
+        lines.extend(f"- {scrub_private_paths(l)[:300]}" for l in evidence_limitations[:10])
     if summary_comment_url:
         lines.extend(["", f"Details: {summary_comment_url}"])
     body = "\n".join(lines)

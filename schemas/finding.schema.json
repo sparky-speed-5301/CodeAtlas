@@ -23,7 +23,24 @@
     "status": {"enum": ["detected", "review_only", "suggested", "validated", "rejected", "abstained"]},
     "limitations": {"type": "array", "items": {"type": "string"}},
     "abstention_reason": {"type": "string"},
-    "provenance": {"type": "object", "additionalProperties": true}
+    "provenance": {"type": "object", "additionalProperties": true},
+    "quality_version": {"type": "string"},
+    "evidence_sources": {"type": "array", "items": {"type": "string"}},
+    "deterministic_support": {"type": "number", "minimum": 0, "maximum": 1},
+    "reviewer_support": {"type": "number", "minimum": 0, "maximum": 1},
+    "changed_line_support": {"type": "number", "minimum": 0, "maximum": 1},
+    "repository_context_support": {"type": "number", "minimum": 0, "maximum": 1},
+    "test_support": {"type": "number", "minimum": 0, "maximum": 1},
+    "ambiguity_score": {"type": "number", "minimum": 0, "maximum": 1},
+    "truncation_penalty": {"type": "number", "minimum": 0, "maximum": 1},
+    "unsupported_flow": {"type": "boolean"},
+    "duplicate_group_id": {"type": ["string", "null"]},
+    "suppressed_finding_ids": {"type": "array", "items": {"type": "string"}},
+    "quality_decision": {"enum": ["report", "report_with_uncertainty", "review_only", "abstain", "suppress_duplicate", "suppress_low_evidence"]},
+    "quality_score": {"type": "number", "minimum": 0, "maximum": 1},
+    "score_components": {"type": "object", "additionalProperties": {"type": "number"}},
+    "quality_limitations": {"type": "array", "items": {"type": "string"}},
+    "feedback": {"type": ["string", "null"]}
   },
   "allOf": [{"if": {"properties": {"status": {"const": "abstained"}}}, "then": {"required": ["abstention_reason"]}}, {"if": {"properties": {"end_line": {"type": "integer"}, "start_line": {"type": "integer"}}}, "then": {"$comment": "Callers must enforce end_line >= start_line."}}]
 }

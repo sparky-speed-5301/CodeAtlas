@@ -139,6 +139,24 @@ export interface Finding extends FindingLocation {
   limitations?: string[];
   deterministic_evidence?: unknown;
   context?: FindingContext;
+  quality_version?: string;
+  evidence_sources?: string[];
+  deterministic_support?: number;
+  reviewer_support?: number;
+  changed_line_support?: number;
+  repository_context_support?: number;
+  test_support?: number;
+  ambiguity_score?: number;
+  truncation_penalty?: number;
+  unsupported_flow?: boolean;
+  abstention_reason?: string | null;
+  duplicate_group_id?: string | null;
+  suppressed_finding_ids?: string[];
+  quality_decision?: string;
+  quality_score?: number;
+  score_components?: Record<string, number>;
+  quality_limitations?: string[];
+  feedback?: string | null;
 }
 
 export interface FindingCounts {
@@ -171,6 +189,9 @@ export interface ReviewStatus {
   test_status?: string;
   patch_validation_status?: string;
   errors?: string[];
+  /** Resolved revisions, present only after the service resolved them. */
+  base_commit?: string | null;
+  head_commit?: string | null;
 }
 
 export interface StartReviewOptions {

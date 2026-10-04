@@ -41,6 +41,22 @@ export function clampLine(line: number | string | undefined, maxLines?: number):
   return num;
 }
 
+/**
+ * Normalize a finding's line bounds for editor use.
+ *
+ * Malformed or stale service data can carry inverted ranges (end < start);
+ * constructing a vscode.Range from such data throws and aborts the entire
+ * decoration pass, so bounds are always ordered and clamped here.
+ */
+export function findingLineBounds(
+  finding: Finding,
+  maxLines?: number
+): { start: number; end: number } {
+  const start = clampLine(finding.start_line || finding.line || 1, maxLines);
+  const end = clampLine(finding.end_line || finding.line || (finding.start_line || 1), maxLines);
+  return end >= start ? { start, end } : { start: end, end: start };
+}
+
 export function findFindingsAtCursor(
   findings?: Finding[] | null,
   docPath?: string | null,
@@ -50,8 +66,7 @@ export function findFindingsAtCursor(
   const matches = findings.filter((f) => {
     if (f.dismissed) return false;
     if (!pathMatches(docPath, f.file)) return false;
-    const start = f.start_line || f.line || 1;
-    const end = f.end_line || f.line || 1;
+    const { start, end } = findingLineBounds(f);
     return cursorLine >= start && cursorLine <= end;
   });
   return sortFindingsBySeverity(matches);
@@ -139,9 +154,8 @@ export function updateDecorations(
     if (f.dismissed) continue;
     if (pathMatches(docPath, f.file)) {
       const docLines = editor.document.lineCount;
-      const startLine = clampLine(f.start_line || f.line || 1, docLines) - 1;
-      const endLine = clampLine(f.end_line || f.line || 1, docLines) - 1;
-      const range = new vscode.Range(startLine, 0, endLine, 999);
+      const bounds = findingLineBounds(f, docLines);
+      const range = new vscode.Range(bounds.start - 1, 0, bounds.end - 1, 999);
 
       const hoverText = new vscode.MarkdownString();
       hoverText.appendMarkdown(

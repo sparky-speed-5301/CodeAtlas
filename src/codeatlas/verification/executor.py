@@ -7,12 +7,12 @@ import subprocess
 import sys
 import time
 from pathlib import Path
-from typing import Any, Sequence
+from typing import Sequence
 
 from codeatlas.evidence import EvidenceLogger
 from codeatlas.git.executable import run_git
 
-from .models import ResourceLimits, TestPlan, TestResult
+from .models import ResourceLimits, TestResult
 from .redaction import audit_and_redact_results
 from .runner_selection import resolve_runner_command
 
@@ -87,8 +87,8 @@ def execute_test_command(
     cmd_to_run = resolve_runner_command(sandbox_path, command, platform=platform)
 
     started = time.perf_counter()
-    stdout_raw = ""
-    stderr_raw = ""
+    stdout_raw: str = ""
+    stderr_raw: str = ""
     exit_code: int | None = None
     timed_out = False
     proc_failed = False
@@ -106,8 +106,8 @@ def execute_test_command(
         )
         duration_ms = (time.perf_counter() - started) * 1000.0
         exit_code = proc.returncode
-        stdout_raw = proc.stdout or ""
-        stderr_raw = proc.stderr or ""
+        stdout_raw = str(proc.stdout or "")
+        stderr_raw = str(proc.stderr or "")
     except subprocess.TimeoutExpired as exc:
         duration_ms = (time.perf_counter() - started) * 1000.0
         timed_out = True
@@ -148,7 +148,7 @@ def execute_test_command(
         )
     elif exit_code != 0:
         # Extract concise failure lines from stderr or stdout
-        combined_err = (stderr_raw or stdout_raw).strip()
+        combined_err = str(stderr_raw or stdout_raw).strip()
         last_lines = combined_err.splitlines()[-5:] if combined_err else ["Non-zero exit code"]
         failures.append("; ".join(line.strip() for line in last_lines if line.strip()))
 
@@ -282,12 +282,12 @@ def execute_test_command(
         command=list(command),
         working_directory=working_directory,
         tests_run=list(test_targets),
-        tests_passed=diag.get("tests_passed", 0),
-        tests_failed=diag.get("tests_failed", 0),
-        tests_skipped=diag.get("tests_skipped", 0),
-        failed_test_names=diag.get("failed_test_names", []),
-        failure_summary=diag.get("failure_summary", ""),
-        stack_trace_summary=diag.get("stack_trace_summary", ""),
+        tests_passed=int(diag.get("tests_passed") or 0),
+        tests_failed=int(diag.get("tests_failed") or 0),
+        tests_skipped=int(diag.get("tests_skipped") or 0),
+        failed_test_names=[str(x) for x in (diag.get("failed_test_names") or [])],
+        failure_summary=str(diag.get("failure_summary") or ""),
+        stack_trace_summary=str(diag.get("stack_trace_summary") or ""),
         commands_run=[" ".join(command)],
         exit_code=exit_code,
         duration_ms=duration_ms,
@@ -307,7 +307,7 @@ def execute_test_command(
         sandbox_id=sandbox_id,
         proposal_id=proposal_id,
         execution_started=not proc_failed,
-        diagnostics_limitations=diag.get("diagnostics_limitations", []),
+        diagnostics_limitations=[str(x) for x in (diag.get("diagnostics_limitations") or [])],
     )
 
 

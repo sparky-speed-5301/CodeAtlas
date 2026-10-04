@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from typing import Any
 from codeatlas.review.packet import ReviewPacket
-from codeatlas.review.provider import ReviewerProvider, ReviewerResult
+from codeatlas.review.provider import ReviewerResult
 
 
 class MockReviewer:

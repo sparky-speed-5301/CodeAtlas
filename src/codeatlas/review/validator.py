@@ -2,11 +2,12 @@
 
 from __future__ import annotations
 
+import json
 from typing import Any
 from pydantic import ValidationError
 
 from codeatlas.findings.models import Finding
-from codeatlas.review.packet import ReviewPacket, SECRET_PATTERNS
+from codeatlas.review.packet import ReviewPacket, SECRET_PATTERNS, SECRET_RAW_MARKERS
 
 
 class ValidationResult:
@@ -91,8 +92,13 @@ def validate_provider_output(
             continue
 
         # 8. Raw secret check in claims, impacts, or evidence
-        finding_text = f"{finding.claim} {finding.impact} {' '.join(finding.evidence)}"
-        has_raw_secret = any(pat.search(finding_text) for pat in SECRET_PATTERNS)
+        finding_text = json.dumps(
+            finding.model_dump(mode="json", exclude_none=True),
+            sort_keys=True,
+        )
+        has_raw_secret = any(pat.search(finding_text) for pat in SECRET_PATTERNS) or any(
+            marker.lower() in finding_text.lower() for marker in SECRET_RAW_MARKERS
+        ) or any(marker in finding_text for marker in ("sk-", "Bearer ", "CAT-APP-"))
         if has_raw_secret:
             errors.append(f"Finding[{idx}] ({finding.id}) contains unredacted secret data")
             continue

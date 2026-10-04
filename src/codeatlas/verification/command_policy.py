@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-import re
 import shlex
 import sys
 from pathlib import Path
@@ -70,7 +69,7 @@ def validate_test_command(
                 rules_evaluated=rules_evaluated,
             )
     else:
-        parts = [str(arg) for arg in command]
+        parts = list(command)
 
     if not parts:
         return CommandValidation(

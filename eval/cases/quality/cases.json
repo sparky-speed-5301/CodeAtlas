@@ -1,0 +1,15 @@
+[
+  {"case_id": "exact-duplicates", "kind": "exact_duplicates"},
+  {"case_id": "overlapping-duplicates", "kind": "overlapping_duplicates"},
+  {"case_id": "provider-analyzer-agreement", "kind": "agreement"},
+  {"case_id": "provider-analyzer-conflict", "kind": "conflict"},
+  {"case_id": "weak-evidence", "kind": "weak"},
+  {"case_id": "unsupported-flow", "kind": "unsupported"},
+  {"case_id": "ambiguous-location", "kind": "ambiguous"},
+  {"case_id": "truncated-context", "kind": "truncated"},
+  {"case_id": "clean-review", "kind": "clean"},
+  {"case_id": "invalid-provider-output", "kind": "invalid_provider"},
+  {"case_id": "stable-ranking", "kind": "stable_ranking"},
+  {"case_id": "feedback-persistence-reversal", "kind": "feedback"},
+  {"case_id": "redaction-and-bounds", "kind": "redaction"}
+]

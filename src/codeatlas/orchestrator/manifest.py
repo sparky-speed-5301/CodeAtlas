@@ -36,6 +36,10 @@ class RunManifest(BaseModel):
     token_usage: dict[str, Any] = Field(default_factory=dict)
     cost: float | None = Field(default=None, ge=0)
     findings: list[dict[str, Any]] = Field(default_factory=list)
+    quality_version: str = "11B.1"
+    quality_summary: dict[str, Any] = Field(default_factory=dict)
+    quality_limitations: list[str] = Field(default_factory=list)
+    quality_decisions: list[str] = Field(default_factory=list)
     analyzers: list[str] = Field(default_factory=list)
     analyzer_failures: list[str] = Field(default_factory=list)
     errors: list[str] = Field(default_factory=list)

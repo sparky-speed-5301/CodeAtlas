@@ -20,16 +20,14 @@ from typing import Any, Callable
 
 from codeatlas.core import detect_language
 from codeatlas.evidence import EvidenceLogger
-from codeatlas.findings import render_markdown
+from codeatlas.findings import Finding, render_markdown
 from codeatlas.git.diff import extract_diff
 from codeatlas.git.models import Diff
 from codeatlas.git.refs import resolve_base_head
 from codeatlas.git.repository import validate_repository
 from codeatlas.git.snapshot import temporary_snapshot
 from codeatlas.orchestrator.manifest import RunManifest
-from codeatlas.orchestrator.support import ReviewRequest
 from codeatlas.providers import (
-    FakeProvider,
     LiveReviewer,
     ProviderConfigError,
     ProviderTransport,
@@ -50,6 +48,8 @@ from codeatlas.review import (
     assemble_review_packet as _assemble_review_packet,
     evaluate_policy,
     merge_and_rank_findings,
+    assess_finding,
+    quality_summary,
     validate_provider_output,
 )
 
@@ -112,6 +112,11 @@ def _markdown(manifest: RunManifest, diff: Diff) -> str:
 
 
 def _config(path: Path) -> dict:
+    """Parse the small, intentionally limited .codeatlas.yml subset."""
+    return load_config(path)
+
+
+def load_config(path: Path) -> dict:
     """Parse the small, intentionally limited .codeatlas.yml subset."""
     if not path.is_file():
         return {}
@@ -333,7 +338,7 @@ def _run_live_provider(
         # No provider output was produced, so there is nothing to judge.
         manifest.provider_output_valid = None
     else:
-        manifest.provider_output_valid = bool(val_res.is_valid) and provider_res.validation_status not in {"rejected", "failed"}
+        manifest.provider_output_valid = val_res.is_valid and provider_res.validation_status not in {"rejected", "failed"}
     manifest.provider_validation_errors = list(provider_res.validation_errors) + list(val_res.validation_errors)
 
     rejected_count = len(provider_res.validation_errors) + len(val_res.validation_errors)
@@ -357,9 +362,12 @@ def _run_live_provider(
         )
     else:
         # Invalid findings are excluded; valid ones may still merge.
-        merged = merge_and_rank_findings(manifest.findings, val_res.valid_findings)
+        merged = merge_and_rank_findings(manifest.findings, val_res.valid_findings, packet=packet)
         manifest.merged_findings = [f.model_dump(mode="json", exclude_none=True) for f in merged]
         manifest.findings = manifest.merged_findings
+        manifest.quality_summary = quality_summary(merged)
+        manifest.quality_limitations = manifest.quality_summary.get("limitations", [])[:20]
+        manifest.quality_decisions = [f.quality_decision for f in merged]
         evidence.emit("findings_merged", count=len(merged), provider="live", status="ok")
 
         # Phase 7B: opt-in materialization of provider patch suggestions.
@@ -377,7 +385,7 @@ def _run_live_provider(
                         evidence=evidence,
                         suggestions=provider_res.patch_suggestions,
                         snapshot_path=snapshot_path,
-                        base_commit=str(manifest.head_commit or ""),
+                        base_commit=manifest.head_commit or "",
                         provider_name="live",
                         provider_version=provider_res.provider_version,
                         model_name=live_cfg.model_name,
@@ -588,12 +596,6 @@ def run_review(
 
             with temporary_snapshot(repository.root, head_ref.commit) as snapshot:
                 evidence.snapshot_created(run_id=run_id, status="ok")
-                request = ReviewRequest(
-                    repository=str(snapshot.path),
-                    files=tuple(manifest.analyzed_files),
-                    base_ref=base,
-                    head_ref=head,
-                )
                 cfg = _config(snapshot.path / ".codeatlas.yml") or _config(repository.root / ".codeatlas.yml")
 
                 raw_repo_opts = cfg.get("repository", {})
@@ -757,6 +759,25 @@ def run_review(
                         base_commit=manifest.base_commit,
                         head_commit=manifest.head_commit,
                     )
+                    deterministic_quality = [
+                        assess_finding(
+                            Finding.model_validate(item),
+                            packet=packet,
+                            deterministic_support=1.0,
+                        )
+                        for item in manifest.findings
+                    ]
+                    manifest.findings = [item.model_dump(mode="json", exclude_none=True) for item in deterministic_quality]
+                    packet = packet.model_copy(
+                        update={
+                            "deterministic_findings": list(manifest.findings),
+                            "quality_summary": quality_summary(deterministic_quality),
+                            "quality_limitations": quality_summary(deterministic_quality).get("limitations", [])[:20],
+                        }
+                    )
+                    manifest.quality_summary = quality_summary(deterministic_quality)
+                    manifest.quality_limitations = list(packet.quality_limitations)
+                    manifest.quality_decisions = [item.quality_decision for item in deterministic_quality]
                     manifest.review_packet_id = packet.packet_id
                     manifest.packet_bytes = packet.packet_size_statistics.total_bytes
                     manifest.packet_files = packet.packet_size_statistics.total_files
@@ -833,9 +854,16 @@ def run_review(
                                         f"Provider output validation failed: {'; '.join(val_res.validation_errors)}"
                                     )
                                 else:
-                                    merged = merge_and_rank_findings(manifest.findings, val_res.valid_findings)
+                                    merged = merge_and_rank_findings(
+                                        manifest.findings,
+                                        val_res.valid_findings,
+                                        packet=packet,
+                                    )
                                     manifest.merged_findings = [f.model_dump(mode="json", exclude_none=True) for f in merged]
                                     manifest.findings = manifest.merged_findings
+                                    manifest.quality_summary = quality_summary(merged)
+                                    manifest.quality_limitations = manifest.quality_summary.get("limitations", [])[:20]
+                                    manifest.quality_decisions = [f.quality_decision for f in merged]
                                     evidence.emit("findings_merged", count=len(merged), status="ok")
                             elif provider_key == "live":
                                 _run_live_provider(
@@ -859,19 +887,59 @@ def run_review(
                             else:
                                 manifest.errors.append(f"Unknown review provider: {review_provider}")
                     else:
-                        ranked = merge_and_rank_findings(manifest.findings, [])
+                        ranked = merge_and_rank_findings(manifest.findings, [], packet=packet)
                         manifest.merged_findings = [f.model_dump(mode="json", exclude_none=True) for f in ranked]
                         manifest.findings = manifest.merged_findings
+                        manifest.quality_summary = quality_summary(ranked)
+                        manifest.quality_limitations = manifest.quality_summary.get("limitations", [])[:20]
+                        manifest.quality_decisions = [f.quality_decision for f in ranked]
 
-                    final_policy = evaluate_policy(packet, manifest.findings, config=cfg)
+                    # Re-evaluate the deterministic policy against the merged
+                    # finding set, but use the bounded pre-quality confidence
+                    # observation.  Quality display clamping must not silently
+                    # rewrite the legacy policy contract after provider output
+                    # is merged; provider output still cannot supply policy.
+                    policy_findings = []
+                    for payload in manifest.findings:
+                        policy_finding = Finding.model_validate(payload)
+                        observed_confidence = policy_finding.provenance.get("observed_confidence")
+                        if observed_confidence is not None:
+                            policy_finding = policy_finding.model_copy(
+                                update={"confidence": max(0.0, min(1.0, float(observed_confidence)))}
+                            )
+                        policy_findings.append(policy_finding)
+                    final_policy = evaluate_policy(packet, policy_findings, config=cfg)
                     manifest.policy_decisions = [final_policy.model_dump(mode="json")]
+                    evidence.emit(
+                        "quality_evaluated",
+                        quality_version=manifest.quality_version,
+                        count=len(manifest.findings),
+                        status="ok",
+                    )
+                    for finding in manifest.findings[:200]:
+                        evidence.emit(
+                            "finding_quality_evaluated",
+                            finding_id=str(finding.get("id", "")),
+                            quality_version=str(finding.get("quality_version", manifest.quality_version)),
+                            quality_decision=str(finding.get("quality_decision", "review_only")),
+                            quality_score=float(finding.get("quality_score", 0.0) or 0.0),
+                            suppressed_count=len(finding.get("suppressed_finding_ids", []) or []),
+                            status="ok",
+                        )
                     if policy_output is not None:
                         try:
                             _write_text(policy_output, json.dumps(final_policy.model_dump(mode="json"), indent=2, sort_keys=True) + "\n")
                         except (OSError, ValueError) as error:
                             manifest.errors.append(f"Policy output failed: {error}")
 
-            manifest.duration_ms = (time.perf_counter() - started) * 1000
+                if not manifest.quality_summary and manifest.findings:
+                    quality_findings = merge_and_rank_findings(manifest.findings, [])
+                    manifest.findings = [item.model_dump(mode="json", exclude_none=True) for item in quality_findings]
+                    manifest.merged_findings = list(manifest.findings)
+                    manifest.quality_summary = quality_summary(quality_findings)
+                    manifest.quality_limitations = manifest.quality_summary.get("limitations", [])[:20]
+                    manifest.quality_decisions = [item.quality_decision for item in quality_findings]
+                manifest.duration_ms = (time.perf_counter() - started) * 1000
             evidence.run_completed(run_id=run_id, status="ok", duration_ms=manifest.duration_ms)
     except Exception as error:  # preserve the failure in the manifest
         manifest.errors.append(f"{type(error).__name__}: {error}")

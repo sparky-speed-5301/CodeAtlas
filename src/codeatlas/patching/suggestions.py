@@ -9,7 +9,6 @@ tokens, and never runs repository code, tests, or builds.
 
 from __future__ import annotations
 
-import json
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any
@@ -18,7 +17,6 @@ from codeatlas.review.packet import ReviewPacket
 
 from .models import PatchProposal, PatchStatus
 from .parser import parse_unified_diff, unsafe_diff_path_reason
-from .policy import evaluate_patch_policy
 from .proposal import audit_patch_redaction, create_patch_proposal
 from .validator import validate_patch_proposal
 
@@ -178,9 +176,9 @@ def materialize_patch_suggestions(
             result.rejections.append(SuggestionRejection(suggestion_id=sid, finding_id=fid, reason=reason))
 
         # 0. Defense in depth: forbidden fields never materialize.
-        forbidden = [k for k in suggestion if str(k).strip().lower() in _FORBIDDEN_SUGGESTION_KEYS]
+        forbidden = [k for k in suggestion if k.strip().lower() in _FORBIDDEN_SUGGESTION_KEYS]
         if forbidden:
-            reject(f"forbidden field(s) on suggestion: {sorted(str(k) for k in forbidden)}")
+            reject(f"forbidden field(s) on suggestion: {sorted(forbidden)}")
             continue
 
         # 1. Source finding must exist and be anchored to changed lines.
@@ -294,7 +292,7 @@ def materialize_patch_suggestions(
         # Draft transparency: carry suggestion limitations plus the standing
         # provider-draft caveat into the proposal record.
         proposal.limitations.extend(
-            [str(x) for x in suggestion.get("limitations", []) if isinstance(x, str)]
+            [x for x in suggestion.get("limitations", []) if isinstance(x, str)]
         )
         proposal.limitations.append("Draft provider suggestion; requires validation and human approval")
 

@@ -62,6 +62,12 @@ class FindingSummary(BaseModel):
     evidence_strength: str
     status: str
     dismissed: bool = False
+    quality_version: str = "11B.1"
+    quality_decision: str = "review_only"
+    quality_score: float = Field(default=0.0, ge=0, le=1)
+    ambiguity_score: float = Field(default=0.0, ge=0, le=1)
+    unsupported_flow: bool = False
+    feedback: str | None = None
 
 
 class ReviewStatusResponse(BaseModel):
@@ -72,6 +78,10 @@ class ReviewStatusResponse(BaseModel):
     repository: str
     base: str
     head: str
+    # Resolved revisions, populated once the run has produced its manifest.
+    # Absent (None) until then; older clients ignore the extra fields.
+    base_commit: str | None = None
+    head_commit: str | None = None
     policy_decision: str = "unknown"
     finding_counts: dict[str, int] = Field(default_factory=dict)
     test_status: str | None = "not_run"
@@ -128,7 +138,50 @@ class FindingDetailResponse(BaseModel):
     test_result: str = "not_run"
     patch_status: str = "none"
     dismissed: bool = False
+    quality_version: str = "11B.1"
+    evidence_sources: list[str] = Field(default_factory=list)
+    deterministic_support: float = Field(default=0.0, ge=0, le=1)
+    reviewer_support: float = Field(default=0.0, ge=0, le=1)
+    changed_line_support: float = Field(default=0.0, ge=0, le=1)
+    repository_context_support: float = Field(default=0.0, ge=0, le=1)
+    test_support: float = Field(default=0.0, ge=0, le=1)
+    ambiguity_score: float = Field(default=0.0, ge=0, le=1)
+    truncation_penalty: float = Field(default=0.0, ge=0, le=1)
+    unsupported_flow: bool = False
+    abstention_reason: str | None = None
+    duplicate_group_id: str | None = None
+    suppressed_finding_ids: list[str] = Field(default_factory=list)
+    quality_decision: str = "review_only"
+    quality_score: float = Field(default=0.0, ge=0, le=1)
+    score_components: dict[str, float] = Field(default_factory=dict)
+    quality_limitations: list[str] = Field(default_factory=list)
+    feedback: str | None = None
     context: FindingContext = Field(default_factory=FindingContext)
+
+
+FeedbackLabel = Literal[
+    "useful",
+    "not_useful",
+    "false_positive",
+    "accepted",
+    "dismissed",
+    "needs_more_context",
+]
+
+
+class FindingFeedbackRequest(BaseModel):
+    """Explicit, reversible repository-scoped feedback for one finding."""
+
+    feedback: FeedbackLabel | None = None
+
+
+class FindingFeedbackResponse(BaseModel):
+    run_id: str
+    finding_id: str
+    repository: str
+    feedback: FeedbackLabel | None = None
+    previous_feedback: FeedbackLabel | None = None
+    reversed: bool = False
 
 
 class CancelResponse(BaseModel):

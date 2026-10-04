@@ -7,6 +7,15 @@
   "engines": {
     "vscode": "^1.85.0"
   },
+  "license": "Apache-2.0",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/sparky-speed-5301/CodeAtlas.git"
+  },
+  "homepage": "https://github.com/sparky-speed-5301/CodeAtlas#readme",
+  "bugs": {
+    "url": "https://github.com/sparky-speed-5301/CodeAtlas/issues"
+  },
   "categories": [
     "Linters",
     "Programming Languages",
@@ -17,7 +26,14 @@
     "compile": "tsc -p ./",
     "watch": "tsc -watch -p ./",
     "pretest": "npm run compile",
-    "test": "node test_sync.js && node test_lifecycle.js && node test_migration.js"
+    "package": "node package.js",
+    "verify:package": "node verify_package.js",
+    "install:verify": "node verify_package.js",
+    "test": "node test_sync.js && node test_lifecycle.js && node test_migration.js && node test_workflow.js && node test_dogfood.js && node test_smoke.js && node test_packaging.js",
+    "test:workflow": "node test_workflow.js",
+    "test:dogfood": "node test_dogfood.js",
+    "test:smoke": "node test_smoke.js",
+    "test:packaging": "node test_packaging.js"
   },
   "activationEvents": [
     "onStartupFinished"
@@ -116,6 +132,10 @@
         "title": "CodeAtlas: Copy Finding"
       },
       {
+        "command": "codeatlas.copyComparisonRange",
+        "title": "CodeAtlas: Copy Comparison Range"
+      },
+      {
         "command": "codeatlas.dismissFinding",
         "title": "CodeAtlas: Dismiss Finding"
       },
@@ -200,6 +220,11 @@
           "command": "codeatlas.dismissFinding",
           "when": "view == codeatlas.findingsView",
           "group": "inline@4"
+        },
+        {
+          "command": "codeatlas.copyComparisonRange",
+          "when": "view == codeatlas.statusView && viewItem == codeatlas.comparisonRange",
+          "group": "inline@5"
         }
       ]
     },
@@ -317,6 +342,11 @@
           "maximum": 86400,
           "description": "Seconds between background health checks. Zero disables polling. Health checks never start reviews or restart crashed services."
         },
+        "codeatlas.baseBranch": {
+          "type": "string",
+          "default": "main",
+          "description": "Base branch or revision used when starting a review."
+        },
         "codeatlas.activeProfile": {
           "type": "string",
           "default": "default",
@@ -390,7 +420,8 @@
   },
   "devDependencies": {
     "@types/node": "^26.6.4",
-    "@types/vscode": "^1.140.0",
+    "@types/vscode": "^1.85.0",
+    "@vscode/test-electron": "^3.1.0",
     "typescript": "^7.0.2"
   }
 }

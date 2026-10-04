@@ -1,0 +1,17 @@
+.vscode/**
+.vscode-test/**
+node_modules/**
+src/**
+test/**
+docs/**
+test_*.js
+*.ts
+tsconfig.json
+extension.js
+profiles.js
+service.js
+.gitignore
+*.vsix
+package.js
+test_smoke.js
+verify_package.js

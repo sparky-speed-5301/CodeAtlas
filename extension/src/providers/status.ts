@@ -3,12 +3,50 @@ import { ProfileManager } from '../profiles';
 import { ServiceLifecycleManager } from '../service';
 import { ReviewStatus } from '../types';
 
+// Only genuine git revision identifiers are displayed; anything else the
+// service sends in these fields renders as unresolved rather than trusted.
+const SHA_PATTERN = /^[0-9a-f]{7,64}$/i;
+const FULL_SHA_PATTERN = /^(?:[0-9a-f]{40}|[0-9a-f]{64})$/i;
+const SHA_DISPLAY_CHARS = 12;
+const COMPARISON_CONTEXT_VALUE = 'codeatlas.comparisonRange';
+
+export interface ResolvedShas {
+  base: string;
+  head: string;
+}
+
+function resolvedShasFrom(status: ReviewStatus | null): ResolvedShas | null {
+  if (status?.status === 'cancelled') return null;
+  const base = status?.base_commit;
+  const head = status?.head_commit;
+  if (
+    typeof base === 'string' &&
+    typeof head === 'string' &&
+    SHA_PATTERN.test(base) &&
+    SHA_PATTERN.test(head)
+  ) {
+    return { base, head };
+  }
+  return null;
+}
+
+function shortSha(sha: string | undefined | null): string {
+  return sha ? sha.slice(0, SHA_DISPLAY_CHARS) : 'unresolved';
+}
+
 export class StatusTreeDataProvider implements vscode.TreeDataProvider<vscode.TreeItem> {
   private _onDidChangeTreeData: vscode.EventEmitter<vscode.TreeItem | undefined | null | void>;
   readonly onDidChangeTreeData: vscode.Event<vscode.TreeItem | undefined | null | void>;
   status: ReviewStatus | null;
   serviceManager: ServiceLifecycleManager | null;
   profileManager: ProfileManager | null;
+  lastReviewBase: string | null;
+  /** SHAs of the active run only; null whenever absent, stale, or cleared. */
+  lastReviewShas: ResolvedShas | null;
+  /** Status updates for any other run are ignored while a run is active. */
+  activeRunId: string | null;
+  private clearedRunId: string | null = null;
+  private comparisonItems = new WeakMap<vscode.TreeItem, { runId: string; range: string }>();
 
   constructor(
     serviceManager: ServiceLifecycleManager | null = null,
@@ -19,13 +57,57 @@ export class StatusTreeDataProvider implements vscode.TreeDataProvider<vscode.Tr
     this.status = null;
     this.serviceManager = serviceManager;
     this.profileManager = profileManager;
+    this.lastReviewBase = null;
+    this.lastReviewShas = null;
+    this.activeRunId = null;
+  }
+
+  setActiveRunId(runId: string | null): void {
+    if (this.activeRunId === runId) return;
+    if (runId !== null) this.clearedRunId = null;
+    this.activeRunId = runId;
+    this.lastReviewShas = null;
+    this._onDidChangeTreeData.fire();
   }
 
   refresh(status?: ReviewStatus | null): void {
     if (status !== undefined) {
+      if (status && this.activeRunId && status.run_id !== this.activeRunId) return;
+      if (status === null) this.activeRunId = null;
       this.status = status;
+      // Re-derive on every status update: a run without resolved revisions
+      // (pending, cancelled, stale) clears the displayed SHAs immediately.
+      this.lastReviewShas =
+        status?.run_id && status.run_id === this.clearedRunId
+          ? null
+          : resolvedShasFrom(status);
     }
     this._onDidChangeTreeData.fire();
+  }
+
+  clearShas(): void {
+    // A late response from a cleared (cancelled/crashed) run cannot restore it.
+    this.clearedRunId = this.status?.run_id ?? null;
+    this.lastReviewShas = null;
+    this._onDidChangeTreeData.fire();
+  }
+
+  getComparisonRange(runId: string | null, item?: vscode.TreeItem): string | null {
+    const shas = this.lastReviewShas;
+    if (
+      !runId || runId !== this.activeRunId || runId !== this.status?.run_id ||
+      this.status.status === 'cancelled' || runId === this.clearedRunId || !shas ||
+      ![shas.base, shas.head].every(sha =>
+        typeof sha === 'string' && (sha.length === 40 || sha.length === 64) &&
+        FULL_SHA_PATTERN.test(sha)
+      )
+    ) return null;
+    const range = `${shas.base}...${shas.head}`;
+    if (item !== undefined) {
+      const comparison = this.comparisonItems.get(item);
+      if (comparison?.runId !== runId || comparison.range !== range) return null;
+    }
+    return range;
   }
 
   getTreeItem(element: vscode.TreeItem): vscode.TreeItem {
@@ -85,6 +167,32 @@ export class StatusTreeDataProvider implements vscode.TreeDataProvider<vscode.Tr
 
     if (this.status.run_id) {
       items.push(new vscode.TreeItem(`Run ID: ${this.status.run_id}`));
+    }
+    items.push(new vscode.TreeItem(`Base Branch: ${this.lastReviewBase ?? 'main (default)'}`));
+    // Resolved revisions: abbreviated display, full value in the hover tooltip.
+    const shas = this.lastReviewShas;
+    const baseItem = new vscode.TreeItem(`Base SHA: ${shortSha(shas?.base)}`);
+    const headItem = new vscode.TreeItem(`Head SHA: ${shortSha(shas?.head)}`);
+    if (shas) {
+      baseItem.tooltip = `Full base commit: ${shas.base}`;
+      headItem.tooltip = `Full head commit: ${shas.head}`;
+      items.push(baseItem, headItem);
+      const comparisonItem = new vscode.TreeItem(
+        `Comparison: ${shortSha(shas.base)}...${shortSha(shas.head)}`
+      );
+      comparisonItem.contextValue = COMPARISON_CONTEXT_VALUE;
+      comparisonItem.tooltip = `Full comparison range: ${shas.base}...${shas.head}`;
+      if (this.status.run_id) {
+        this.comparisonItems.set(comparisonItem, {
+          runId: this.status.run_id,
+          range: `${shas.base}...${shas.head}`,
+        });
+      }
+      items.push(comparisonItem);
+    } else {
+      baseItem.tooltip = 'Base revision has not been resolved for this run.';
+      headItem.tooltip = 'Head revision has not been resolved for this run.';
+      items.push(baseItem, headItem);
     }
     if (this.status.policy_decision) {
       items.push(new vscode.TreeItem(`Policy Decision: ${this.status.policy_decision}`));

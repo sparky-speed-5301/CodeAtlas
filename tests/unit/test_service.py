@@ -17,10 +17,8 @@ from typer.testing import CliRunner
 from codeatlas.cli import app
 from codeatlas.patching.proposal import generate_approval_token
 from codeatlas.service import (
-    CodeAtlasServer,
     ReviewStateManager,
     create_server,
-    validate_service_repo_path,
 )
 
 runner = CliRunner()
@@ -100,7 +98,8 @@ def test_health_reports_active_providers_without_review_content(running_service,
     from codeatlas.service.state import ReviewRunRecord
 
     base_url, manager = running_service
-    for name, provider in [("first", "mock"), ("second", "live")]:
+    providers: list[tuple[str, Any]] = [("first", "mock"), ("second", "live")]
+    for name, provider in providers:
         request = ReviewCreateRequest(repo="private-repo", review_provider=provider, provider_model="private-model")
         record = ReviewRunRecord(name, request, tmp_path)
         record.status = "reviewing"
@@ -159,6 +158,58 @@ def test_profile_max_findings_limits_display_without_losing_evidence(tmp_path):
     assert manager.get_finding_detail(record.run_id, "two").id == "two"
 
 
+def test_finding_feedback_is_repository_scoped_reversible_and_non_policy(tmp_path, running_service):
+    from codeatlas.service.models import ReviewCreateRequest
+    from codeatlas.service.state import ReviewRunRecord
+
+    base_url, manager = running_service
+    record = ReviewRunRecord("feedback-run", ReviewCreateRequest(repo=str(tmp_path)), tmp_path)
+    record.status = "completed"
+    record.findings = [{
+        "id": "CA-FEEDBACK",
+        "severity": "high",
+        "category": "STYLE",
+        "claim": "bounded claim",
+        "file": "src/app.py",
+        "start_line": 1,
+        "end_line": 1,
+        "confidence": 0.5,
+        "evidence_strength": "weak",
+        "status": "review_only",
+        "quality_decision": "review_only",
+    }]
+    manager._reviews[record.run_id] = record
+
+    status, first = _http_request(
+        f"{base_url}/reviews/{record.run_id}/findings/CA-FEEDBACK/feedback",
+        method="POST",
+        data={"feedback": "false_positive"},
+    )
+    assert status == 200
+    assert first["feedback"] == "false_positive"
+    assert first["reversed"] is False
+    assert manager.get_findings(record.run_id, include_dismissed=True)[0].feedback == "false_positive"
+
+    status, second = _http_request(
+        f"{base_url}/reviews/{record.run_id}/findings/CA-FEEDBACK/feedback",
+        method="POST",
+        data={"feedback": "useful"},
+    )
+    assert status == 200
+    assert second["previous_feedback"] == "false_positive"
+    assert second["reversed"] is True
+    assert manager.get_review_status(record.run_id).policy_decision == "unknown"
+
+    status, cleared = _http_request(
+        f"{base_url}/reviews/{record.run_id}/findings/CA-FEEDBACK/feedback",
+        method="POST",
+        data={"feedback": None},
+    )
+    assert status == 200
+    assert cleared["feedback"] is None
+    assert manager.get_findings(record.run_id, include_dismissed=True)[0].feedback is None
+
+
 @pytest.mark.parametrize("options", [{"provider_timeout": 0}, {"provider_timeout": 301}, {"review_provider": "unknown"}])
 def test_invalid_profile_request_options_rejected(options):
     from pydantic import ValidationError
@@ -183,6 +234,7 @@ def test_start_review_and_status_lifecycle(tmp_path: Path, running_service):
     assert run_id.startswith("rev-")
 
     # Poll status until completed
+    s_body: dict[str, Any] = {}
     for _ in range(30):
         s_code, s_body = _http_request(f"{base_url}/reviews/{run_id}")
         assert s_code == 200
@@ -190,11 +242,40 @@ def test_start_review_and_status_lifecycle(tmp_path: Path, running_service):
             break
         time.sleep(0.1)
 
-    assert s_body["status"] == "completed"
+    assert s_body.get("status") == "completed"
     assert s_body["finding_counts"]["total"] >= 1
     assert s_body["finding_counts"]["high"] >= 1
     assert s_body["repository"] == str(repo_dir.resolve())
     assert s_body["test_status"] == "not_run"
+    # Resolved revisions are exposed once the run produced its manifest.
+    assert s_body["base_commit"] == base_sha
+    assert s_body["head_commit"] == head_sha
+
+
+def test_status_shas_unresolved_before_completion(tmp_path: Path):
+    """A record without a run result exposes null SHAs, never guesses."""
+    from codeatlas.service.models import ReviewCreateRequest
+    from codeatlas.service.state import ReviewRunRecord, ReviewStateManager
+
+    manager = ReviewStateManager()
+    record = ReviewRunRecord("shaless", ReviewCreateRequest(repo=str(tmp_path)), tmp_path)
+    manager._reviews[record.run_id] = record
+    status = manager.get_review_status(record.run_id)
+    assert status.status == "idle"
+    assert status.base_commit is None
+    assert status.head_commit is None
+    # A resolved manifest populates both fields.
+    from types import SimpleNamespace
+    from typing import cast
+
+    cast(Any, record).result = SimpleNamespace(manifest=SimpleNamespace(
+        policy_decisions=[], errors=[], packet_limitations=[], packet_truncated=False,
+        tests_status="not_run", full_suite_status="not_run", findings=[],
+        base_commit="b" * 40, head_commit="c" * 40,
+    ))
+    resolved = manager.get_review_status(record.run_id)
+    assert resolved.base_commit == "b" * 40
+    assert resolved.head_commit == "c" * 40
 
 
 def test_list_and_filter_findings(tmp_path: Path, running_service):

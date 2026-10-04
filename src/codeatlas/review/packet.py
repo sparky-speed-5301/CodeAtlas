@@ -6,13 +6,13 @@ import hashlib
 import json
 import re
 from pathlib import Path
-from typing import Annotated, Any, Literal, Mapping, Sequence, TYPE_CHECKING
+from typing import Annotated, Any, Literal, Mapping, Sequence, TYPE_CHECKING, cast
 
 from pydantic import BaseModel, ConfigDict, Field, ValidationError, model_validator
 
 from codeatlas.findings.models import Finding
-from codeatlas.git.models import Diff, LineRange
-from codeatlas.repository.models import ContextCandidate, RepositoryIndex, Symbol
+from codeatlas.git.models import Diff
+from codeatlas.repository.models import ContextCandidate, RepositoryIndex
 from codeatlas.verification.models import OutputRedactionAudit, TestPlan, TestResult
 from codeatlas.verification.diagnostics import MAX_FAILED_TESTS, MAX_STACK_FRAMES, MAX_SUMMARY_LENGTH, MAX_OUTPUT_BYTES
 from codeatlas.verification.command_policy import validate_test_command
@@ -140,6 +140,9 @@ class ReviewPacket(BaseModel):
     changed_line_ranges: dict[str, list[list[int]]] = Field(default_factory=dict)
     changed_symbols: list[dict[str, Any]] = Field(default_factory=list)
     deterministic_findings: list[dict[str, Any]] = Field(default_factory=list)
+    quality_version: str = "11B.1"
+    quality_summary: dict[str, Any] = Field(default_factory=dict)
+    quality_limitations: list[str] = Field(default_factory=list)
     context_candidates: list[ContextItem] = Field(default_factory=list)
     relevant_imports: list[dict[str, Any]] = Field(default_factory=list)
     relevant_references: list[dict[str, Any]] = Field(default_factory=list)
@@ -282,8 +285,13 @@ def assemble_review_packet(
     findings_list: list[dict[str, Any]] = []
     raw_findings = list(deterministic_findings or [])
     for f in raw_findings[:max_findings]:
-        f_dict = f.model_dump(mode="json") if hasattr(f, "model_dump") else dict(f)
-        findings_list.append(f_dict)
+        if isinstance(f, Finding):
+            findings_list.append(f.model_dump(mode="json"))
+        elif isinstance(f, dict):
+            findings_list.append(f)
+        else:
+            dump_fn = getattr(f, "model_dump", None)
+            findings_list.append(cast(dict[str, Any], dump_fn(mode="json")) if callable(dump_fn) else cast(dict[str, Any], dict(f)))
     if len(raw_findings) > max_findings:
         limitations.append(f"deterministic findings bounded to {max_findings} of {len(raw_findings)}")
 
@@ -339,7 +347,7 @@ def assemble_review_packet(
         start_line = cand.line_range[0] if cand.line_range else 1
         end_line = cand.line_range[1] if len(cand.line_range) > 1 else start_line
 
-        raw_snippet, line_cnt = _safe_read_range(full_file_path, start_line, end_line)
+        raw_snippet, _line_cnt = _safe_read_range(full_file_path, start_line, end_line)
         if not raw_snippet:
             continue
 

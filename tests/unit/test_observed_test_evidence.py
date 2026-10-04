@@ -3,6 +3,7 @@
 import io
 import json
 from pathlib import Path
+from typing import Any
 
 import jsonschema
 import pytest
@@ -139,7 +140,8 @@ def test_validation_exclusion(observation, field, value, reason):
 
 @pytest.mark.parametrize("field", ["proposal_id", "sandbox_id", "base_commit"])
 def test_packet_identity_binding(observation, field):
-    packet = ReviewPacket(packet_id="pkt", repository="repo", **{field: "other"})
+    kwargs: dict[str, Any] = {field: "other"}
+    packet = ReviewPacket(packet_id="pkt", repository="repo", **kwargs)
     assert attach(observation, packet).observed_test_evidence is None
 
 
@@ -180,7 +182,8 @@ def test_fresh_redaction_audit_rejects_leaks(observation, field):
 def test_successful_redaction_counts_are_not_residual_leaks(observation):
     observation[1].redaction_audit.update(raw_value_matches=2, redacted_items_count=2)
     observation[1].failure_summary = "[REDACTED]"
-    assert attach(observation).observed_test_evidence.redaction_audit.redacted_items_count == 2
+    att = attach(observation)
+    assert att.observed_test_evidence is not None and att.observed_test_evidence.redaction_audit.redacted_items_count == 2
 
 
 def test_bounds_multibyte_diagnostics_and_truncation(observation):
@@ -221,9 +224,9 @@ def test_network_isolation_is_never_inferred(observation):
     observation[2].network_isolation_verified = True
     packet, manifest = build_validation_review(observation[0], observation[2], repository="repo")
     assert packet.network_isolation_verified is False
-    assert packet.observed_test_evidence.network_isolation_verified is False
+    assert packet.observed_test_evidence is not None and packet.observed_test_evidence.network_isolation_verified is False
     assert manifest.network_isolation_verified is False
-    assert packet.observed_test_evidence.network_policy_enforced is True
+    assert packet.observed_test_evidence is not None and packet.observed_test_evidence.network_policy_enforced is True
 
 
 def test_failed_tests_preserve_failed_validation_and_log_metadata(observation):
@@ -263,6 +266,7 @@ def test_json_schema_validation_and_rejected_unbounded_evidence(observation):
         jsonschema.Draft202012Validator.check_schema(schema)
     jsonschema.validate(packet.model_dump(mode="json"), ReviewPacket.model_json_schema())
     jsonschema.validate(manifest.model_dump(mode="json"), manifest_schema)
+    assert packet.observed_test_evidence is not None
     data = packet.observed_test_evidence.model_dump(mode="json")
     jsonschema.validate(data, evidence_schema)
     for field, value in (("failed_test_names", ["test"] * 11), ("failure_summary", "x" * 501), ("status", "blocked"), ("limitations", [])):

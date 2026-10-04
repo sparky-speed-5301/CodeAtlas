@@ -12,3 +12,5 @@ eval/results/*.stderr
 scratch/
 .vscode/
 .env
+.npm/
+review_report.md

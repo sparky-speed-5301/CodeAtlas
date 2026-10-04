@@ -426,7 +426,7 @@ def test_cli_and_manifest_packet_integration(tmp_path: Path):
     if res.manifest.errors:
         print("Manifest errors:", res.manifest.errors)
     assert res.manifest.review_packet_id is not None
-    assert res.manifest.packet_bytes > 0
+    assert res.manifest.packet_bytes is not None and res.manifest.packet_bytes > 0
     assert packet_out.is_file()
     assert policy_out.is_file()
     assert manifest_out.is_file()

@@ -15,7 +15,6 @@ from __future__ import annotations
 
 import json
 import re
-import time
 import uuid
 from pathlib import Path
 from typing import Any
@@ -24,14 +23,17 @@ from codeatlas.evidence import EvidenceLogger
 from codeatlas.git.executable import run_git
 from codeatlas.git.refs import resolve_ref
 from codeatlas.git.repository import validate_repository
-from codeatlas.orchestrator.review import run_review, _config
+from codeatlas.orchestrator.review import run_review, load_config
 from codeatlas.review.packet import SECRET_PATTERNS
 
 from .checks import CHECK_NAME, check_external_id, map_check_conclusion, render_check_summary
 from .errors import GitHubError, SHAMismatchError
-from .summary import parse_summary_marker, render_summary_comment, summary_marker, _status_label
-from .transport import FakeGitHubTransport, GhCliTransport, GitHubTransport
+from .summary import parse_summary_marker, render_summary_comment, status_label, summary_marker
+from .transport import GhCliTransport, GitHubTransport
 from .models import GitHubReviewReport
+
+_config = load_config
+_status_label = status_label
 
 # Non-secret defaults; the repository's `.codeatlas.yml` `github:` section may
 # only tighten these.  Tokens are never part of this configuration.
@@ -88,6 +90,8 @@ def render_finding_comment(
     impact = str(finding.get("impact", ""))
     confidence = float(finding.get("confidence", 0.0))
     strength = str(finding.get("evidence_strength", "none"))
+    quality_decision = str(finding.get("quality_decision", "review_only"))
+    quality_score = float(finding.get("quality_score", 0.0) or 0.0)
     evidence_items = [str(e) for e in (finding.get("evidence") or [])][:3]
     limitations = [str(x) for x in (finding.get("limitations") or [])][:3]
 
@@ -98,6 +102,7 @@ def render_finding_comment(
         f"**Claim:** {claim}",
         f"**Impact:** {impact}",
         f"**Confidence:** {confidence:.2f} · **Evidence strength:** {strength}",
+        f"**Quality:** {quality_decision} (score {quality_score:.2f})",
     ]
     if evidence_items:
         lines.append("")
@@ -106,6 +111,11 @@ def render_finding_comment(
     if limitations:
         lines.append("")
         lines.append("*Limitations:* " + "; ".join(limitations))
+    quality_limitations = [str(item)[:300] for item in (finding.get("quality_limitations") or [])[:5]]
+    if quality_limitations:
+        lines.append("*Quality limitations:* " + "; ".join(quality_limitations))
+    if finding.get("abstention_reason"):
+        lines.append("*Abstention:* " + str(finding.get("abstention_reason"))[:1000])
     lines.append("")
     lines.append(
         "*Automated read-only review. Findings are advisory only and require human review; "
@@ -613,7 +623,6 @@ def run_github_pr_review(
         summary_marker_text = summary_marker(pr_number, metadata.head_sha)
 
         if summary_body is not None:
-            summary_comment_requested = True
             if post:
                 if _gate("summary"):
                     summary_write_attempted = True
@@ -626,7 +635,7 @@ def run_github_pr_review(
                                 matches.append(c)
                         current_head = [
                             c for c in matches
-                            if parse_summary_marker(c.body)["head"] == metadata.head_sha
+                            if (m := parse_summary_marker(c.body)) is not None and m.get("head") == metadata.head_sha
                         ]
                         if len(current_head) > 1:
                             _emit(evidence, "summary_comment_duplicate_found",
@@ -709,7 +718,6 @@ def run_github_pr_review(
         check_skipped_duplicate = False
         check_run_id: Any = None
         if check_payload is not None:
-            check_run_requested = True
             if post:
                 if _gate("check run"):
                     check_write_attempted = True
@@ -783,7 +791,7 @@ def run_github_pr_review(
             comments_suppressed_outside_diff=suppressed_outside_diff,
             comments_fallback_issue=len(fallback_reasons),
             fallback_reasons=fallback_reasons,
-            write_calls=transport.write_calls if hasattr(transport, "write_calls") else len(posted_ids),
+            write_calls=getattr(transport, "write_calls", len(posted_ids)),
             errors=errors,
             posted_comment_ids=posted_ids,
             partial_write=partial_write,

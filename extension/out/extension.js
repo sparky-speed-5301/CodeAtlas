@@ -38,7 +38,7 @@ var __importStar = (this && this.__importStar) || (function () {
     };
 })();
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.decorationTypes = exports.SEVERITY_ORDER = exports.getNoFindingWebviewHtml = exports.getFindingWebviewHtml = exports.pathMatches = exports.normalizePath = exports.sortFindingsBySeverity = exports.clampLine = exports.formatQuickPickItem = exports.findFindingsAtCursor = exports.SETUP_MESSAGE = exports.safeHealth = exports.parseServiceCommand = exports.validateServiceUrl = exports.configurationPath = exports.readWorkspaceConfiguration = exports.FORBIDDEN_PROFILE_KEYS = exports.ALLOWED_PROFILE_KEYS = exports.DEFAULT_PROFILE = exports.validateProfileName = exports.validateProfile = exports.ServiceLifecycleManager = exports.ProfileManager = exports.ContextTreeDataProvider = exports.FindingsTreeDataProvider = exports.StatusTreeDataProvider = exports.CodeAtlasClient = void 0;
+exports.decorationTypes = exports.SEVERITY_ORDER = exports.getNoFindingWebviewHtml = exports.getFindingWebviewHtml = exports.pathMatches = exports.normalizePath = exports.sortFindingsBySeverity = exports.clampLine = exports.formatQuickPickItem = exports.findingLineBounds = exports.findFindingsAtCursor = exports.SETUP_MESSAGE = exports.safeHealth = exports.parseServiceCommand = exports.validateServiceUrl = exports.configurationPath = exports.readWorkspaceConfiguration = exports.FORBIDDEN_PROFILE_KEYS = exports.ALLOWED_PROFILE_KEYS = exports.DEFAULT_PROFILE = exports.validateProfileName = exports.validateProfile = exports.ServiceLifecycleManager = exports.ProfileManager = exports.ContextTreeDataProvider = exports.FindingsTreeDataProvider = exports.StatusTreeDataProvider = exports.CodeAtlasClient = void 0;
 exports.activate = activate;
 exports.deactivate = deactivate;
 const vscode = __importStar(require("vscode"));
@@ -48,6 +48,7 @@ const decorations_1 = require("./decorations");
 Object.defineProperty(exports, "clampLine", { enumerable: true, get: function () { return decorations_1.clampLine; } });
 Object.defineProperty(exports, "decorationTypes", { enumerable: true, get: function () { return decorations_1.decorationTypes; } });
 Object.defineProperty(exports, "findFindingsAtCursor", { enumerable: true, get: function () { return decorations_1.findFindingsAtCursor; } });
+Object.defineProperty(exports, "findingLineBounds", { enumerable: true, get: function () { return decorations_1.findingLineBounds; } });
 Object.defineProperty(exports, "normalizePath", { enumerable: true, get: function () { return decorations_1.normalizePath; } });
 Object.defineProperty(exports, "pathMatches", { enumerable: true, get: function () { return decorations_1.pathMatches; } });
 Object.defineProperty(exports, "SEVERITY_ORDER", { enumerable: true, get: function () { return decorations_1.SEVERITY_ORDER; } });
@@ -134,7 +135,12 @@ function activate(context) {
         client.serviceUrl = serviceManager.currentUrl;
         statusProvider.refresh();
     };
-    serviceManager.onCrash = (message) => vscode.window.showErrorMessage(`CodeAtlas: ${message}`);
+    serviceManager.onCrash = (message) => {
+        // A crashed service can no longer back the current run: never display
+        // resolved revisions as if they were still current.
+        statusProvider.clearShas();
+        vscode.window.showErrorMessage(`CodeAtlas: ${message}`);
+    };
     loadProfileSettings();
     loadServiceSettings();
     vscode.window.registerTreeDataProvider('codeatlas.statusView', statusProvider);
@@ -144,6 +150,9 @@ function activate(context) {
     let currentFindings = [];
     let activeFinding = null;
     let activeDetailPanel = null;
+    // The webview message handler is registered once per panel; it must act on
+    // the finding currently displayed, never the one the panel was created with.
+    let currentDetail = null;
     const dismissedFindingIds = new Set();
     const reviewTimers = new Set();
     let healthTimer = null;
@@ -181,7 +190,9 @@ function activate(context) {
         dismissedFindingIds.clear();
         findingsProvider.refresh([]);
         contextProvider.refresh(null);
+        statusProvider.setActiveRunId(null);
         statusProvider.refresh(null);
+        currentDetail = null;
         if (activeDetailPanel)
             activeDetailPanel.webview.html = (0, detail_panel_1.getNoFindingWebviewHtml)();
         updateDecorationsForEditor();
@@ -249,9 +260,8 @@ function activate(context) {
                 continue;
             if ((0, decorations_1.pathMatches)(docPath, f.file)) {
                 const docLines = editor.document.lineCount;
-                const startLine = (0, decorations_1.clampLine)(f.start_line || f.line || 1, docLines) - 1;
-                const endLine = (0, decorations_1.clampLine)(f.end_line || f.line || 1, docLines) - 1;
-                const range = new vscode.Range(startLine, 0, endLine, 999);
+                const bounds = (0, decorations_1.findingLineBounds)(f, docLines);
+                const range = new vscode.Range(bounds.start - 1, 0, bounds.end - 1, 999);
                 const hoverText = new vscode.MarkdownString();
                 hoverText.appendMarkdown(`**CodeAtlas [${(f.severity || 'INFO').toUpperCase()}]:** ${f.claim}\n\n`);
                 hoverText.appendMarkdown(`- **Category:** \`${f.category}\`\n`);
@@ -291,6 +301,7 @@ function activate(context) {
                 if (currentRunId !== runId || activeFinding?.id !== finding.id)
                     return;
                 detail.dismissed = dismissedFindingIds.has(finding.id);
+                currentDetail = detail;
                 contextProvider.refresh(detail.context || null, finding, cursorLine, multipleCount);
                 if (activeDetailPanel && activeDetailPanel.visible) {
                     activeDetailPanel.webview.html = (0, detail_panel_1.getFindingWebviewHtml)(detail);
@@ -317,6 +328,7 @@ function activate(context) {
         currentRunId = null;
         currentFindings = [];
         activeFinding = null;
+        statusProvider.setActiveRunId(null);
         statusProvider.refresh(null);
         findingsProvider.refresh([]);
         contextProvider.refresh(null);
@@ -391,6 +403,10 @@ function activate(context) {
     async function explainFindingAction(finding) {
         if (!finding)
             return;
+        if (!currentRunId) {
+            vscode.window.showInformationMessage('CodeAtlas: No active review run.');
+            return;
+        }
         try {
             const explanation = await client.explainFinding(finding.id, currentRunId);
             vscode.window.showInformationMessage(`CodeAtlas Explanation (${explanation.category}): ${explanation.explanation}\n\nRemediation: ${explanation.remediation_advice}`, { modal: true });
@@ -402,6 +418,10 @@ function activate(context) {
     async function generateDraftFixAction(finding) {
         if (!finding)
             return;
+        if (!currentRunId) {
+            vscode.window.showInformationMessage('CodeAtlas: No active review run.');
+            return;
+        }
         try {
             const proposal = await client.proposePatch(finding.id, currentRunId);
             vscode.window
@@ -592,8 +612,13 @@ function activate(context) {
                 throw new Error('CodeAtlas service is not ready.');
             client.timeoutMs = activeProf.timeout * 1000;
             vscode.window.showInformationMessage('CodeAtlas: Starting review...');
+            // Read at Start Review time so setting changes apply to the next run.
+            // Empty or whitespace-only values fall back to the default branch.
+            const configuredBase = String(config.get('baseBranch') ?? 'main').trim();
+            const baseBranch = configuredBase.length ? configuredBase : 'main';
+            resetReviewState();
             const resp = await client.startReview(repoPath, {
-                base: 'main',
+                base: baseBranch,
                 head: 'HEAD',
                 review_provider: activeProf.provider,
                 provider_model: activeProf.model || undefined,
@@ -602,23 +627,30 @@ function activate(context) {
                 max_findings: activeProf.maxFindings,
             });
             currentRunId = resp.run_id ?? null;
+            statusProvider.setActiveRunId(currentRunId);
+            statusProvider.lastReviewBase = baseBranch;
             statusProvider.refresh(resp);
+            const runId = currentRunId;
             const pollInterval = setInterval(async () => {
-                if (!currentRunId) {
+                if (!runId || currentRunId !== runId) {
                     clearInterval(pollInterval);
                     return;
                 }
                 try {
-                    const status = await client.getReview(currentRunId);
+                    const status = await client.getReview(runId);
+                    if (currentRunId !== runId || status.run_id !== runId)
+                        return;
                     statusProvider.refresh(status);
                     if (status.status === 'completed' ||
                         status.status === 'failed' ||
                         status.status === 'cancelled') {
                         clearInterval(pollInterval);
                         reviewTimers.delete(pollInterval);
-                        const findingsResp = await client.getFindings(currentRunId, {
+                        const findingsResp = await client.getFindings(runId, {
                             include_dismissed: true,
                         });
+                        if (currentRunId !== runId)
+                            return;
                         currentFindings = findingsResp.findings || [];
                         applyDismissalState();
                         findingsProvider.refresh(currentFindings);
@@ -634,6 +666,8 @@ function activate(context) {
                 catch (pollErr) {
                     clearInterval(pollInterval);
                     reviewTimers.delete(pollInterval);
+                    if (currentRunId !== runId)
+                        return;
                     if (pollErr.message && pollErr.message.includes('404')) {
                         handleStaleRun();
                     }
@@ -654,9 +688,15 @@ function activate(context) {
             vscode.window.showInformationMessage('CodeAtlas: No review is currently running.');
             return;
         }
+        const runId = currentRunId;
         try {
-            await client.cancelReview(currentRunId);
-            const status = await client.getReview(currentRunId);
+            await client.cancelReview(runId);
+            if (currentRunId !== runId)
+                return;
+            statusProvider.clearShas();
+            const status = await client.getReview(runId);
+            if (currentRunId !== runId || status.run_id !== runId)
+                return;
             statusProvider.refresh(status);
             vscode.window.showInformationMessage('CodeAtlas: Review cancelled.');
         }
@@ -675,18 +715,25 @@ function activate(context) {
             vscode.window.showInformationMessage('CodeAtlas: Status refreshed.');
             return;
         }
+        const runId = currentRunId;
         try {
-            const status = await client.getReview(currentRunId);
+            const status = await client.getReview(runId);
+            if (currentRunId !== runId || status.run_id !== runId)
+                return;
             statusProvider.refresh(status);
-            const findingsResp = await client.getFindings(currentRunId, {
+            const findingsResp = await client.getFindings(runId, {
                 include_dismissed: true,
             });
+            if (currentRunId !== runId)
+                return;
             currentFindings = findingsResp.findings || [];
             applyDismissalState();
             findingsProvider.refresh(currentFindings, activeFinding ? activeFinding.id : null);
             updateDecorationsForEditor();
         }
         catch (err) {
+            if (currentRunId !== runId)
+                return;
             if (err.message && err.message.includes('404')) {
                 handleStaleRun();
             }
@@ -857,23 +904,29 @@ function activate(context) {
                 activeDetailPanel = vscode.window.createWebviewPanel('codeatlasFindingDetail', `CodeAtlas Finding: ${detail.id}`, vscode.ViewColumn.Beside, { enableScripts: true });
                 activeDetailPanel.onDidDispose(() => {
                     activeDetailPanel = null;
+                    currentDetail = null;
                 }, null, context.subscriptions);
                 activeDetailPanel.webview.onDidReceiveMessage(async (msg) => {
+                    // Route actions against the finding currently shown in the panel.
+                    const target = currentDetail;
+                    if (!target)
+                        return;
                     if (msg.action === 'explain') {
-                        vscode.commands.executeCommand('codeatlas.explainFinding', detail);
+                        vscode.commands.executeCommand('codeatlas.explainFinding', target);
                     }
                     else if (msg.action === 'draftFix') {
-                        vscode.commands.executeCommand('codeatlas.generateDraftFix', detail);
+                        vscode.commands.executeCommand('codeatlas.generateDraftFix', target);
                     }
                     else if (msg.action === 'copy') {
-                        await vscode.env.clipboard.writeText(JSON.stringify(detail, null, 2));
+                        await vscode.env.clipboard.writeText(JSON.stringify(target, null, 2));
                         vscode.window.showInformationMessage('CodeAtlas: Finding copied to clipboard.');
                     }
                     else if (msg.action === 'dismiss') {
-                        vscode.commands.executeCommand('codeatlas.dismissFinding', detail);
+                        vscode.commands.executeCommand('codeatlas.dismissFinding', target);
                     }
                 });
             }
+            currentDetail = detail;
             activeDetailPanel.title = `CodeAtlas Finding: ${detail.id}`;
             activeDetailPanel.webview.html = (0, detail_panel_1.getFindingWebviewHtml)(detail);
         }
@@ -898,6 +951,23 @@ function activate(context) {
             return;
         await vscode.env.clipboard.writeText(JSON.stringify(finding, null, 2));
         vscode.window.showInformationMessage('CodeAtlas: Finding copied to clipboard.');
+    }));
+    // Command: Copy Comparison Range
+    context.subscriptions.push(vscode.commands.registerCommand('codeatlas.copyComparisonRange', async (item) => {
+        // Read only the current validated revisions; never serialize the item,
+        // display label, or arbitrary service/command data into the clipboard.
+        const comparison = statusProvider.getComparisonRange(currentRunId, item);
+        if (!comparison) {
+            vscode.window.showWarningMessage('CodeAtlas: Comparison range unavailable or unresolved. Both full validated base and head SHAs must belong to the active review run; refresh the comparison item or start a new review.');
+            return;
+        }
+        try {
+            await vscode.env.clipboard.writeText(comparison);
+            vscode.window.showInformationMessage('CodeAtlas: Comparison range copied to clipboard.');
+        }
+        catch (_) {
+            vscode.window.showErrorMessage('CodeAtlas: Could not copy comparison range to clipboard.');
+        }
     }));
     // Command: Filter by Severity
     context.subscriptions.push(vscode.commands.registerCommand('codeatlas.filterSeverity', async () => {

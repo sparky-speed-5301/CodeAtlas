@@ -21,6 +21,9 @@ SAFE_FIELDS = frozenset({
     # Isolated-validation metadata (Phase 7C): identifiers and aggregates only.
     "resulting_diff_hash", "retained",
     "network_isolation_verified",
+    # Phase 11B quality metadata: bounded scores/decisions only.
+    "quality_version", "quality_decision", "quality_score", "suppressed_count",
+    "feedback", "reversed",
     # GitHub PR integration (Phase 9A): identifiers and outcomes only.
     "pr", "comment_id", "sha", "mode",
 })
@@ -30,12 +33,13 @@ class EvidenceLogger:
     """Append lifecycle events while allowing only explicitly safe metadata."""
 
     def __init__(self, destination: str | Path | TextIO) -> None:
-        self._owned = not hasattr(destination, "write")
-        if self._owned:
+        if isinstance(destination, (str, Path)):
+            self._owned = True
             path = Path(destination).expanduser()
             path.parent.mkdir(parents=True, exist_ok=True)
-            self._stream = open(path, "a", encoding="utf-8")
+            self._stream: TextIO = open(path, "a", encoding="utf-8")
         else:
+            self._owned = False
             self._stream = destination
 
     def __enter__(self) -> "EvidenceLogger":

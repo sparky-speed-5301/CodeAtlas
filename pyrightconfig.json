@@ -1,0 +1,12 @@
+{
+  "include": [
+    "src/codeatlas/github/adapter.py",
+    "src/codeatlas/github/checks.py",
+    "src/codeatlas/github/summary.py"
+  ],
+  "extraPaths": ["src", "."],
+  "reportUnusedImport": "warning",
+  "reportUnusedVariable": "warning",
+  "reportDuplicateImport": "warning",
+  "reportPrivateUsage": "warning"
+}

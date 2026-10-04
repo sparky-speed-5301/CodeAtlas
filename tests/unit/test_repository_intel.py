@@ -437,8 +437,8 @@ def test_manifest_integration(tmp_path: Path):
     result = run_review(tmp_path, "HEAD~1", "HEAD", index_repository=True)
     manifest = result.manifest
     assert manifest.index_version == "1.0.0"
-    assert manifest.indexed_files >= 1
-    assert manifest.indexed_symbols >= 1
+    assert manifest.indexed_files is not None and manifest.indexed_files >= 1
+    assert manifest.indexed_symbols is not None and manifest.indexed_symbols >= 1
     assert len(manifest.changed_symbols) >= 1
     assert len(manifest.context_candidates) >= 1
 

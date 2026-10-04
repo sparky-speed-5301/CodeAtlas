@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 import json
-import os
 import tempfile
 import threading
 from datetime import datetime, timezone
@@ -13,12 +12,14 @@ from typing import Any
 from codeatlas.git.repository import validate_repository
 from codeatlas.orchestrator.review import ReviewResult, run_review
 from codeatlas.patching.models import PatchProposal, PatchStatus, PatchValidationResult
-from codeatlas.patching.proposal import create_patch_proposal, normalize_diff
+from codeatlas.patching.proposal import create_patch_proposal
 from codeatlas.patching.validator import validate_patch_proposal
 from codeatlas.review.packet import ReviewPacket
 from codeatlas.service.models import (
+    FeedbackLabel,
     FindingContext,
     FindingDetailResponse,
+    FindingFeedbackResponse,
     FindingSummary,
     LifecycleState,
     PatchProposalResponse,
@@ -90,6 +91,7 @@ class ReviewRunRecord:
         self.packet: ReviewPacket | None = None
         self.findings: list[dict[str, Any]] = []
         self.dismissed_finding_ids: set[str] = set()
+        self.feedback: dict[str, str] = {}
         self.cancel_requested = threading.Event()
         self.errors: list[str] = []
         self.limitations: list[str] = []
@@ -205,7 +207,7 @@ class ReviewStateManager:
             )
             record.errors = list(manifest.errors)
             record.limitations = list(manifest.packet_limitations or [])
-            record.truncated = manifest.packet_truncated
+            record.truncated = bool(manifest.packet_truncated)
             record.test_status = manifest.tests_status or "not_run"
             record.full_suite_status = manifest.full_suite_status or "not_run"
 
@@ -277,6 +279,16 @@ class ReviewStateManager:
             repository=str(record.repo_path),
             base=record.request.base,
             head=record.request.head,
+            base_commit=(
+                record.result.manifest.base_commit
+                if record.result is not None and record.result.manifest.base_commit
+                else None
+            ),
+            head_commit=(
+                record.result.manifest.head_commit
+                if record.result is not None and record.result.manifest.head_commit
+                else None
+            ),
             policy_decision=record.policy_decision,
             finding_counts=finding_counts,
             test_status=record.test_status,
@@ -333,6 +345,12 @@ class ReviewStateManager:
                     evidence_strength=str(f.get("evidence_strength", "supported")),
                     status=str(f.get("status", "review_only")),
                     dismissed=is_dismissed,
+                    quality_version=str(f.get("quality_version", "11B.1")),
+                    quality_decision=str(f.get("quality_decision", "review_only")),
+                    quality_score=float(f.get("quality_score") or 0.0),
+                    ambiguity_score=float(f.get("ambiguity_score") or 0.0),
+                    unsupported_flow=bool(f.get("unsupported_flow", False)),
+                    feedback=record.feedback.get(f_id),
                 )
             )
 
@@ -436,7 +454,65 @@ class ReviewStateManager:
             test_result=record.test_status,
             patch_status=record.patch_validation_status,
             dismissed=finding_id in record.dismissed_finding_ids,
+            quality_version=str(finding_dict.get("quality_version", "11B.1")),
+            evidence_sources=[str(item) for item in finding_dict.get("evidence_sources", [])][:20],
+            deterministic_support=float(finding_dict.get("deterministic_support") or 0.0),
+            reviewer_support=float(finding_dict.get("reviewer_support") or 0.0),
+            changed_line_support=float(finding_dict.get("changed_line_support") or 0.0),
+            repository_context_support=float(finding_dict.get("repository_context_support") or 0.0),
+            test_support=float(finding_dict.get("test_support") or 0.0),
+            ambiguity_score=float(finding_dict.get("ambiguity_score") or 0.0),
+            truncation_penalty=float(finding_dict.get("truncation_penalty") or 0.0),
+            unsupported_flow=bool(finding_dict.get("unsupported_flow", False)),
+            abstention_reason=finding_dict.get("abstention_reason"),
+            duplicate_group_id=finding_dict.get("duplicate_group_id"),
+            suppressed_finding_ids=[str(item) for item in finding_dict.get("suppressed_finding_ids", [])][:50],
+            quality_decision=str(finding_dict.get("quality_decision", "review_only")),
+            quality_score=float(finding_dict.get("quality_score") or 0.0),
+            score_components={
+                str(key): float(value)
+                for key, value in dict(finding_dict.get("score_components", {})).items()
+                if isinstance(value, (int, float))
+            },
+            quality_limitations=[str(item)[:300] for item in finding_dict.get("quality_limitations", [])][:20],
+            feedback=record.feedback.get(finding_id),
             context=context,
+        )
+
+    def set_finding_feedback(
+        self,
+        run_id: str,
+        finding_id: str,
+        feedback: str | None,
+    ) -> FindingFeedbackResponse:
+        """Persist explicit repository-scoped feedback; never alter ranking or policy."""
+        record = self.get_review(run_id)
+        if record is None:
+            raise KeyError(f"Review run '{run_id}' not found")
+        if not any(str(item.get("id")) == finding_id for item in record.findings):
+            raise KeyError(f"Finding '{finding_id}' not found in review run '{run_id}'")
+        allowed = {"useful", "not_useful", "false_positive", "accepted", "dismissed", "needs_more_context"}
+        if feedback is not None and feedback not in allowed:
+            raise ValueError("Unsupported feedback label")
+        previous = record.feedback.get(finding_id)
+        reversed_feedback = previous is not None and previous != feedback
+        if feedback is None:
+            record.feedback.pop(finding_id, None)
+        else:
+            record.feedback[finding_id] = feedback
+        for item in record.findings:
+            if str(item.get("id")) == finding_id:
+                item["feedback"] = feedback
+                break
+        fb: FeedbackLabel | None = feedback if feedback in ("useful", "not_useful", "false_positive", "accepted", "dismissed", "needs_more_context") else None
+        prev_fb: FeedbackLabel | None = previous if previous in ("useful", "not_useful", "false_positive", "accepted", "dismissed", "needs_more_context") else None
+        return FindingFeedbackResponse(
+            run_id=run_id,
+            finding_id=finding_id,
+            repository=str(record.repo_path),
+            feedback=fb,
+            previous_feedback=prev_fb,
+            reversed=reversed_feedback,
         )
 
     def explain_finding(self, finding_id: str, run_id: str | None = None) -> dict[str, Any]:
@@ -463,7 +539,6 @@ class ReviewStateManager:
         severity = str(finding.get("severity", "info"))
         claim = str(finding.get("claim", ""))
         impact = str(finding.get("impact", ""))
-        evidence = finding.get("evidence", [])
 
         if category == "HARD_CODED_SECRET":
             explanation = (
@@ -517,7 +592,11 @@ class ReviewStateManager:
 
         file_path = finding.get("file", "src/main.py")
         line = int(finding.get("line") or finding.get("start_line") or 1)
-        base_commit = record.result.manifest.head_commit if record.result else "a" * 40
+        base_commit = (
+            record.result.manifest.head_commit
+            if record.result and record.result.manifest.head_commit
+            else "a" * 40
+        )
 
         # Construct a safe draft fix proposal (replaces sensitive line with a safe variable / comment)
         diff_text = (

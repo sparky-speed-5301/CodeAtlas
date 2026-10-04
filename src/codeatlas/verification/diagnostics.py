@@ -5,7 +5,6 @@ from __future__ import annotations
 import re
 from typing import Any, Sequence
 
-from .models import OutputRedactionAudit
 from .redaction import redact_test_output
 
 MAX_FAILED_TESTS = 10

@@ -11,6 +11,7 @@ import {
   decorationTypes,
   disposeDecorations,
   findFindingsAtCursor,
+  findingLineBounds,
   normalizePath,
   pathMatches,
   SEVERITY_ORDER,
@@ -68,8 +69,8 @@ export {
   safeHealth,
   SETUP_MESSAGE,
   findFindingsAtCursor,
-  formatQuickPickItem,
-  clampLine,
+  findingLineBounds,
+  formatQuickPickItem,  clampLine,
   sortFindingsBySeverity,
   normalizePath,
   pathMatches,
@@ -144,8 +145,12 @@ export function activate(context: vscode.ExtensionContext): ExtensionActivationR
     client.serviceUrl = serviceManager.currentUrl;
     statusProvider.refresh();
   };
-  serviceManager.onCrash = (message: string) =>
+  serviceManager.onCrash = (message: string) => {
+    // A crashed service can no longer back the current run: never display
+    // resolved revisions as if they were still current.
+    statusProvider.clearShas();
     vscode.window.showErrorMessage(`CodeAtlas: ${message}`);
+  };
   loadProfileSettings();
   loadServiceSettings();
 
@@ -157,6 +162,9 @@ export function activate(context: vscode.ExtensionContext): ExtensionActivationR
   let currentFindings: Finding[] = [];
   let activeFinding: Finding | null = null;
   let activeDetailPanel: vscode.WebviewPanel | null = null;
+  // The webview message handler is registered once per panel; it must act on
+  // the finding currently displayed, never the one the panel was created with.
+  let currentDetail: FindingDetail | null = null;
   const dismissedFindingIds = new Set<string>();
   const reviewTimers = new Set<NodeJS.Timeout>();
   let healthTimer: NodeJS.Timeout | null = null;
@@ -192,7 +200,9 @@ export function activate(context: vscode.ExtensionContext): ExtensionActivationR
     dismissedFindingIds.clear();
     findingsProvider.refresh([]);
     contextProvider.refresh(null);
+    statusProvider.setActiveRunId(null);
     statusProvider.refresh(null);
+    currentDetail = null;
     if (activeDetailPanel) activeDetailPanel.webview.html = getNoFindingWebviewHtml();
     updateDecorationsForEditor();
   }
@@ -260,9 +270,8 @@ export function activate(context: vscode.ExtensionContext): ExtensionActivationR
       if (f.dismissed) continue;
       if (pathMatches(docPath, f.file)) {
         const docLines = editor.document.lineCount;
-        const startLine = clampLine(f.start_line || f.line || 1, docLines) - 1;
-        const endLine = clampLine(f.end_line || f.line || 1, docLines) - 1;
-        const range = new vscode.Range(startLine, 0, endLine, 999);
+        const bounds = findingLineBounds(f, docLines);
+        const range = new vscode.Range(bounds.start - 1, 0, bounds.end - 1, 999);
 
         const hoverText = new vscode.MarkdownString();
         hoverText.appendMarkdown(
@@ -313,6 +322,7 @@ export function activate(context: vscode.ExtensionContext): ExtensionActivationR
         const detail = await client.getFindingDetail(runId, finding.id);
         if (currentRunId !== runId || activeFinding?.id !== finding.id) return;
         detail.dismissed = dismissedFindingIds.has(finding.id);
+        currentDetail = detail;
         contextProvider.refresh(detail.context || null, finding, cursorLine, multipleCount);
         if (activeDetailPanel && activeDetailPanel.visible) {
           activeDetailPanel.webview.html = getFindingWebviewHtml(detail);
@@ -339,6 +349,7 @@ export function activate(context: vscode.ExtensionContext): ExtensionActivationR
     currentRunId = null;
     currentFindings = [];
     activeFinding = null;
+    statusProvider.setActiveRunId(null);
     statusProvider.refresh(null);
     findingsProvider.refresh([]);
     contextProvider.refresh(null);
@@ -438,6 +449,10 @@ export function activate(context: vscode.ExtensionContext): ExtensionActivationR
 
   async function explainFindingAction(finding: Finding): Promise<void> {
     if (!finding) return;
+    if (!currentRunId) {
+      vscode.window.showInformationMessage('CodeAtlas: No active review run.');
+      return;
+    }
     try {
       const explanation = await client.explainFinding(finding.id, currentRunId);
       vscode.window.showInformationMessage(
@@ -451,6 +466,10 @@ export function activate(context: vscode.ExtensionContext): ExtensionActivationR
 
   async function generateDraftFixAction(finding: Finding): Promise<void> {
     if (!finding) return;
+    if (!currentRunId) {
+      vscode.window.showInformationMessage('CodeAtlas: No active review run.');
+      return;
+    }
     try {
       const proposal = await client.proposePatch(finding.id, currentRunId);
       vscode.window
@@ -682,8 +701,13 @@ export function activate(context: vscode.ExtensionContext): ExtensionActivationR
         client.timeoutMs = activeProf.timeout * 1000;
 
         vscode.window.showInformationMessage('CodeAtlas: Starting review...');
+        // Read at Start Review time so setting changes apply to the next run.
+        // Empty or whitespace-only values fall back to the default branch.
+        const configuredBase = String(config.get('baseBranch') ?? 'main').trim();
+        const baseBranch = configuredBase.length ? configuredBase : 'main';
+        resetReviewState();
         const resp = await client.startReview(repoPath, {
-          base: 'main',
+          base: baseBranch,
           head: 'HEAD',
           review_provider: activeProf.provider,
           provider_model: activeProf.model || undefined,
@@ -693,15 +717,19 @@ export function activate(context: vscode.ExtensionContext): ExtensionActivationR
         });
 
         currentRunId = resp.run_id ?? null;
+        statusProvider.setActiveRunId(currentRunId);
+        statusProvider.lastReviewBase = baseBranch;
         statusProvider.refresh(resp);
 
+        const runId = currentRunId;
         const pollInterval = setInterval(async () => {
-          if (!currentRunId) {
+          if (!runId || currentRunId !== runId) {
             clearInterval(pollInterval);
             return;
           }
           try {
-            const status: ReviewStatus = await client.getReview(currentRunId);
+            const status: ReviewStatus = await client.getReview(runId);
+            if (currentRunId !== runId || status.run_id !== runId) return;
             statusProvider.refresh(status);
 
             if (
@@ -711,9 +739,10 @@ export function activate(context: vscode.ExtensionContext): ExtensionActivationR
             ) {
               clearInterval(pollInterval);
               reviewTimers.delete(pollInterval);
-              const findingsResp = await client.getFindings(currentRunId, {
+              const findingsResp = await client.getFindings(runId, {
                 include_dismissed: true,
               });
+              if (currentRunId !== runId) return;
               currentFindings = findingsResp.findings || [];
               applyDismissalState();
               findingsProvider.refresh(currentFindings);
@@ -732,6 +761,7 @@ export function activate(context: vscode.ExtensionContext): ExtensionActivationR
           } catch (pollErr: any) {
             clearInterval(pollInterval);
             reviewTimers.delete(pollInterval);
+            if (currentRunId !== runId) return;
             if (pollErr.message && pollErr.message.includes('404')) {
               handleStaleRun();
             } else {
@@ -755,9 +785,13 @@ export function activate(context: vscode.ExtensionContext): ExtensionActivationR
         vscode.window.showInformationMessage('CodeAtlas: No review is currently running.');
         return;
       }
+      const runId = currentRunId;
       try {
-        await client.cancelReview(currentRunId);
-        const status = await client.getReview(currentRunId);
+        await client.cancelReview(runId);
+        if (currentRunId !== runId) return;
+        statusProvider.clearShas();
+        const status = await client.getReview(runId);
+        if (currentRunId !== runId || status.run_id !== runId) return;
         statusProvider.refresh(status);
         vscode.window.showInformationMessage('CodeAtlas: Review cancelled.');
       } catch (err: any) {
@@ -777,17 +811,21 @@ export function activate(context: vscode.ExtensionContext): ExtensionActivationR
         vscode.window.showInformationMessage('CodeAtlas: Status refreshed.');
         return;
       }
+      const runId = currentRunId;
       try {
-        const status = await client.getReview(currentRunId);
+        const status = await client.getReview(runId);
+        if (currentRunId !== runId || status.run_id !== runId) return;
         statusProvider.refresh(status);
-        const findingsResp = await client.getFindings(currentRunId, {
+        const findingsResp = await client.getFindings(runId, {
           include_dismissed: true,
         });
+        if (currentRunId !== runId) return;
         currentFindings = findingsResp.findings || [];
         applyDismissalState();
         findingsProvider.refresh(currentFindings, activeFinding ? activeFinding.id : null);
         updateDecorationsForEditor();
       } catch (err: any) {
+        if (currentRunId !== runId) return;
         if (err.message && err.message.includes('404')) {
           handleStaleRun();
         } else {
@@ -1005,25 +1043,30 @@ export function activate(context: vscode.ExtensionContext): ExtensionActivationR
           activeDetailPanel.onDidDispose(
             () => {
               activeDetailPanel = null;
+              currentDetail = null;
             },
             null,
             context.subscriptions
           );
 
           activeDetailPanel.webview.onDidReceiveMessage(async (msg: any) => {
+            // Route actions against the finding currently shown in the panel.
+            const target = currentDetail;
+            if (!target) return;
             if (msg.action === 'explain') {
-              vscode.commands.executeCommand('codeatlas.explainFinding', detail);
+              vscode.commands.executeCommand('codeatlas.explainFinding', target);
             } else if (msg.action === 'draftFix') {
-              vscode.commands.executeCommand('codeatlas.generateDraftFix', detail);
+              vscode.commands.executeCommand('codeatlas.generateDraftFix', target);
             } else if (msg.action === 'copy') {
-              await vscode.env.clipboard.writeText(JSON.stringify(detail, null, 2));
+              await vscode.env.clipboard.writeText(JSON.stringify(target, null, 2));
               vscode.window.showInformationMessage('CodeAtlas: Finding copied to clipboard.');
             } else if (msg.action === 'dismiss') {
-              vscode.commands.executeCommand('codeatlas.dismissFinding', detail);
+              vscode.commands.executeCommand('codeatlas.dismissFinding', target);
             }
           });
         }
 
+        currentDetail = detail;
         activeDetailPanel.title = `CodeAtlas Finding: ${detail.id}`;
         activeDetailPanel.webview.html = getFindingWebviewHtml(detail);
       } catch (err: any) {
@@ -1053,6 +1096,27 @@ export function activate(context: vscode.ExtensionContext): ExtensionActivationR
       if (!finding) return;
       await vscode.env.clipboard.writeText(JSON.stringify(finding, null, 2));
       vscode.window.showInformationMessage('CodeAtlas: Finding copied to clipboard.');
+    })
+  );
+
+  // Command: Copy Comparison Range
+  context.subscriptions.push(
+    vscode.commands.registerCommand('codeatlas.copyComparisonRange', async (item?: vscode.TreeItem) => {
+      // Read only the current validated revisions; never serialize the item,
+      // display label, or arbitrary service/command data into the clipboard.
+      const comparison = statusProvider.getComparisonRange(currentRunId, item);
+      if (!comparison) {
+        vscode.window.showWarningMessage(
+          'CodeAtlas: Comparison range unavailable or unresolved. Both full validated base and head SHAs must belong to the active review run; refresh the comparison item or start a new review.'
+        );
+        return;
+      }
+      try {
+        await vscode.env.clipboard.writeText(comparison);
+        vscode.window.showInformationMessage('CodeAtlas: Comparison range copied to clipboard.');
+      } catch (_) {
+        vscode.window.showErrorMessage('CodeAtlas: Could not copy comparison range to clipboard.');
+      }
     })
   );
 
