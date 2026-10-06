@@ -66,6 +66,7 @@ def apply_patch_in_isolated_sandbox(
     test_timeout: float = 30.0,
     max_output_bytes: int = 100_000,
     test_config: dict[str, Any] | None = None,
+    validation_scope: dict[str, Any] | None = None,
 ) -> PatchValidationResult:
     """Apply a patch proposal inside an ephemeral detached worktree sandbox.
 
@@ -306,7 +307,7 @@ def apply_patch_in_isolated_sandbox(
         status="started",
     )
     approval_verified = False
-    if skip_approval_check or proposal.status == PatchStatus.APPROVED:
+    if validation_scope is None and (skip_approval_check or proposal.status == PatchStatus.APPROVED):
         approval_verified = True
         warnings.append("Approval check skipped: proposal is already approved by policy state")
     else:
@@ -328,7 +329,8 @@ def apply_patch_in_isolated_sandbox(
                 ],
             )
         is_valid_token, token_err = verify_approval_token(
-            approval_token, proposal, proposal.base_commit, run_id=run_id
+            approval_token, proposal, proposal.base_commit, run_id=run_id,
+            validation_scope=validation_scope,
         )
         if not is_valid_token:
             _emit(

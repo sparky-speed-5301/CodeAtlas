@@ -544,18 +544,21 @@ export function activate(context: vscode.ExtensionContext): ExtensionActivationR
       }
       if (proposal.generation_status === 'draft_ready' && proposal.proposal_id) {
         latestFixProposals.set(finding.id, proposal);
-        void vscode.window
-          .showInformationMessage(
-            `CodeAtlas: Fix proposal ${proposal.proposal_id} ready (risk ${proposal.risk_level}, confidence ${proposal.confidence}). Approval is required and nothing has been applied.`,
-            'Preview Fix',
-            'Reject Fix'
-          )
-          .then((selection) => {
-            if (selection === 'Preview Fix') {
-              vscode.commands.executeCommand('codeatlas.previewFix', finding);
-            } else if (selection === 'Reject Fix') {
-              vscode.commands.executeCommand('codeatlas.rejectFix', finding);
-            }
+          void vscode.window
+            .showInformationMessage(
+              `CodeAtlas: Fix proposal ${proposal.proposal_id} ready (risk ${proposal.risk_level}, confidence ${proposal.confidence}). Approval is required and nothing has been applied.`,
+              'Preview Fix',
+              'Approve for Sandbox Validation',
+              'Reject Fix'
+            )
+            .then((selection) => {
+              if (selection === 'Preview Fix') {
+                vscode.commands.executeCommand('codeatlas.previewFix', finding);
+              } else if (selection === 'Approve for Sandbox Validation') {
+                vscode.commands.executeCommand('codeatlas.approveFixForValidation', finding);
+              } else if (selection === 'Reject Fix') {
+                vscode.commands.executeCommand('codeatlas.rejectFix', finding);
+              }
           });
       } else {
         const explanation = proposal.rejection_explanation || 'Fix generation did not produce a proposal.';
@@ -714,6 +717,142 @@ export function activate(context: vscode.ExtensionContext): ExtensionActivationR
       } else {
         vscode.window.showErrorMessage(`CodeAtlas: Reject failed: ${err.message}`);
       }
+    }
+  }
+
+  async function getCurrentFixProposal(finding: Finding, runId: string): Promise<FixProposal | null> {
+    let proposal = latestFixProposals.get(finding.id);
+    if (!proposal) {
+      try {
+        proposal = await client.getFixProposal(runId, finding.id);
+      } catch (err: any) {
+        if (isServiceNotFound(err)) {
+          vscode.window.showInformationMessage(
+            'CodeAtlas: No fix proposal exists for this finding yet. Run Generate Fix first.'
+          );
+        } else {
+          vscode.window.showErrorMessage(`CodeAtlas: Fix proposal lookup failed: ${err.message}`);
+        }
+        return null;
+      }
+    }
+    if (currentRunId !== runId) return null;
+    if (!proposal || proposal.finding_id !== finding.id || proposal.run_id !== runId) {
+      vscode.window.showWarningMessage(
+        'CodeAtlas: The stored fix proposal does not match the selected finding or run.'
+      );
+      return null;
+    }
+    return proposal;
+  }
+
+  /** Approve only the isolated validation operation; this never applies a fix. */
+  async function approveFixForValidationAction(finding: Finding): Promise<void> {
+    if (!finding) return;
+    if (!currentRunId) {
+      vscode.window.showInformationMessage('CodeAtlas: No active review run.');
+      return;
+    }
+    const runId = currentRunId;
+    const proposal = await getCurrentFixProposal(finding, runId);
+    if (!proposal) return;
+    if (
+      proposal.generation_status !== 'draft_ready' ||
+      proposal.validation_status !== 'approval_required' ||
+      !proposal.approval_required
+    ) {
+      vscode.window.showWarningMessage(
+        'CodeAtlas: This FixProposal is not awaiting approval for sandbox validation.'
+      );
+      return;
+    }
+    const approvalToken = await vscode.window.showInputBox({
+      prompt: `Enter the scoped approval token for FixProposal ${proposal.proposal_id}`,
+      password: true,
+    });
+    if (!approvalToken) {
+      vscode.window.showWarningMessage(
+        'CodeAtlas: Approval token is required for sandbox validation.'
+      );
+      return;
+    }
+    try {
+      const approval = await client.approveFixProposalForValidation(
+        runId,
+        finding.id,
+        proposal.proposal_id,
+        approvalToken
+      );
+      if (currentRunId !== runId) return;
+      if (approval.approval_verified && approval.validation_status === 'approved_for_validation') {
+        const refreshed = await client.getFixProposal(runId, finding.id, proposal.proposal_id);
+        latestFixProposals.set(finding.id, refreshed);
+        vscode.window.showInformationMessage(
+          `CodeAtlas: FixProposal ${proposal.proposal_id} approved for isolated sandbox validation. Nothing was applied.`
+        );
+      } else {
+        vscode.window.showWarningMessage(
+          `CodeAtlas: FixProposal approval rejected: ${(approval.errors || []).join('; ')}`
+        );
+      }
+    } catch (err: any) {
+      if (isServiceNotFound(err)) handleStaleRun();
+      else vscode.window.showErrorMessage(`CodeAtlas: FixProposal approval failed: ${err.message}`);
+    }
+  }
+
+  /** Validate an approved FixProposal in the detached sandbox and display evidence status. */
+  async function validateFixProposalAction(finding: Finding): Promise<void> {
+    if (!finding) return;
+    if (!currentRunId) {
+      vscode.window.showInformationMessage('CodeAtlas: No active review run.');
+      return;
+    }
+    const runId = currentRunId;
+    const proposal = await getCurrentFixProposal(finding, runId);
+    if (!proposal) return;
+    if (proposal.validation_status !== 'approved_for_validation') {
+      vscode.window.showWarningMessage(
+        'CodeAtlas: Approve this FixProposal for sandbox validation before validating it.'
+      );
+      return;
+    }
+    const approvalToken = await vscode.window.showInputBox({
+      prompt: `Enter the scoped approval token for FixProposal ${proposal.proposal_id}`,
+      password: true,
+    });
+    if (!approvalToken) {
+      vscode.window.showWarningMessage(
+        'CodeAtlas: Approval token is required for sandbox validation.'
+      );
+      return;
+    }
+    try {
+      if (profileManager.error) throw new Error(profileManager.error);
+      const profile = profileManager.getActiveProfile();
+      const result = await client.validateFixProposal(
+        runId,
+        finding.id,
+        proposal.proposal_id,
+        approvalToken,
+        profile.enableTestExecution,
+        profile.enableFullSuiteExecution
+      );
+      if (currentRunId !== runId) return;
+      const latest = await client.getFixProposal(runId, finding.id, proposal.proposal_id);
+      latestFixProposals.set(finding.id, latest);
+      if (result.valid && result.approval_verified) {
+        vscode.window.showInformationMessage(
+          `CodeAtlas: FixProposal ${proposal.proposal_id} validated in an isolated sandbox (${result.tests_status}). Nothing was applied.`
+        );
+      } else {
+        vscode.window.showWarningMessage(
+          `CodeAtlas: FixProposal validation ${result.validation_status}: ${(result.errors || []).join('; ')}`
+        );
+      }
+    } catch (err: any) {
+      if (isServiceNotFound(err)) handleStaleRun();
+      else vscode.window.showErrorMessage(`CodeAtlas: FixProposal validation failed: ${err.message}`);
     }
   }
 
@@ -1223,6 +1362,22 @@ export function activate(context: vscode.ExtensionContext): ExtensionActivationR
     vscode.commands.registerCommand('codeatlas.regenerateFix', async (item?: any) => {
       const finding = await resolveFixFinding(item);
       if (finding) await generateFixAction(finding, true);
+    })
+  );
+
+  // Phase 11C-C: explicit approval operation for sandbox validation only.
+  context.subscriptions.push(
+    vscode.commands.registerCommand('codeatlas.approveFixForValidation', async (item?: any) => {
+      const finding = await resolveFixFinding(item);
+      if (finding) await approveFixForValidationAction(finding);
+    })
+  );
+
+  // Phase 11C-C: validate an already approved FixProposal; never modifies the workspace.
+  context.subscriptions.push(
+    vscode.commands.registerCommand('codeatlas.validateFixProposal', async (item?: any) => {
+      const finding = await resolveFixFinding(item);
+      if (finding) await validateFixProposalAction(finding);
     })
   );
 

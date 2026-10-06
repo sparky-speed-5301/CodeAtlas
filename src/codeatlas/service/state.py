@@ -20,8 +20,13 @@ from codeatlas.orchestrator.manifest import RunManifest
 from codeatlas.orchestrator.repair import RepairOrchestrator, record_repair_result
 from codeatlas.orchestrator.repair_models import RepairLimits, RepairRepositoryState, repair_payload_is_safe
 from codeatlas.orchestrator.review import ReviewResult, run_review
+from codeatlas.orchestrator.validation import build_validation_review
 from codeatlas.patching.models import PatchProposal, PatchStatus, PatchValidationResult
-from codeatlas.patching.proposal import create_patch_proposal
+from codeatlas.patching.proposal import (
+    compute_patch_hash,
+    create_patch_proposal,
+    verify_validation_approval_token,
+)
 from codeatlas.patching.validator import validate_patch_proposal
 from codeatlas.review.mock import MockRepairReviewer
 from codeatlas.review.packet import ReviewPacket
@@ -35,6 +40,8 @@ from codeatlas.service.models import (
     FixEligibilityResponse,
     FixProposalLifecycle,
     FixProposalResponse,
+    FixValidationApprovalResponse,
+    FixValidationResponse,
     LifecycleState,
     PatchProposalResponse,
     ReviewCreateRequest,
@@ -100,6 +107,11 @@ FIX_REJECTION_EXPLANATIONS: dict[str, str] = {
     "not_rejectable": "Only a draft-ready fix proposal can be rejected.",
     "proposal_not_found": "No fix proposal exists for this finding in this run.",
     "scope_mismatch": "The fix proposal does not belong to the requested run and finding.",
+    "validation_not_approved": "Approve this FixProposal for sandbox validation before running it.",
+    "validation_not_available": "This FixProposal is not available for sandbox validation in its current state.",
+    "validation_scope_invalid": "The FixProposal validation scope no longer matches the review run.",
+    "validation_token_invalid": "The approval token does not match this FixProposal validation scope.",
+    "validation_redaction_failed": "Validation evidence failed redaction checks and was not returned.",
 }
 
 # Reasons that fail closed before any provider/patch work: nothing was wrong
@@ -153,6 +165,7 @@ class FixProposalRecord:
     def __init__(self, response: FixProposalResponse, patch_proposal: PatchProposal | None) -> None:
         self.response = response
         self.patch_proposal = patch_proposal
+        self.operation_lock = threading.Lock()
 
 
 class ServicePathError(ValueError):
@@ -783,6 +796,25 @@ class ReviewStateManager:
         run_full_suite: bool = False,
     ) -> ValidateProposalResponse:
         """Validate an approved patch proposal in an isolated sandbox."""
+        # FixProposals cannot bypass their complete approval scope through the
+        # older PatchProposal endpoint or a token in the Phase 7 token format.
+        with self._lock:
+            fix_record = self._fix_proposals.get(proposal_id)
+        if fix_record is not None:
+            fix = fix_record.response
+            validation = self.validate_fix_proposal(
+                fix.run_id, fix.finding_id, proposal_id,
+                approval_token=approval_token,
+                run_tests=run_tests,
+                run_full_suite=run_full_suite,
+            )
+            return ValidateProposalResponse(
+                proposal_id=proposal_id, valid=validation.valid, status=validation.status,
+                approval_verified=validation.approval_verified,
+                applies_cleanly=validation.applies_cleanly, syntax_valid=validation.syntax_valid,
+                tests_status=validation.tests_status, full_suite_status=validation.full_suite_status,
+                errors=validation.errors, warnings=validation.warnings,
+            )
         item = self.get_proposal(proposal_id)
         if item is None:
             raise KeyError(f"Patch proposal '{proposal_id}' not found")
@@ -977,6 +1009,8 @@ class ReviewStateManager:
             limitations=list(proposal.limitations)[:20],
             created_at=proposal.created_at,
             schema_version=FIX_PROPOSAL_SCHEMA_VERSION,
+            validation_status="approval_required",
+            validation_history=["draft_ready", "approval_required"],
         )
 
     def request_fix_proposal(self, run_id: str, finding_id: str, *, regenerate: bool = False) -> FixProposalResponse:
@@ -997,6 +1031,12 @@ class ReviewStateManager:
             "draft_ready", "rejected", "generation_failed", "rejected_by_policy", "regeneration_requested",
         }:
             raise ServiceStateError("not_regenerable")
+        if regenerate and current.get("proposal_id"):
+            previous = self._fix_proposals.get(str(current["proposal_id"]))
+            if previous is not None and previous.response.validation_status in {
+                "approved_for_validation", "validating", "applied_in_isolated_worktree", "tests_running",
+            }:
+                raise ServiceStateError("not_regenerable")
         if not regenerate and current.get("proposal_id"):
             existing = self._fix_proposals.get(str(current.get("proposal_id")))
             if existing is not None:
@@ -1092,6 +1132,410 @@ class ReviewStateManager:
             raise ServiceStateError("scope_mismatch")
         return fix_record.response
 
+    @staticmethod
+    def _repository_identity(path: Path) -> str:
+        """Return the same bounded identity projection used by repair context."""
+        parts = [part for part in path.as_posix().split("/") if part]
+        return (parts[-1] if parts else "repository")[:128]
+
+    def _fix_validation_scope(
+        self,
+        run_id: str,
+        finding_id: str,
+        proposal_id: str,
+    ) -> tuple[ReviewRunRecord, FixProposalRecord, str, str, str]:
+        """Resolve and independently verify trusted FixProposal scope metadata."""
+        record, _ = self._fix_finding_and_record(run_id, finding_id)
+        with self._lock:
+            fix_record = self._fix_proposals.get(proposal_id)
+        if fix_record is None:
+            raise ServiceStateError("proposal_not_found")
+        response = fix_record.response
+        if response.run_id != run_id or response.finding_id != finding_id:
+            raise ServiceStateError("scope_mismatch")
+        if fix_record.patch_proposal is None or response.generation_status != "draft_ready":
+            raise ServiceStateError("validation_not_available")
+        manifest = record.result.manifest if record.result is not None else None
+        if manifest is None or not manifest.base_commit or not manifest.head_commit:
+            raise ServiceStateError("validation_scope_invalid")
+        repository_identity = self._repository_identity(record.repo_path.resolve())
+        patch = fix_record.patch_proposal
+        provenance = patch.provenance if isinstance(patch.provenance, dict) else {}
+        scope_matches = (
+            response.repository == repository_identity
+            and response.base_commit == manifest.base_commit
+            and response.head_commit == manifest.head_commit
+            and patch.finding_id == finding_id
+            and patch.base_commit == response.head_commit
+            # The repair manifest has its own orchestrator run identifier;
+            # the externally bound approval scope remains the service run ID
+            # carried by the FixProposal response and token.
+            and provenance.get("run_id") == manifest.run_id
+            and provenance.get("review_base_commit") == response.base_commit
+            and provenance.get("review_head_commit") == response.head_commit
+            and provenance.get("repository_identity") == response.repository
+            and response.target_files == patch.target_files
+            and response.patch_text == patch.unified_diff
+            and response.patch_hash == patch.patch_hash
+            and compute_patch_hash(patch.unified_diff) == patch.patch_hash
+        )
+        try:
+            current_head = resolve_ref(record.repo_path, "HEAD").commit
+        except Exception:
+            current_head = ""
+        if current_head != response.head_commit:
+            raise ServiceStateError("repository_state_stale")
+        if not scope_matches:
+            raise ServiceStateError("validation_scope_invalid")
+        return record, fix_record, response.base_commit, response.head_commit, repository_identity
+
+    def _verify_fix_validation_token(
+        self,
+        *,
+        response: FixProposalResponse,
+        token: str | None,
+    ) -> tuple[bool, str | None]:
+        """Verify the complete operator scope; provider fields never authorize this."""
+        return verify_validation_approval_token(
+            token,
+            proposal_id=response.proposal_id,
+            finding_id=response.finding_id,
+            run_id=response.run_id,
+            repository_identity=response.repository,
+            base_commit=response.base_commit,
+            head_commit=response.head_commit,
+            patch_hash=response.patch_hash,
+            target_files=response.target_files,
+            operation=response.validation_operation,
+        )
+
+    def _transition_fix_validation(
+        self, record: ReviewRunRecord, fix_record: FixProposalRecord, state: str,
+    ) -> None:
+        """Explicit validation states, driven by the existing patch lifecycle."""
+        transitions = {
+            "approval_required": {"approved_for_validation"},
+            "approved_for_validation": {"validating"},
+            "validating": {"applied_in_isolated_worktree", "validation_failed", "cleanup_failed"},
+            "applied_in_isolated_worktree": {"tests_running", "validated", "validation_failed", "cleanup_failed"},
+            "tests_running": {"validated", "validation_failed", "cleanup_failed"},
+            "validated": set(), "validation_failed": set(), "cleanup_failed": set(),
+        }
+        with self._lock:
+            response = fix_record.response
+            if state == response.validation_status:
+                return
+            if state not in transitions.get(response.validation_status, set()):
+                raise ServiceStateError("validation_not_available")
+            updated = response.model_copy(update={
+                "validation_status": state,
+                "validation_history": response.validation_history + [state],
+            })
+            fix_record.response = updated
+            record.fix_states[response.finding_id]["response"] = updated
+            record.patch_validation_status = state
+
+    def _update_fix_validation_artifacts(
+        self,
+        record: ReviewRunRecord,
+        fix_record: FixProposalRecord,
+        result: PatchValidationResult,
+    ) -> tuple[dict[str, Any] | None, dict[str, Any] | None]:
+        """Reuse observed-evidence attachment and manifest construction."""
+        packet = None
+        manifest = None
+        source_packet = record.packet.model_copy(deep=True) if record.packet is not None else None
+        # Each proposal gets its own observations; previous sandbox identities
+        # must never be reused when attaching evidence for another proposal.
+        if source_packet is not None:
+            source_packet.proposal_id = None
+            source_packet.sandbox_id = None
+            source_packet.observed_test_evidence = None
+        packet, manifest = build_validation_review(
+            fix_record.patch_proposal,  # type: ignore[arg-type]
+            result,
+            repository=str(record.repo_path),
+            run_id=record.run_id,
+            packet=source_packet,
+        )
+        if not repair_payload_is_safe({"packet": packet.model_dump(mode="json"), "manifest": manifest.model_dump(mode="json")}):
+            raise ServiceStateError("validation_redaction_failed")
+
+        if record.result is not None:
+            validated_patch = fix_record.patch_proposal
+            if validated_patch is None:
+                raise ServiceStateError("validation_not_available")
+            current = record.result.manifest
+            updates: dict[str, Any] = {}
+            for field in (
+                "proposal_id", "patch_hash", "approval_scope", "approval_operation", "approval_verified",
+                "test_evidence_attached", "test_evidence_summary", "validation_limitations",
+                "isolated_validation_attempted", "isolated_validation_status", "sandbox_id",
+                "applies_cleanly", "syntax_valid", "tests_status", "build_status",
+                "execution_allowed", "resulting_diff_hash", "cleanup_status",
+                "validation_warnings", "test_plan", "test_runner", "test_discovery_reason",
+                "test_exit_code", "test_duration_ms", "test_failures", "test_timeout",
+                "test_output_redaction_audit", "network_allowed", "dependency_install_allowed",
+                "resource_limits", "test_execution_attempted", "test_execution_blocked_reason",
+                "diagnostic_summary", "failed_test_names", "test_failure_count", "test_pass_count",
+                "test_skip_count", "test_output_truncated", "network_policy_requested",
+                "network_policy_enforced", "network_isolation_verified", "diagnostic_limitations",
+                "full_suite_requested", "full_suite_policy_opted_in", "full_suite_status",
+                "full_suite_blocked_reason", "full_suite_command", "full_suite_result",
+            ):
+                updates[field] = getattr(manifest, field)
+            existing_validation = dict(current.patch_validation or {})
+            proposals = list(existing_validation.get("proposals") or [])
+            validation_data = result.model_dump(mode="json")
+            replaced = False
+            for index, item in enumerate(proposals):
+                if isinstance(item, dict) and item.get("proposal_id") == result.proposal_id:
+                    proposals[index] = validation_data
+                    replaced = True
+                    break
+            if not replaced:
+                proposals.append(validation_data)
+            existing_validation["proposals"] = proposals
+            updates["patch_validation"] = existing_validation
+            updates["patch_proposals"] = [
+                validated_patch.model_dump(mode="json")
+                if item.get("proposal_id") == result.proposal_id else item
+                for item in current.patch_proposals
+            ]
+            updates["patch_proposal_statuses"] = [
+                item.get("status", "proposed") for item in updates["patch_proposals"]
+            ]
+            record.result = dataclasses.replace(record.result, manifest=current.model_copy(update=updates))
+        packet_data = packet.model_dump(mode="json")
+        manifest_data = manifest.model_dump(mode="json")
+        # The service FixProposal contract exposes repository identity only;
+        # preserve the same projection in nested artifacts rather than leaking
+        # the local absolute path used by the sandbox implementation.
+        packet_data["repository"] = fix_record.response.repository
+        manifest_data["repository"] = fix_record.response.repository
+        return packet_data, manifest_data
+
+    def _fix_validation_response(
+        self,
+        *,
+        record: ReviewRunRecord,
+        fix_record: FixProposalRecord,
+        result: PatchValidationResult,
+        validation_status: str,
+        packet_data: dict[str, Any] | None,
+        manifest_data: dict[str, Any] | None,
+    ) -> FixValidationResponse:
+        payload = result.model_dump(mode="json")
+        token_safe = repair_payload_is_safe(payload)
+        if not token_safe:
+            # Never serialize a report that may contain a token or secret-bearing
+            # execution text. The validator has already completed cleanup.
+            payload = {
+                "proposal_id": result.proposal_id,
+                "base_commit": result.base_commit,
+                "patch_hash": result.patch_hash,
+                "approval_verified": False,
+                "valid": False,
+                "errors": [FIX_REJECTION_EXPLANATIONS["validation_redaction_failed"]],
+                "cleanup_status": result.cleanup_status,
+            }
+            validation_status = "validation_failed"
+            packet_data = None
+            manifest_data = None
+        observed = (packet_data or {}).get("observed_test_evidence") if packet_data else None
+        return FixValidationResponse(
+            proposal_id=fix_record.response.proposal_id,
+            finding_id=fix_record.response.finding_id,
+            run_id=record.run_id,
+            status="validated" if payload.get("valid") else "rejected",
+            validation_status=validation_status,  # type: ignore[arg-type]
+            approval_verified=bool(payload.get("approval_verified")),
+            valid=bool(payload.get("valid")),
+            applies_cleanly=bool(payload.get("applies_cleanly")),
+            syntax_valid=payload.get("syntax_valid"),
+            tests_status=str(payload.get("tests_status", "not_run")),
+            full_suite_status=str(payload.get("full_suite_status", "not_run")),
+            sandbox_id=payload.get("sandbox_id"),
+            cleanup_status=payload.get("cleanup_status"),
+            resulting_diff_hash=payload.get("resulting_diff_hash"),
+            commands_run=list(payload.get("commands_run") or []),
+            tests_run=list(payload.get("tests_run") or []),
+            test_plan=payload.get("test_plan"),
+            test_result=payload.get("test_result"),
+            full_suite_result=payload.get("full_suite_result"),
+            validation_result=payload,
+            observed_test_evidence=observed,
+            errors=list(payload.get("errors") or []),
+            warnings=list(payload.get("warnings") or []),
+            limitations=list(payload.get("diagnostic_limitations") or [])[:20],
+            review_packet=packet_data,
+            human_approval_manifest=manifest_data,
+            validation_history=list(fix_record.response.validation_history),
+        )
+
+    def approve_fix_proposal_for_validation(
+        self,
+        run_id: str,
+        finding_id: str,
+        proposal_id: str,
+        *,
+        approval_token: str,
+    ) -> FixValidationApprovalResponse:
+        """Verify an operator approval and authorize only sandbox validation."""
+        record, fix_record, _base, _head, _repository = self._fix_validation_scope(
+            run_id, finding_id, proposal_id
+        )
+        with fix_record.operation_lock:
+            response = fix_record.response
+            if response.validation_status != "approval_required":
+                raise ServiceStateError("validation_not_available")
+            verified, _reason = self._verify_fix_validation_token(response=response, token=approval_token)
+            if not verified:
+                return FixValidationApprovalResponse(
+                    proposal_id=proposal_id,
+                    finding_id=finding_id,
+                    run_id=run_id,
+                    approval_verified=False,
+                    validation_status="approval_required",
+                    errors=[FIX_REJECTION_EXPLANATIONS["validation_token_invalid"]],
+                )
+            patch = fix_record.patch_proposal
+            if patch is None:
+                raise ServiceStateError("validation_not_available")
+            try:
+                patch.transition_to(PatchStatus.APPROVED, reason="approved_for_validation")
+            except ValueError as err:
+                raise ServiceStateError("validation_not_available") from err
+            self._transition_fix_validation(record, fix_record, "approved_for_validation")
+        return FixValidationApprovalResponse(
+            proposal_id=proposal_id,
+            finding_id=finding_id,
+            run_id=run_id,
+            approval_verified=True,
+            validation_status="approved_for_validation",
+        )
+
+    def approve_fix_proposal(
+        self,
+        run_id: str,
+        finding_id: str,
+        proposal_id: str,
+        *,
+        approval_token: str,
+    ) -> FixValidationApprovalResponse:
+        """Compatibility name for the explicit validate-only approval operation."""
+        return self.approve_fix_proposal_for_validation(
+            run_id, finding_id, proposal_id, approval_token=approval_token,
+        )
+
+    def validate_fix_proposal(
+        self,
+        run_id: str,
+        finding_id: str,
+        proposal_id: str,
+        *,
+        approval_token: str,
+        run_tests: bool = False,
+        run_full_suite: bool = False,
+    ) -> FixValidationResponse:
+        """Run an explicitly approved FixProposal through the existing validator."""
+        record, fix_record, _base, _head, _repository = self._fix_validation_scope(
+            run_id, finding_id, proposal_id
+        )
+        with fix_record.operation_lock:
+            response = fix_record.response
+            if response.validation_status != "approved_for_validation":
+                raise ServiceStateError("validation_not_approved")
+            verified, _reason = self._verify_fix_validation_token(response=response, token=approval_token)
+            if not verified:
+                return FixValidationResponse(
+                    proposal_id=proposal_id,
+                    finding_id=finding_id,
+                    run_id=run_id,
+                    status="rejected",
+                    validation_status="approved_for_validation",
+                    approval_verified=False,
+                    errors=[FIX_REJECTION_EXPLANATIONS["validation_token_invalid"]],
+                )
+            patch = fix_record.patch_proposal
+            if patch is None:
+                raise ServiceStateError("validation_not_available")
+            self._transition_fix_validation(record, fix_record, "validating")
+        scope = {
+            "proposal_id": response.proposal_id, "finding_id": response.finding_id,
+            "run_id": response.run_id, "repository_identity": response.repository,
+            "base_commit": response.base_commit, "head_commit": response.head_commit,
+            "patch_hash": response.patch_hash, "target_files": list(response.target_files),
+            "operation": "validate",
+        }
+
+        def observe_patch_state(state: str) -> None:
+            if state == PatchStatus.APPLIED_IN_ISOLATED_WORKTREE:
+                self._transition_fix_validation(record, fix_record, "applied_in_isolated_worktree")
+            elif state == PatchStatus.TEST_EXECUTION_STARTED:
+                self._transition_fix_validation(record, fix_record, "tests_running")
+
+        patch._status_observer = observe_patch_state
+        try:
+            result = validate_patch_proposal(
+                proposal=patch,
+                repository_root=record.repo_path,
+                approval_token=approval_token,
+                allow_isolated_apply=True,
+                validation_scope=scope,
+                run_id=run_id,
+                config=record.result.manifest.configuration if record.result is not None else None,
+                run_tests=run_tests,
+                run_full_suite=run_full_suite,
+            )
+        except Exception:
+            # The existing sandbox context owns cleanup, including exceptions.
+            self._transition_fix_validation(record, fix_record, "validation_failed")
+            raise ServiceStateError("validation_not_available") from None
+        finally:
+            patch._status_observer = None
+        if not repair_payload_is_safe(result.model_dump(mode="json")):
+            result = PatchValidationResult(
+                proposal_id=proposal_id, base_commit=patch.base_commit, patch_hash=patch.patch_hash,
+                valid=False, approval_verified=verified, approval_scope=run_id,
+                cleanup_status=result.cleanup_status, sandbox_id=result.sandbox_id,
+                errors=[FIX_REJECTION_EXPLANATIONS["validation_redaction_failed"]],
+            )
+        try:
+            packet_data, manifest_data = self._update_fix_validation_artifacts(record, fix_record, result)
+        except Exception:
+            result.valid = False
+            result.errors.append("Validation review artifacts could not be safely built.")
+            packet_data, manifest_data = None, None
+        if result.cleanup_status == "failed":
+            validation_status = "cleanup_failed"
+        elif result.valid:
+            validation_status = "validated"
+        else:
+            validation_status = "validation_failed"
+        self._transition_fix_validation(record, fix_record, validation_status)
+        updated = fix_record.response.model_copy(update={
+            "validation_status": validation_status,
+            "validation_result": result.model_dump(mode="json"),
+            "review_packet": packet_data,
+            "human_approval_manifest": manifest_data,
+        })
+        fix_record.response = updated
+        with self._lock:
+            record.fix_states[finding_id]["response"] = updated
+            record.patch_validation_status = validation_status
+            self._validations[proposal_id] = result
+        return self._fix_validation_response(
+            record=record,
+            fix_record=fix_record,
+            result=result,
+            validation_status=validation_status,
+            packet_data=packet_data,
+            manifest_data=manifest_data,
+        )
+
+    validate_fix = validate_fix_proposal
+
     def reject_fix_proposal(self, run_id: str, finding_id: str, proposal_id: str) -> FixProposalResponse:
         record, _ = self._fix_finding_and_record(run_id, finding_id)
         with self._lock:
@@ -1100,7 +1544,8 @@ class ReviewStateManager:
             raise ServiceStateError("proposal_not_found")
         if fix_record.response.run_id != run_id or fix_record.response.finding_id != finding_id:
             raise ServiceStateError("scope_mismatch")
-        if fix_record.response.generation_status != "draft_ready" or fix_record.patch_proposal is None:
+        if (fix_record.response.generation_status != "draft_ready" or fix_record.patch_proposal is None
+                or fix_record.response.validation_status != "approval_required"):
             raise ServiceStateError("not_rejectable")
         try:
             fix_record.patch_proposal.transition_to(PatchStatus.REJECTED, reason="rejected_by_user")
@@ -1119,6 +1564,11 @@ class ReviewStateManager:
         record, _ = self._fix_finding_and_record(run_id, finding_id)
         with self._lock:
             stored = dict(record.fix_states.get(finding_id, {}))
+            previous = self._fix_proposals.get(str(stored.get("proposal_id")))
+            if previous is not None and previous.response.validation_status in {
+                "approved_for_validation", "validating", "applied_in_isolated_worktree", "tests_running",
+            }:
+                raise ServiceStateError("not_regenerable")
         if stored.get("state"):
             # Keep the previous proposal id so a different regenerated draft supersedes it.
             self._store_fix_state(record, finding_id, "regeneration_requested", stored.get("proposal_id"), None)

@@ -197,6 +197,19 @@ class CodeAtlasClient {
     regenerateFixProposal(runId, findingId) {
         return this.request('POST', `/reviews/${encodeURIComponent(runId)}/findings/${encodeURIComponent(findingId)}/fix-proposal/regenerate`, { run_id: runId });
     }
+    approveFixProposalForValidation(runId, findingId, proposalId, approvalToken) {
+        return this.request('POST', `/reviews/${encodeURIComponent(runId)}/findings/${encodeURIComponent(findingId)}/fix-proposal/approve-validation`, { run_id: runId, finding_id: findingId, proposal_id: proposalId, approval_token: approvalToken });
+    }
+    validateFixProposal(runId, findingId, proposalId, approvalToken, runTests = false, runFullSuite = false) {
+        return this.request('POST', `/reviews/${encodeURIComponent(runId)}/findings/${encodeURIComponent(findingId)}/fix-proposal/validate`, {
+            run_id: runId,
+            finding_id: findingId,
+            proposal_id: proposalId,
+            approval_token: approvalToken,
+            run_tests: runTests,
+            run_full_suite: runFullSuite,
+        });
+    }
 }
 exports.CodeAtlasClient = CodeAtlasClient;
 //# sourceMappingURL=client.js.map

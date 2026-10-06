@@ -7,6 +7,8 @@ import {
   FindingsResponse,
   FixEligibility,
   FixProposal,
+  FixValidationApprovalResult,
+  FixValidationResult,
   PatchProposal,
   ReviewStatus,
   ServiceHealth,
@@ -235,6 +237,43 @@ export class CodeAtlasClient {
         findingId
       )}/fix-proposal/regenerate`,
       { run_id: runId }
+    );
+  }
+
+  approveFixProposalForValidation(
+    runId: string,
+    findingId: string,
+    proposalId: string,
+    approvalToken: string
+  ): Promise<FixValidationApprovalResult> {
+    return this.request<FixValidationApprovalResult>(
+      'POST',
+      `/reviews/${encodeURIComponent(runId)}/findings/${encodeURIComponent(
+        findingId
+      )}/fix-proposal/approve-validation`,
+      { run_id: runId, finding_id: findingId, proposal_id: proposalId, approval_token: approvalToken }
+    );
+  }
+
+  validateFixProposal(
+    runId: string,
+    findingId: string,
+    proposalId: string,
+    approvalToken: string,
+    runTests: boolean = false,
+    runFullSuite: boolean = false
+  ): Promise<FixValidationResult> {
+    return this.request<FixValidationResult>(
+      'POST',
+      `/reviews/${encodeURIComponent(runId)}/findings/${encodeURIComponent(findingId)}/fix-proposal/validate`,
+      {
+        run_id: runId,
+        finding_id: findingId,
+        proposal_id: proposalId,
+        approval_token: approvalToken,
+        run_tests: runTests,
+        run_full_suite: runFullSuite,
+      }
     );
   }
 }

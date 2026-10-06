@@ -1,5 +1,5 @@
 import * as http from 'http';
-import { ExplanationResult, FindingDetail, FindingsResponse, FixEligibility, FixProposal, PatchProposal, ReviewStatus, ServiceHealth, StartReviewOptions, ValidationResult } from './types';
+import { ExplanationResult, FindingDetail, FindingsResponse, FixEligibility, FixProposal, FixValidationApprovalResult, FixValidationResult, PatchProposal, ReviewStatus, ServiceHealth, StartReviewOptions, ValidationResult } from './types';
 export declare class CodeAtlasClient {
     serviceUrl: string | null;
     timeoutMs: number;
@@ -29,4 +29,6 @@ export declare class CodeAtlasClient {
     getFixProposal(runId: string, findingId: string, proposalId?: string): Promise<FixProposal>;
     rejectFixProposal(runId: string, findingId: string, proposalId: string): Promise<FixProposal>;
     regenerateFixProposal(runId: string, findingId: string): Promise<FixProposal>;
+    approveFixProposalForValidation(runId: string, findingId: string, proposalId: string, approvalToken: string): Promise<FixValidationApprovalResult>;
+    validateFixProposal(runId: string, findingId: string, proposalId: string, approvalToken: string, runTests?: boolean, runFullSuite?: boolean): Promise<FixValidationResult>;
 }

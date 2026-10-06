@@ -29,6 +29,13 @@ one quality-approved finding, bounded context, Python/JavaScript/TypeScript
 adapters, and an existing-compatible draft proposal requiring human approval.
 Run `python eval/eval_repair.py` for the focused offline evaluation.
 
+Phase 11C-C adds explicit approval and validation operations for a FixProposal.
+Approval is bound to the proposal, finding, run, repository identity, base/head
+commits, patch hash, target files, and `validate` operation. The existing
+isolated validator runs approved patches only in detached worktrees and returns
+observed test evidence, manifests, and cleanup status; the original workspace
+is never modified and there is no Apply Fix command.
+
 1. Establish the schemas, threat model, and benchmark cases (complete).
 2. Add read-only repository snapshots, language detection, and deterministic evidence collection (complete).
 3. Add deterministic repository intelligence, symbol extraction, and context retrieval (complete).

@@ -2,7 +2,7 @@
   "$schema": "http://json-schema.org/draft-07/schema#",
   "$id": "codeatlas/fix-proposal.schema.json",
   "title": "CodeAtlas FixProposal",
-  "description": "Typed, bounded, redacted fix proposal contract (Phase 11C-B). Never carries approval tokens, credentials, provider transcripts, or commands. A proposal is always approval_required and preview-only.",
+  "description": "Typed, bounded, redacted fix proposal contract. Approval tokens are never returned; validation evidence is attached only after the explicit validate operation runs in an isolated worktree.",
   "type": "object",
   "required": [
     "proposal_id",
@@ -28,7 +28,13 @@
     "approval_required",
     "limitations",
     "created_at",
-    "schema_version"
+    "schema_version",
+    "validation_operation",
+    "validation_status",
+    "validation_result",
+    "review_packet",
+    "human_approval_manifest",
+    "validation_history"
   ],
   "additionalProperties": false,
   "properties": {
@@ -136,6 +142,29 @@
       "description": "Fixed, user-safe explanation; never raw provider or exception text."
     },
     "created_at": { "type": "string", "maxLength": 64 },
-    "schema_version": { "type": "string", "const": "11C-B.1" }
+    "schema_version": { "type": "string", "const": "11C-B.1" },
+    "validation_operation": { "type": "string", "const": "validate" },
+    "validation_status": {
+      "type": "string",
+      "enum": [
+        "not_requested",
+        "approval_required",
+        "approved_for_validation",
+        "validating",
+        "applied_in_isolated_worktree",
+        "tests_running",
+        "validated",
+        "validation_failed",
+        "cleanup_failed"
+      ]
+    },
+    "validation_result": { "type": ["object", "null"], "additionalProperties": true },
+    "review_packet": { "type": ["object", "null"], "additionalProperties": true },
+    "human_approval_manifest": { "type": ["object", "null"], "additionalProperties": true },
+    "validation_history": {
+      "type": "array",
+      "maxItems": 16,
+      "items": { "type": "string", "maxLength": 64 }
+    }
   }
 }

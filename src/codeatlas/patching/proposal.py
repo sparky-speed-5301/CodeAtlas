@@ -3,6 +3,8 @@
 from __future__ import annotations
 
 import hashlib
+import hmac
+import json
 import re
 from collections.abc import Sequence
 from datetime import datetime, timezone
@@ -61,12 +63,141 @@ def generate_approval_token(
     patch_hash: str,
     allowed_paths: Sequence[str],
     run_id: str = "default",
+    *,
+    finding_id: str | None = None,
+    repository_identity: str | None = None,
+    repository: str | None = None,
+    head_commit: str | None = None,
+    operation: str | None = None,
 ) -> str:
-    """Generate a scoped deterministic approval token for a specific patch proposal."""
+    """Generate a scoped deterministic approval token for a patch operation.
+
+    The original Phase 7 token shape remains stable for existing
+    ``PatchProposal`` callers.  FixProposal validation supplies the additional
+    identity fields and therefore receives the stronger Phase 11C-C scope.
+    """
     paths_str = ",".join(sorted(p.replace("\\", "/").strip("/") for p in allowed_paths))
+    repository_identity = repository_identity if repository_identity is not None else repository
+    if any(value is not None for value in (finding_id, repository_identity, head_commit, operation)):
+        if not all(value is not None and str(value).strip() for value in (
+            finding_id, repository_identity, head_commit, operation,
+        )):
+            raise ValueError("Complete FixProposal validation scope is required")
+        return generate_validation_approval_token(
+            proposal_id=proposal_id,
+            finding_id=str(finding_id),
+            run_id=run_id,
+            repository_identity=str(repository_identity),
+            base_commit=base_commit,
+            head_commit=str(head_commit),
+            patch_hash=patch_hash,
+            target_files=allowed_paths,
+            operation=str(operation),
+        )
     raw = f"{proposal_id}:{base_commit}:{patch_hash}:{paths_str}:{run_id}"
     digest = hashlib.sha256(raw.encode("utf-8")).hexdigest()[:32]
     return f"CAT-APP-{digest}"
+
+
+def _validation_scope_payload(
+    *,
+    proposal_id: str,
+    finding_id: str,
+    run_id: str,
+    repository_identity: str,
+    base_commit: str,
+    head_commit: str,
+    patch_hash: str,
+    target_files: Sequence[str],
+    operation: str,
+) -> str:
+    """Canonical, labelled scope used by the FixProposal validation token."""
+    paths = sorted(p.replace("\\", "/").strip("/") for p in target_files)
+    return json.dumps(
+        {
+            "operation": operation,
+            "proposal_id": proposal_id,
+            "finding_id": finding_id,
+            "run_id": run_id,
+            "repository_identity": repository_identity,
+            "base_commit": base_commit,
+            "head_commit": head_commit,
+            "patch_hash": patch_hash,
+            "target_files": paths,
+        },
+        sort_keys=True,
+        separators=(",", ":"),
+    )
+
+
+def generate_validation_approval_token(
+    *,
+    proposal_id: str,
+    finding_id: str,
+    run_id: str,
+    repository_identity: str,
+    base_commit: str,
+    head_commit: str,
+    patch_hash: str,
+    target_files: Sequence[str],
+    operation: str = "validate",
+) -> str:
+    """Generate the complete approval scope for FixProposal sandbox validation.
+
+    This is a pure existing-mechanism helper for an operator or test harness.
+    The service never mints this value as part of a provider response or HTTP
+    response.
+    """
+    if operation != "validate":
+        raise ValueError("FixProposal approval is only valid for operation 'validate'")
+    raw = _validation_scope_payload(
+        proposal_id=proposal_id,
+        finding_id=finding_id,
+        run_id=run_id,
+        repository_identity=repository_identity,
+        base_commit=base_commit,
+        head_commit=head_commit,
+        patch_hash=patch_hash,
+        target_files=target_files,
+        operation=operation,
+    )
+    digest = hashlib.sha256(raw.encode("utf-8")).hexdigest()[:32]
+    return f"CAT-APP-{digest}"
+
+
+def verify_validation_approval_token(
+    token: str | None,
+    *,
+    proposal_id: str,
+    finding_id: str,
+    run_id: str,
+    repository_identity: str,
+    base_commit: str,
+    head_commit: str,
+    patch_hash: str,
+    target_files: Sequence[str],
+    operation: str = "validate",
+) -> tuple[bool, str | None]:
+    """Verify every FixProposal validation binding before sandbox creation."""
+    if not token or not token.strip():
+        return False, "Approval token is empty or missing"
+    try:
+        expected = generate_validation_approval_token(
+            proposal_id=proposal_id,
+            finding_id=finding_id,
+            run_id=run_id,
+            repository_identity=repository_identity,
+            base_commit=base_commit,
+            head_commit=head_commit,
+            patch_hash=patch_hash,
+            target_files=target_files,
+            operation=operation,
+        )
+    except ValueError as err:
+        return False, str(err)
+    if not hmac.compare_digest(token.strip(), expected):
+        return False, "Approval token does not match the FixProposal validation scope"
+    return True, None
 
 
 def verify_approval_token(
@@ -74,8 +205,19 @@ def verify_approval_token(
     proposal: PatchProposal,
     base_commit: str,
     run_id: str = "default",
+    *,
+    validation_scope: dict[str, Any] | None = None,
 ) -> tuple[bool, str | None]:
     """Verify that an approval token matches the proposal scope, base commit, and patch hash."""
+    if validation_scope is not None:
+        if (validation_scope.get("proposal_id") != proposal.proposal_id
+                or validation_scope.get("finding_id") != proposal.finding_id
+                or validation_scope.get("run_id") != run_id
+                or validation_scope.get("head_commit") != base_commit
+                or validation_scope.get("patch_hash") != proposal.patch_hash
+                or validation_scope.get("target_files") != proposal.target_files):
+            return False, "Approval scope does not match the PatchProposal"
+        return verify_validation_approval_token(token, **validation_scope)
     if not token or not token.strip():
         return False, "Approval token is empty or missing"
 
@@ -88,7 +230,7 @@ def verify_approval_token(
         run_id=run_id,
     )
 
-    if clean_token != expected:
+    if not hmac.compare_digest(clean_token, expected):
         return (
             False,
             f"Approval token does not match expected token for proposal '{proposal.proposal_id}' "
@@ -155,6 +297,8 @@ __all__ = [
     "compute_patch_hash",
     "audit_patch_redaction",
     "generate_approval_token",
+    "generate_validation_approval_token",
+    "verify_validation_approval_token",
     "verify_approval_token",
     "create_patch_proposal",
 ]

@@ -80,6 +80,7 @@ def build_validation_review(
         base_commit=proposal.base_commit,
         proposal_id=proposal.proposal_id, patch_hash=proposal.patch_hash or None,
         approval_scope=validation.approval_scope,
+        approval_operation="validate",
         approval_verified=approval_bound,
         sandbox_id=validation.sandbox_id,
         test_evidence_attached=observed is not None,

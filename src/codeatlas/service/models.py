@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 from typing import Any, Literal
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, ConfigDict, Field
 
 # Review lifecycle states
 LifecycleState = Literal[
@@ -287,7 +287,7 @@ class FixRejectRequest(BaseModel):
 
 
 class FixProposalResponse(BaseModel):
-    """Typed, redacted FixProposal contract; never carries secrets or provider transcripts."""
+    """Typed, redacted FixProposal contract and validation state."""
 
     proposal_id: str
     finding_id: str
@@ -315,3 +315,98 @@ class FixProposalResponse(BaseModel):
     rejection_explanation: str | None = None
     created_at: str = ""
     schema_version: str = FIX_PROPOSAL_SCHEMA_VERSION
+    validation_operation: Literal["validate"] = "validate"
+    validation_status: Literal[
+        "not_requested",
+        "approval_required",
+        "approved_for_validation",
+        "validating",
+        "applied_in_isolated_worktree",
+        "tests_running",
+        "validated",
+        "validation_failed",
+        "cleanup_failed",
+    ] = "not_requested"
+    validation_result: dict[str, Any] | None = None
+    review_packet: dict[str, Any] | None = None
+    human_approval_manifest: dict[str, Any] | None = None
+    validation_history: list[str] = Field(default_factory=list)
+
+
+class FixValidationApprovalRequest(BaseModel):
+    """Operator-supplied approval for one FixProposal validation operation."""
+
+    model_config = ConfigDict(extra="forbid", strict=True)
+
+    run_id: str
+    finding_id: str
+    proposal_id: str
+    approval_token: str = Field(min_length=1, max_length=256)
+
+
+class FixValidationRequest(BaseModel):
+    """Request to run an already approved FixProposal in isolation."""
+
+    model_config = ConfigDict(extra="forbid", strict=True)
+
+    run_id: str
+    finding_id: str
+    proposal_id: str
+    approval_token: str = Field(min_length=1, max_length=256)
+    run_tests: bool = False
+    run_full_suite: bool = False
+
+
+class FixValidationApprovalResponse(BaseModel):
+    """Approval outcome; the token is deliberately never returned."""
+
+    proposal_id: str
+    finding_id: str
+    run_id: str
+    operation: Literal["validate"] = "validate"
+    approval_verified: bool = False
+    validation_status: Literal["approval_required", "approved_for_validation"] = "approval_required"
+    errors: list[str] = Field(default_factory=list)
+
+
+class FixValidationResponse(BaseModel):
+    """Bound validation evidence for one FixProposal and one review run."""
+
+    proposal_id: str
+    finding_id: str
+    run_id: str
+    operation: Literal["validate"] = "validate"
+    status: str
+    validation_status: Literal[
+        "approval_required",
+        "approved_for_validation",
+        "validating",
+        "applied_in_isolated_worktree",
+        "tests_running",
+        "validated",
+        "validation_failed",
+        "cleanup_failed",
+    ] = "validation_failed"
+    approval_verified: bool = False
+    valid: bool = False
+    applies_cleanly: bool = False
+    syntax_valid: bool | None = None
+    tests_status: str = "not_run"
+    full_suite_status: str = "not_run"
+    sandbox_id: str | None = None
+    cleanup_status: str | None = None
+    resulting_diff_hash: str | None = None
+    commands_run: list[str] = Field(default_factory=list)
+    tests_run: list[str] = Field(default_factory=list)
+    test_plan: dict[str, Any] | None = None
+    test_result: dict[str, Any] | None = None
+    full_suite_result: dict[str, Any] | None = None
+    validation_result: dict[str, Any] = Field(default_factory=dict)
+    observed_test_evidence: dict[str, Any] | None = None
+    errors: list[str] = Field(default_factory=list)
+    warnings: list[str] = Field(default_factory=list)
+    limitations: list[str] = Field(default_factory=list)
+    review_packet: dict[str, Any] | None = None
+    human_approval_manifest: dict[str, Any] | None = None
+    validation_history: list[str] = Field(default_factory=list)
+    model_config = ConfigDict(extra="forbid", strict=True)

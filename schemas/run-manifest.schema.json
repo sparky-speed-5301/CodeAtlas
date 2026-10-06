@@ -78,6 +78,7 @@
     "automatic_application_blocked": {"type": ["boolean", "null"]},
     "approval_verified": {"type": ["boolean", "null"]},
     "approval_scope": {"type": ["string", "null"]},
+    "approval_operation": {"type": ["string", "null"]},
     "proposal_id": {"type": ["string", "null"]},
     "patch_hash": {"type": ["string", "null"]},
     "test_evidence_attached": {"type": "boolean"},

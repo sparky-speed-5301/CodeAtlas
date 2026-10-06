@@ -88,6 +88,7 @@ class RunManifest(BaseModel):
     automatic_application_blocked: bool | None = None
     approval_verified: bool | None = None
     approval_scope: str | None = None
+    approval_operation: str | None = None
     proposal_id: str | None = None
     patch_hash: str | None = None
     test_evidence_attached: bool = False

@@ -20,7 +20,12 @@ from codeatlas.service.models import (
     ReviewCreateRequest,
     ValidateProposalRequest,
 )
-from codeatlas.service.models import FixProposalRequest, FixRejectRequest
+from codeatlas.service.models import (
+    FixProposalRequest,
+    FixRejectRequest,
+    FixValidationApprovalRequest,
+    FixValidationRequest,
+)
 from codeatlas.service.state import ReviewStateManager, ServicePathError, ServiceStateError
 
 logger = logging.getLogger("codeatlas.service")
@@ -340,6 +345,109 @@ class ReviewHttpHandler(BaseHTTPRequestHandler):
                 return
 
             # 8. POST /reviews/{run_id}/findings/{finding_id}/fix-proposal (generate)
+            m_fix_by_id_approve = re.match(r"^/fix-proposals/([^/]+)/approve-validation$", path)
+            if m_fix_by_id_approve:
+                proposal_id = m_fix_by_id_approve.group(1)
+                try:
+                    if body.get("proposal_id") not in {None, proposal_id}:
+                        self._send_error_json(HTTPStatus.BAD_REQUEST, "Proposal ID does not match the URL", "scope_mismatch")
+                        return
+                    req = FixValidationApprovalRequest.model_validate({**body, "proposal_id": proposal_id})
+                    approval = self.state_manager.approve_fix_proposal_for_validation(
+                        req.run_id, req.finding_id, proposal_id, approval_token=req.approval_token,
+                    )
+                    self._send_json(HTTPStatus.OK, approval.model_dump())
+                except KeyError as err:
+                    self._send_error_json(HTTPStatus.NOT_FOUND, str(err), "not_found")
+                except ServiceStateError as err:
+                    status = HTTPStatus.CONFLICT if err.reason in {"scope_mismatch", "validation_not_available"} else HTTPStatus.BAD_REQUEST
+                    self._send_error_json(status, err.explanation, err.reason)
+                except Exception:
+                    self._send_error_json(HTTPStatus.BAD_REQUEST, "Invalid FixProposal approval request", "bad_request")
+                return
+
+            m_fix_by_id_validate = re.match(r"^/fix-proposals/([^/]+)/validate$", path)
+            if m_fix_by_id_validate:
+                proposal_id = m_fix_by_id_validate.group(1)
+                try:
+                    if body.get("proposal_id") not in {None, proposal_id}:
+                        self._send_error_json(HTTPStatus.BAD_REQUEST, "Proposal ID does not match the URL", "scope_mismatch")
+                        return
+                    req = FixValidationRequest.model_validate({**body, "proposal_id": proposal_id})
+                    validation = self.state_manager.validate_fix_proposal(
+                        req.run_id, req.finding_id, proposal_id,
+                        approval_token=req.approval_token,
+                        run_tests=req.run_tests,
+                        run_full_suite=req.run_full_suite,
+                    )
+                    self._send_json(HTTPStatus.OK, validation.model_dump())
+                except KeyError as err:
+                    self._send_error_json(HTTPStatus.NOT_FOUND, str(err), "not_found")
+                except ServiceStateError as err:
+                    status = HTTPStatus.CONFLICT if err.reason in {"scope_mismatch", "validation_not_approved", "validation_not_available"} else HTTPStatus.BAD_REQUEST
+                    self._send_error_json(status, err.explanation, err.reason)
+                except Exception:
+                    self._send_error_json(HTTPStatus.BAD_REQUEST, "Invalid FixProposal validation request", "bad_request")
+                return
+
+            m_fix_approve = re.match(r"^/reviews/([^/]+)/findings/([^/]+)/fix-proposal/approve-validation$", path)
+            if m_fix_approve:
+                run_id, finding_id = m_fix_approve.group(1), m_fix_approve.group(2)
+                try:
+                    req = FixValidationApprovalRequest.model_validate(body)
+                    if req.run_id != run_id or req.finding_id != finding_id:
+                        self._send_error_json(
+                            HTTPStatus.BAD_REQUEST,
+                            "Approval request scope does not match the URL",
+                            "scope_mismatch",
+                        )
+                        return
+                    approval = self.state_manager.approve_fix_proposal_for_validation(
+                        run_id,
+                        finding_id,
+                        req.proposal_id,
+                        approval_token=req.approval_token,
+                    )
+                    self._send_json(HTTPStatus.OK, approval.model_dump())
+                except KeyError as err:
+                    self._send_error_json(HTTPStatus.NOT_FOUND, str(err), "not_found")
+                except ServiceStateError as err:
+                    status = HTTPStatus.CONFLICT if err.reason in {"scope_mismatch", "validation_not_available"} else HTTPStatus.BAD_REQUEST
+                    self._send_error_json(status, err.explanation, err.reason)
+                except Exception:
+                    self._send_error_json(HTTPStatus.BAD_REQUEST, "Invalid FixProposal approval request", "bad_request")
+                return
+
+            m_fix_validate = re.match(r"^/reviews/([^/]+)/findings/([^/]+)/fix-proposal/validate$", path)
+            if m_fix_validate:
+                run_id, finding_id = m_fix_validate.group(1), m_fix_validate.group(2)
+                try:
+                    req = FixValidationRequest.model_validate(body)
+                    if req.run_id != run_id or req.finding_id != finding_id:
+                        self._send_error_json(
+                            HTTPStatus.BAD_REQUEST,
+                            "Validation request scope does not match the URL",
+                            "scope_mismatch",
+                        )
+                        return
+                    validation = self.state_manager.validate_fix_proposal(
+                        run_id,
+                        finding_id,
+                        req.proposal_id,
+                        approval_token=req.approval_token,
+                        run_tests=req.run_tests,
+                        run_full_suite=req.run_full_suite,
+                    )
+                    self._send_json(HTTPStatus.OK, validation.model_dump())
+                except KeyError as err:
+                    self._send_error_json(HTTPStatus.NOT_FOUND, str(err), "not_found")
+                except ServiceStateError as err:
+                    status = HTTPStatus.CONFLICT if err.reason in {"scope_mismatch", "validation_not_approved", "validation_not_available"} else HTTPStatus.BAD_REQUEST
+                    self._send_error_json(status, err.explanation, err.reason)
+                except Exception:
+                    self._send_error_json(HTTPStatus.BAD_REQUEST, "Invalid FixProposal validation request", "bad_request")
+                return
+
             m_fix_generate = re.match(r"^/reviews/([^/]+)/findings/([^/]+)/fix-proposal$", path)
             if m_fix_generate:
                 run_id, finding_id = m_fix_generate.group(1), m_fix_generate.group(2)

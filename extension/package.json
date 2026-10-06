@@ -144,6 +144,14 @@
         "title": "CodeAtlas: Validate Approved Fix"
       },
       {
+        "command": "codeatlas.approveFixForValidation",
+        "title": "CodeAtlas: Approve Fix for Sandbox Validation"
+      },
+      {
+        "command": "codeatlas.validateFixProposal",
+        "title": "CodeAtlas: Validate FixProposal"
+      },
+      {
         "command": "codeatlas.copyFinding",
         "title": "CodeAtlas: Copy Finding"
       },
@@ -261,6 +269,16 @@
           "command": "codeatlas.regenerateFix",
           "when": "view == codeatlas.findingsView",
           "group": "fix@4"
+        },
+        {
+          "command": "codeatlas.approveFixForValidation",
+          "when": "view == codeatlas.findingsView",
+          "group": "fix@5"
+        },
+        {
+          "command": "codeatlas.validateFixProposal",
+          "when": "view == codeatlas.findingsView",
+          "group": "fix@6"
         }
       ]
     },

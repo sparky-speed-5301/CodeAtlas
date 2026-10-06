@@ -42,6 +42,7 @@ def validate_patch_proposal(
     test_timeout: float = 30.0,
     max_output_bytes: int = 100_000,
     test_config: dict[str, Any] | None = None,
+    validation_scope: dict[str, Any] | None = None,
 ) -> PatchValidationResult:
     """Validate a patch proposal against schema, paths, policy, redaction, and isolated application.
 
@@ -228,6 +229,7 @@ def validate_patch_proposal(
         test_timeout=test_timeout,
         max_output_bytes=max_output_bytes,
         test_config=test_config,
+        validation_scope=validation_scope,
     )
 
     if proposal.status not in {PatchStatus.VALIDATED, PatchStatus.FAILED_VALIDATION}:

@@ -2,8 +2,8 @@
 
 from __future__ import annotations
 
-from typing import Any
-from pydantic import BaseModel, ConfigDict, Field
+from typing import Any, Callable
+from pydantic import BaseModel, ConfigDict, Field, PrivateAttr
 from codeatlas.verification.models import TestPlan, TestResult
 
 
@@ -236,6 +236,8 @@ class PatchProposal(BaseModel):
     provenance: dict[str, Any] = Field(default_factory=dict)
     patch_hash: str = ""
     redaction_audit: PatchRedactionAudit = Field(default_factory=PatchRedactionAudit)
+    # In-process lifecycle observer; never persisted or accepted from JSON/provider output.
+    _status_observer: Callable[[str], None] | None = PrivateAttr(default=None)
 
     def transition_to(self, new_status: str, *, reason: str | None = None) -> None:
         """Safely transition to a new lifecycle status or raise ValueError."""
@@ -248,6 +250,8 @@ class PatchProposal(BaseModel):
                 + (f": {reason}" if reason else "")
             )
         self.status = new_status
+        if self._status_observer is not None:
+            self._status_observer(new_status)
 
 
 __all__ = [

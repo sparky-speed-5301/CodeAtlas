@@ -245,6 +245,17 @@ export type FixProposalLifecycle =
   | 'rejected'
   | 'regeneration_requested';
 
+export type FixValidationLifecycle =
+  | 'not_requested'
+  | 'approval_required'
+  | 'approved_for_validation'
+  | 'validating'
+  | 'applied_in_isolated_worktree'
+  | 'tests_running'
+  | 'validated'
+  | 'validation_failed'
+  | 'cleanup_failed';
+
 export interface FixProposal {
   proposal_id: string;
   finding_id: string;
@@ -272,6 +283,53 @@ export interface FixProposal {
   rejection_explanation?: string | null;
   created_at: string;
   schema_version: string;
+  validation_operation: 'validate';
+  validation_status: FixValidationLifecycle;
+  validation_result?: Record<string, unknown> | null;
+  review_packet?: Record<string, unknown> | null;
+  human_approval_manifest?: Record<string, unknown> | null;
+  validation_history: string[];
+}
+
+export interface FixValidationApprovalResult {
+  proposal_id: string;
+  finding_id: string;
+  run_id: string;
+  operation: 'validate';
+  approval_verified: boolean;
+  validation_status: 'approval_required' | 'approved_for_validation';
+  errors: string[];
+}
+
+export interface FixValidationResult {
+  proposal_id: string;
+  finding_id: string;
+  run_id: string;
+  operation: 'validate';
+  status: string;
+  validation_status: FixValidationLifecycle;
+  approval_verified: boolean;
+  valid: boolean;
+  applies_cleanly: boolean;
+  syntax_valid?: boolean | null;
+  tests_status: string;
+  full_suite_status: string;
+  sandbox_id?: string | null;
+  cleanup_status?: string | null;
+  resulting_diff_hash?: string | null;
+  commands_run: string[];
+  tests_run: string[];
+  test_plan?: Record<string, unknown> | null;
+  test_result?: Record<string, unknown> | null;
+  full_suite_result?: Record<string, unknown> | null;
+  validation_result: Record<string, unknown>;
+  observed_test_evidence?: Record<string, unknown> | null;
+  errors: string[];
+  warnings: string[];
+  limitations: string[];
+  review_packet?: Record<string, unknown> | null;
+  human_approval_manifest?: Record<string, unknown> | null;
+  validation_history: string[];
 }
 
 export interface FixEligibility {

@@ -27,8 +27,10 @@ from .proposal import (
     compute_patch_hash,
     create_patch_proposal,
     generate_approval_token,
+    generate_validation_approval_token,
     normalize_diff,
     verify_approval_token,
+    verify_validation_approval_token,
 )
 from .sandbox import PatchSandbox, temporary_patch_sandbox
 from .validator import validate_patch_proposal
@@ -45,7 +47,9 @@ __all__ = [
     "compute_patch_hash",
     "audit_patch_redaction",
     "generate_approval_token",
+    "generate_validation_approval_token",
     "verify_approval_token",
+    "verify_validation_approval_token",
     "create_patch_proposal",
     "parse_unified_diff",
     "DEFAULT_PATCH_CONFIG",
