@@ -201,6 +201,35 @@ def validate_test_command(
     )
 
 
+def validate_check_command(command: Sequence[str]) -> CommandValidation:
+    """Validate adapter-planned, non-writing checks; never authorize execution.
+
+    The test executor continues to use ``validate_test_command`` exclusively.
+    These exact templates describe optional future isolated checks, with no
+    shell, provider-selected flags, dependency installation, or fix mode.
+    """
+    templates = (
+        ("ruff", "check", "--no-fix"), ("ruff", "format", "--check"),
+        ("black", "--check"), ("tsc", "--noEmit", "--pretty", "false"),
+        ("eslint",), ("prettier", "--check"),
+    )
+    parts = tuple(command)
+    for prefix in templates:
+        if len(parts) != len(prefix) + 1 or parts[:-1] != prefix:
+            continue
+        target = parts[-1]
+        if (not target or len(target) > 512 or target.startswith("-") or "\\" in target
+                or ":" in target or any(p in {"", ".", ".."} for p in target.split("/"))
+                or any(ord(c) < 32 for c in target)
+                or not validate_test_command(["pytest", target]).allowed):
+            break
+        return CommandValidation(allowed=True, normalized_command=list(parts), executable=prefix[0],
+                                 rules_evaluated=["non_writing_check_template", "target_path_safety_check"])
+    return CommandValidation(allowed=False, rejection_reason="Not an allowlisted non-writing check",
+                             rules_evaluated=["non_writing_check_template", "target_path_safety_check"])
+
+
 __all__ = [
     "validate_test_command",
+    "validate_check_command",
 ]

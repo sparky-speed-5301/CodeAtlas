@@ -244,3 +244,74 @@ class ValidateProposalResponse(BaseModel):
     full_suite_status: str | None = "not_run"
     errors: list[str] = Field(default_factory=list)
     warnings: list[str] = Field(default_factory=list)
+
+
+# ---------------------------------------------------------------------------
+# Phase 11C-B: FixProposal integration (bounded AI fix proposals, preview only)
+# ---------------------------------------------------------------------------
+
+FixProposalLifecycle = Literal[
+    "not_eligible",
+    "generating",
+    "generation_failed",
+    "rejected_by_policy",
+    "draft_ready",
+    "rejected",
+    "regeneration_requested",
+]
+
+FIX_PROPOSAL_SCHEMA_VERSION = "11C-B.1"
+
+
+class FixEligibilityResponse(BaseModel):
+    """Safe eligibility decision for showing the Generate Fix affordance."""
+
+    run_id: str
+    finding_id: str
+    eligible: bool
+    reasons: list[str] = Field(default_factory=list)
+    explanations: list[str] = Field(default_factory=list)
+
+
+class FixProposalRequest(BaseModel):
+    """Request a bounded fix proposal for one finding in one run."""
+
+    run_id: str
+
+
+class FixRejectRequest(BaseModel):
+    """Reject one fix proposal; the ID must match the run and finding."""
+
+    run_id: str
+    proposal_id: str
+
+
+class FixProposalResponse(BaseModel):
+    """Typed, redacted FixProposal contract; never carries secrets or provider transcripts."""
+
+    proposal_id: str
+    finding_id: str
+    run_id: str
+    repository: str
+    base_commit: str
+    head_commit: str
+    target_files: list[str] = Field(default_factory=list)
+    patch_text: str = ""
+    patch_hash: str = ""
+    diagnosis: str = ""
+    explanation: str = ""
+    expected_behavior_change: str = ""
+    assumptions: list[str] = Field(default_factory=list)
+    risk_level: str = "medium"
+    confidence: float = Field(default=0.0, ge=0, le=1)
+    evidence_strength: str = "none"
+    evidence_sources: list[str] = Field(default_factory=list)
+    quality_decision: str = "review_only"
+    policy_decision: dict[str, Any] = Field(default_factory=dict)
+    generation_status: FixProposalLifecycle = "generating"
+    approval_required: bool = True
+    limitations: list[str] = Field(default_factory=list)
+    rejection_reason: str | None = None
+    rejection_explanation: str | None = None
+    created_at: str = ""
+    schema_version: str = FIX_PROPOSAL_SCHEMA_VERSION

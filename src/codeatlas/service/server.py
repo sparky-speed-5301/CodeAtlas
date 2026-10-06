@@ -20,7 +20,8 @@ from codeatlas.service.models import (
     ReviewCreateRequest,
     ValidateProposalRequest,
 )
-from codeatlas.service.state import ReviewStateManager, ServicePathError
+from codeatlas.service.models import FixProposalRequest, FixRejectRequest
+from codeatlas.service.state import ReviewStateManager, ServicePathError, ServiceStateError
 
 logger = logging.getLogger("codeatlas.service")
 
@@ -116,6 +117,61 @@ class ReviewHttpHandler(BaseHTTPRequestHandler):
                     self._send_json(HTTPStatus.OK, detail.model_dump())
                 except KeyError as err:
                     self._send_error_json(HTTPStatus.NOT_FOUND, str(err), "not_found")
+                return
+
+            # 2b. GET /reviews/{run_id}/findings/{finding_id}/fix-eligibility
+            m_fix_elig = re.match(r"^/reviews/([^/]+)/findings/([^/]+)/fix-eligibility$", path)
+            if m_fix_elig:
+                run_id, finding_id = m_fix_elig.group(1), m_fix_elig.group(2)
+                try:
+                    eligibility = self.state_manager.get_fix_eligibility(run_id, finding_id)
+                    self._send_json(HTTPStatus.OK, eligibility.model_dump())
+                except KeyError as err:
+                    self._send_error_json(HTTPStatus.NOT_FOUND, str(err), "not_found")
+                except ServiceStateError as err:
+                    self._send_error_json(HTTPStatus.CONFLICT, err.explanation, err.reason)
+                except Exception as err:
+                    self._send_error_json(HTTPStatus.BAD_REQUEST, f"Cannot evaluate fix eligibility: {err}", "bad_request")
+                return
+
+            # 2c. GET /reviews/{run_id}/findings/{finding_id}/fix-proposal (latest)
+            m_fix_latest = re.match(r"^/reviews/([^/]+)/findings/([^/]+)/fix-proposal$", path)
+            if m_fix_latest:
+                run_id, finding_id = m_fix_latest.group(1), m_fix_latest.group(2)
+                try:
+                    proposal = self.state_manager.get_fix_proposal(run_id, finding_id)
+                    self._send_json(HTTPStatus.OK, proposal.model_dump())
+                except KeyError as err:
+                    self._send_error_json(HTTPStatus.NOT_FOUND, str(err), "not_found")
+                except ServiceStateError as err:
+                    self._send_error_json(HTTPStatus.NOT_FOUND, err.explanation, err.reason)
+                except Exception as err:
+                    self._send_error_json(HTTPStatus.BAD_REQUEST, f"Cannot retrieve fix proposal: {err}", "bad_request")
+                return
+
+            # 2d. GET /fix-proposals/{proposal_id}?run_id=&finding_id= (scope-checked retrieval)
+            m_fix_by_id = re.match(r"^/fix-proposals/([^/]+)$", path)
+            if m_fix_by_id:
+                proposal_id = m_fix_by_id.group(1)
+                run_id = query.get("run_id", [None])[0]
+                finding_id = query.get("finding_id", [None])[0]
+                if not run_id or not finding_id:
+                    self._send_error_json(
+                        HTTPStatus.BAD_REQUEST,
+                        "Both run_id and finding_id query parameters are required",
+                        "bad_request",
+                    )
+                    return
+                try:
+                    proposal = self.state_manager.get_fix_proposal(run_id, finding_id, proposal_id)
+                    self._send_json(HTTPStatus.OK, proposal.model_dump())
+                except KeyError as err:
+                    self._send_error_json(HTTPStatus.NOT_FOUND, str(err), "not_found")
+                except ServiceStateError as err:
+                    status = HTTPStatus.CONFLICT if err.reason == "scope_mismatch" else HTTPStatus.NOT_FOUND
+                    self._send_error_json(status, err.explanation, err.reason)
+                except Exception as err:
+                    self._send_error_json(HTTPStatus.BAD_REQUEST, f"Cannot retrieve fix proposal: {err}", "bad_request")
                 return
 
             # 3. GET /reviews/{run_id}/findings
@@ -281,6 +337,76 @@ class ReviewHttpHandler(BaseHTTPRequestHandler):
                     self._send_error_json(HTTPStatus.NOT_FOUND, str(err), "not_found")
                 except Exception as err:
                     self._send_error_json(HTTPStatus.BAD_REQUEST, f"Invalid finding feedback: {err}", "bad_request")
+                return
+
+            # 8. POST /reviews/{run_id}/findings/{finding_id}/fix-proposal (generate)
+            m_fix_generate = re.match(r"^/reviews/([^/]+)/findings/([^/]+)/fix-proposal$", path)
+            if m_fix_generate:
+                run_id, finding_id = m_fix_generate.group(1), m_fix_generate.group(2)
+                try:
+                    req = FixProposalRequest.model_validate(body)
+                    if req.run_id != run_id:
+                        self._send_error_json(
+                            HTTPStatus.BAD_REQUEST,
+                            "Request run_id does not match the review run in the URL",
+                            "scope_mismatch",
+                        )
+                        return
+                    proposal = self.state_manager.request_fix_proposal(run_id, finding_id)
+                    self._send_json(HTTPStatus.CREATED, proposal.model_dump())
+                except KeyError as err:
+                    self._send_error_json(HTTPStatus.NOT_FOUND, str(err), "not_found")
+                except ServiceStateError as err:
+                    self._send_error_json(HTTPStatus.CONFLICT, err.explanation, err.reason)
+                except Exception as err:
+                    self._send_error_json(HTTPStatus.BAD_REQUEST, f"Cannot generate fix proposal: {err}", "bad_request")
+                return
+
+            # 9. POST /reviews/{run_id}/findings/{finding_id}/fix-proposal/reject
+            m_fix_reject = re.match(r"^/reviews/([^/]+)/findings/([^/]+)/fix-proposal/reject$", path)
+            if m_fix_reject:
+                run_id, finding_id = m_fix_reject.group(1), m_fix_reject.group(2)
+                try:
+                    req = FixRejectRequest.model_validate(body)
+                    if req.run_id != run_id:
+                        self._send_error_json(
+                            HTTPStatus.BAD_REQUEST,
+                            "Request run_id does not match the review run in the URL",
+                            "scope_mismatch",
+                        )
+                        return
+                    proposal = self.state_manager.reject_fix_proposal(run_id, finding_id, req.proposal_id)
+                    self._send_json(HTTPStatus.OK, proposal.model_dump())
+                except KeyError as err:
+                    self._send_error_json(HTTPStatus.NOT_FOUND, str(err), "not_found")
+                except ServiceStateError as err:
+                    status = HTTPStatus.CONFLICT if err.reason == "scope_mismatch" else HTTPStatus.BAD_REQUEST
+                    self._send_error_json(status, err.explanation, err.reason)
+                except Exception as err:
+                    self._send_error_json(HTTPStatus.BAD_REQUEST, f"Cannot reject fix proposal: {err}", "bad_request")
+                return
+
+            # 10. POST /reviews/{run_id}/findings/{finding_id}/fix-proposal/regenerate
+            m_fix_regen = re.match(r"^/reviews/([^/]+)/findings/([^/]+)/fix-proposal/regenerate$", path)
+            if m_fix_regen:
+                run_id, finding_id = m_fix_regen.group(1), m_fix_regen.group(2)
+                try:
+                    req = FixProposalRequest.model_validate(body)
+                    if req.run_id != run_id:
+                        self._send_error_json(
+                            HTTPStatus.BAD_REQUEST,
+                            "Request run_id does not match the review run in the URL",
+                            "scope_mismatch",
+                        )
+                        return
+                    proposal = self.state_manager.regenerate_fix_proposal(run_id, finding_id)
+                    self._send_json(HTTPStatus.CREATED, proposal.model_dump())
+                except KeyError as err:
+                    self._send_error_json(HTTPStatus.NOT_FOUND, str(err), "not_found")
+                except ServiceStateError as err:
+                    self._send_error_json(HTTPStatus.CONFLICT, err.explanation, err.reason)
+                except Exception as err:
+                    self._send_error_json(HTTPStatus.BAD_REQUEST, f"Cannot regenerate fix proposal: {err}", "bad_request")
                 return
 
             self._send_error_json(HTTPStatus.NOT_FOUND, f"Endpoint '{path}' not found", "not_found")

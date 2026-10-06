@@ -124,6 +124,22 @@
         "title": "CodeAtlas: Generate Draft Fix"
       },
       {
+        "command": "codeatlas.generateFix",
+        "title": "CodeAtlas: Generate Fix"
+      },
+      {
+        "command": "codeatlas.previewFix",
+        "title": "CodeAtlas: Preview Fix"
+      },
+      {
+        "command": "codeatlas.rejectFix",
+        "title": "CodeAtlas: Reject Fix"
+      },
+      {
+        "command": "codeatlas.regenerateFix",
+        "title": "CodeAtlas: Regenerate Fix"
+      },
+      {
         "command": "codeatlas.validateApprovedFix",
         "title": "CodeAtlas: Validate Approved Fix"
       },
@@ -225,6 +241,26 @@
           "command": "codeatlas.copyComparisonRange",
           "when": "view == codeatlas.statusView && viewItem == codeatlas.comparisonRange",
           "group": "inline@5"
+        },
+        {
+          "command": "codeatlas.generateFix",
+          "when": "view == codeatlas.findingsView",
+          "group": "fix@1"
+        },
+        {
+          "command": "codeatlas.previewFix",
+          "when": "view == codeatlas.findingsView",
+          "group": "fix@2"
+        },
+        {
+          "command": "codeatlas.rejectFix",
+          "when": "view == codeatlas.findingsView",
+          "group": "fix@3"
+        },
+        {
+          "command": "codeatlas.regenerateFix",
+          "when": "view == codeatlas.findingsView",
+          "group": "fix@4"
         }
       ]
     },

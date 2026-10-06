@@ -5,6 +5,8 @@ import {
   ExplanationResult,
   FindingDetail,
   FindingsResponse,
+  FixEligibility,
+  FixProposal,
   PatchProposal,
   ReviewStatus,
   ServiceHealth,
@@ -71,6 +73,7 @@ export class CodeAtlasClient {
             if (res.statusCode && res.statusCode >= 200 && res.statusCode < 300) {
               resolve(data);
             } else {
+              // Never echo response content into errors; it may be credential-bearing.
               reject(new Error(`CodeAtlas request failed (HTTP ${res.statusCode}).`));
             }
           } catch (_) {
@@ -180,5 +183,58 @@ export class CodeAtlasClient {
       run_tests: runTests,
       run_full_suite: runFullSuite,
     });
+  }
+
+  // -------------------------------------------------------------------------
+  // Phase 11C-B: bounded fix proposals (preview only; never applied here)
+  // -------------------------------------------------------------------------
+
+  getFixEligibility(runId: string, findingId: string): Promise<FixEligibility> {
+    return this.request<FixEligibility>(
+      'GET',
+      `/reviews/${encodeURIComponent(runId)}/findings/${encodeURIComponent(findingId)}/fix-eligibility`
+    );
+  }
+
+  requestFixProposal(runId: string, findingId: string): Promise<FixProposal> {
+    return this.request<FixProposal>(
+      'POST',
+      `/reviews/${encodeURIComponent(runId)}/findings/${encodeURIComponent(findingId)}/fix-proposal`,
+      { run_id: runId }
+    );
+  }
+
+  getFixProposal(runId: string, findingId: string, proposalId?: string): Promise<FixProposal> {
+    if (proposalId) {
+      const query = `run_id=${encodeURIComponent(runId)}&finding_id=${encodeURIComponent(findingId)}`;
+      return this.request<FixProposal>(
+        'GET',
+        `/fix-proposals/${encodeURIComponent(proposalId)}?${query}`
+      );
+    }
+    return this.request<FixProposal>(
+      'GET',
+      `/reviews/${encodeURIComponent(runId)}/findings/${encodeURIComponent(findingId)}/fix-proposal`
+    );
+  }
+
+  rejectFixProposal(runId: string, findingId: string, proposalId: string): Promise<FixProposal> {
+    return this.request<FixProposal>(
+      'POST',
+      `/reviews/${encodeURIComponent(runId)}/findings/${encodeURIComponent(
+        findingId
+      )}/fix-proposal/reject`,
+      { run_id: runId, proposal_id: proposalId }
+    );
+  }
+
+  regenerateFixProposal(runId: string, findingId: string): Promise<FixProposal> {
+    return this.request<FixProposal>(
+      'POST',
+      `/reviews/${encodeURIComponent(runId)}/findings/${encodeURIComponent(
+        findingId
+      )}/fix-proposal/regenerate`,
+      { run_id: runId }
+    );
   }
 }

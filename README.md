@@ -24,6 +24,11 @@ or integrate with GitHub.
 
 ## Implementation plan
 
+Phase 11C-A adds the offline [Repair Orchestrator Foundation](docs/repair-orchestrator.md):
+one quality-approved finding, bounded context, Python/JavaScript/TypeScript
+adapters, and an existing-compatible draft proposal requiring human approval.
+Run `python eval/eval_repair.py` for the focused offline evaluation.
+
 1. Establish the schemas, threat model, and benchmark cases (complete).
 2. Add read-only repository snapshots, language detection, and deterministic evidence collection (complete).
 3. Add deterministic repository intelligence, symbol extraction, and context retrieval (complete).

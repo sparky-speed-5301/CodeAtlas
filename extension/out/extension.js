@@ -38,7 +38,7 @@ var __importStar = (this && this.__importStar) || (function () {
     };
 })();
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.decorationTypes = exports.SEVERITY_ORDER = exports.getNoFindingWebviewHtml = exports.getFindingWebviewHtml = exports.pathMatches = exports.normalizePath = exports.sortFindingsBySeverity = exports.clampLine = exports.formatQuickPickItem = exports.findingLineBounds = exports.findFindingsAtCursor = exports.SETUP_MESSAGE = exports.safeHealth = exports.parseServiceCommand = exports.validateServiceUrl = exports.configurationPath = exports.readWorkspaceConfiguration = exports.FORBIDDEN_PROFILE_KEYS = exports.ALLOWED_PROFILE_KEYS = exports.DEFAULT_PROFILE = exports.validateProfileName = exports.validateProfile = exports.ServiceLifecycleManager = exports.ProfileManager = exports.ContextTreeDataProvider = exports.FindingsTreeDataProvider = exports.StatusTreeDataProvider = exports.CodeAtlasClient = void 0;
+exports.renderProposalPreview = exports.applyPatchToContent = exports.parseUnifiedDiff = exports.PatchPreviewError = exports.FIX_PREVIEW_SCHEME = exports.FixPreviewDocumentProvider = exports.decorationTypes = exports.SEVERITY_ORDER = exports.getNoFindingWebviewHtml = exports.getFindingWebviewHtml = exports.pathMatches = exports.normalizePath = exports.sortFindingsBySeverity = exports.clampLine = exports.formatQuickPickItem = exports.findingLineBounds = exports.findFindingsAtCursor = exports.SETUP_MESSAGE = exports.safeHealth = exports.parseServiceCommand = exports.validateServiceUrl = exports.configurationPath = exports.readWorkspaceConfiguration = exports.FORBIDDEN_PROFILE_KEYS = exports.ALLOWED_PROFILE_KEYS = exports.DEFAULT_PROFILE = exports.validateProfileName = exports.validateProfile = exports.ServiceLifecycleManager = exports.ProfileManager = exports.ContextTreeDataProvider = exports.FindingsTreeDataProvider = exports.StatusTreeDataProvider = exports.CodeAtlasClient = void 0;
 exports.activate = activate;
 exports.deactivate = deactivate;
 const vscode = __importStar(require("vscode"));
@@ -56,6 +56,13 @@ Object.defineProperty(exports, "sortFindingsBySeverity", { enumerable: true, get
 const detail_panel_1 = require("./detail-panel");
 Object.defineProperty(exports, "getFindingWebviewHtml", { enumerable: true, get: function () { return detail_panel_1.getFindingWebviewHtml; } });
 Object.defineProperty(exports, "getNoFindingWebviewHtml", { enumerable: true, get: function () { return detail_panel_1.getNoFindingWebviewHtml; } });
+const fix_preview_1 = require("./fix-preview");
+Object.defineProperty(exports, "FixPreviewDocumentProvider", { enumerable: true, get: function () { return fix_preview_1.FixPreviewDocumentProvider; } });
+Object.defineProperty(exports, "FIX_PREVIEW_SCHEME", { enumerable: true, get: function () { return fix_preview_1.FIX_PREVIEW_SCHEME; } });
+Object.defineProperty(exports, "PatchPreviewError", { enumerable: true, get: function () { return fix_preview_1.PatchPreviewError; } });
+Object.defineProperty(exports, "renderProposalPreview", { enumerable: true, get: function () { return fix_preview_1.renderProposalPreview; } });
+Object.defineProperty(exports, "applyPatchToContent", { enumerable: true, get: function () { return fix_preview_1.applyPatchToContent; } });
+Object.defineProperty(exports, "parseUnifiedDiff", { enumerable: true, get: function () { return fix_preview_1.parseUnifiedDiff; } });
 const profiles_1 = require("./profiles");
 Object.defineProperty(exports, "ALLOWED_PROFILE_KEYS", { enumerable: true, get: function () { return profiles_1.ALLOWED_PROFILE_KEYS; } });
 Object.defineProperty(exports, "configurationPath", { enumerable: true, get: function () { return profiles_1.configurationPath; } });
@@ -154,6 +161,15 @@ function activate(context) {
     // the finding currently displayed, never the one the panel was created with.
     let currentDetail = null;
     const dismissedFindingIds = new Set();
+    // Phase 11C-B: latest fix proposal per finding for preview/reject/regenerate.
+    const latestFixProposals = new Map();
+    // The virtual document provider needs vscode APIs that test doubles may not
+    // implement; fix commands degrade gracefully when it is unavailable.
+    let fixPreviewProvider = null;
+    if (typeof vscode.EventEmitter === 'function' && vscode.workspace.registerTextDocumentContentProvider) {
+        fixPreviewProvider = new fix_preview_1.FixPreviewDocumentProvider();
+        context.subscriptions.push(vscode.workspace.registerTextDocumentContentProvider(fix_preview_1.FIX_PREVIEW_SCHEME, fixPreviewProvider), fixPreviewProvider);
+    }
     const reviewTimers = new Set();
     let healthTimer = null;
     let disposed = false;
@@ -188,6 +204,7 @@ function activate(context) {
             clearInterval(timer);
         reviewTimers.clear();
         dismissedFindingIds.clear();
+        latestFixProposals.clear();
         findingsProvider.refresh([]);
         contextProvider.refresh(null);
         statusProvider.setActiveRunId(null);
@@ -328,6 +345,7 @@ function activate(context) {
         currentRunId = null;
         currentFindings = [];
         activeFinding = null;
+        latestFixProposals.clear();
         statusProvider.setActiveRunId(null);
         statusProvider.refresh(null);
         findingsProvider.refresh([]);
@@ -435,6 +453,211 @@ function activate(context) {
         catch (err) {
             vscode.window.showErrorMessage(`CodeAtlas: Draft fix generation failed: ${err.message}`);
         }
+    }
+    function isServiceNotFound(err) {
+        return typeof err?.message === 'string' && err.message.includes('404');
+    }
+    /**
+     * Phase 11C-B: request (or regenerate) a bounded fix proposal for one finding.
+     * The proposal is a preview-only draft; nothing is ever applied here.
+     */
+    async function generateFixAction(finding, regenerate = false) {
+        if (!finding)
+            return;
+        if (!currentRunId) {
+            vscode.window.showInformationMessage('CodeAtlas: No active review run.');
+            return;
+        }
+        const runId = currentRunId;
+        try {
+            const proposal = regenerate
+                ? await client.regenerateFixProposal(runId, finding.id)
+                : await client.requestFixProposal(runId, finding.id);
+            if (currentRunId !== runId)
+                return;
+            if (!proposal || proposal.finding_id !== finding.id || proposal.run_id !== runId) {
+                vscode.window.showWarningMessage('CodeAtlas: The service returned a fix proposal that does not match the selected finding or run.');
+                return;
+            }
+            if (proposal.generation_status === 'draft_ready' && proposal.proposal_id) {
+                latestFixProposals.set(finding.id, proposal);
+                void vscode.window
+                    .showInformationMessage(`CodeAtlas: Fix proposal ${proposal.proposal_id} ready (risk ${proposal.risk_level}, confidence ${proposal.confidence}). Approval is required and nothing has been applied.`, 'Preview Fix', 'Reject Fix')
+                    .then((selection) => {
+                    if (selection === 'Preview Fix') {
+                        vscode.commands.executeCommand('codeatlas.previewFix', finding);
+                    }
+                    else if (selection === 'Reject Fix') {
+                        vscode.commands.executeCommand('codeatlas.rejectFix', finding);
+                    }
+                });
+            }
+            else {
+                const explanation = proposal.rejection_explanation || 'Fix generation did not produce a proposal.';
+                const statusText = String(proposal.generation_status || 'unavailable').replace(/_/g, ' ');
+                vscode.window.showWarningMessage(`CodeAtlas: Fix proposal ${statusText}: ${explanation}`);
+            }
+        }
+        catch (err) {
+            if (isServiceNotFound(err)) {
+                handleStaleRun();
+            }
+            else {
+                vscode.window.showErrorMessage(`CodeAtlas: Fix generation failed: ${err.message}`);
+            }
+        }
+    }
+    /** Read-only diff preview of a fix proposal against the workspace file. */
+    async function previewFixAction(finding) {
+        if (!finding)
+            return;
+        if (!currentRunId) {
+            vscode.window.showInformationMessage('CodeAtlas: No active review run.');
+            return;
+        }
+        if (!workspaceFolders || !workspaceFolders.length) {
+            vscode.window.showWarningMessage('CodeAtlas: No workspace folder open.');
+            return;
+        }
+        const runId = currentRunId;
+        let proposal = latestFixProposals.get(finding.id);
+        if (!proposal) {
+            try {
+                proposal = await client.getFixProposal(runId, finding.id);
+            }
+            catch (err) {
+                if (isServiceNotFound(err)) {
+                    vscode.window.showInformationMessage('CodeAtlas: No fix proposal exists for this finding yet. Run Generate Fix first.');
+                }
+                else {
+                    vscode.window.showErrorMessage(`CodeAtlas: Fix preview failed: ${err.message}`);
+                }
+                return;
+            }
+        }
+        if (currentRunId !== runId)
+            return;
+        if (!proposal || proposal.finding_id !== finding.id || proposal.run_id !== runId) {
+            vscode.window.showWarningMessage('CodeAtlas: The stored fix proposal does not match the selected finding or run.');
+            return;
+        }
+        if (proposal.generation_status !== 'draft_ready' || !proposal.patch_text || !proposal.approval_required) {
+            const explanation = proposal.rejection_explanation || 'The fix proposal is not in a previewable state.';
+            vscode.window.showWarningMessage(`CodeAtlas: Fix proposal not previewable: ${explanation}`);
+            return;
+        }
+        const targetFile = (proposal.target_files && proposal.target_files[0]) || finding.file || '';
+        const normalized = typeof targetFile === 'string' ? targetFile.replace(/\\/g, '/') : '';
+        if (!normalized ||
+            normalized.startsWith('/') ||
+            normalized.includes(':') ||
+            normalized.includes('\0') ||
+            normalized.split('/').includes('..')) {
+            vscode.window.showWarningMessage('CodeAtlas: The fix proposal target must be a workspace-relative file.');
+            return;
+        }
+        try {
+            if (!fixPreviewProvider) {
+                vscode.window.showWarningMessage('CodeAtlas: The fix diff preview is unavailable in this environment.');
+                return;
+            }
+            const fileUri = vscode.Uri.joinPath(workspaceFolders[0].uri, normalized);
+            const doc = await vscode.workspace.openTextDocument(fileUri);
+            const proposed = (0, fix_preview_1.renderProposalPreview)(doc.getText(), proposal.patch_text, normalized);
+            const leftUri = fixPreviewProvider.registerContent('original', normalized, doc.getText());
+            const rightUri = fixPreviewProvider.registerContent('proposed', normalized, proposed);
+            await vscode.commands.executeCommand('vscode.diff', leftUri, rightUri, `CodeAtlas Fix Preview (read-only): ${normalized} — ${proposal.proposal_id}`, { preview: true });
+            const decision = String(proposal.policy_decision?.decision ?? 'requires_human_approval');
+            const meta = [
+                `Proposal ${proposal.proposal_id} — preview only, nothing has been applied.`,
+                `Patch hash: ${proposal.patch_hash.slice(0, 16)}…`,
+                `Risk: ${proposal.risk_level} | Confidence: ${proposal.confidence} | Evidence: ${proposal.evidence_strength}`,
+                `Quality decision: ${proposal.quality_decision} | Policy: ${decision} | Approval required: yes`,
+                proposal.assumptions.length
+                    ? `Assumptions: ${proposal.assumptions.slice(0, 3).join(' ')}`
+                    : '',
+                proposal.limitations.length
+                    ? `Limitations: ${proposal.limitations.slice(0, 3).map((l) => `• ${l}`).join(' ')}`
+                    : '',
+            ]
+                .filter(Boolean)
+                .join('\n');
+            vscode.window.showInformationMessage(meta, { modal: true });
+        }
+        catch (err) {
+            if (err instanceof fix_preview_1.PatchPreviewError) {
+                vscode.window.showWarningMessage(`CodeAtlas: ${err.message}`);
+            }
+            else {
+                vscode.window.showWarningMessage(`CodeAtlas: Fix preview failed: ${String(err?.message || 'unexpected error').slice(0, 200)}`);
+            }
+        }
+    }
+    /** Reject a fix proposal; the ID must match the current run and finding. */
+    async function rejectFixAction(finding) {
+        if (!finding)
+            return;
+        if (!currentRunId) {
+            vscode.window.showInformationMessage('CodeAtlas: No active review run.');
+            return;
+        }
+        const runId = currentRunId;
+        let proposalId = latestFixProposals.get(finding.id)?.proposal_id;
+        if (!proposalId) {
+            try {
+                const fetched = await client.getFixProposal(runId, finding.id);
+                if (fetched && fetched.finding_id === finding.id && fetched.run_id === runId) {
+                    proposalId = fetched.proposal_id;
+                }
+            }
+            catch (_) {
+                /* No proposal exists; report below. */
+            }
+        }
+        if (!proposalId) {
+            vscode.window.showInformationMessage('CodeAtlas: No fix proposal to reject for this finding.');
+            return;
+        }
+        try {
+            const rejected = await client.rejectFixProposal(runId, finding.id, proposalId);
+            if (currentRunId !== runId)
+                return;
+            if (!rejected || rejected.finding_id !== finding.id || rejected.proposal_id !== proposalId) {
+                vscode.window.showWarningMessage('CodeAtlas: The service rejected a fix proposal that does not match the selected finding or run.');
+                return;
+            }
+            if (rejected.generation_status === 'rejected') {
+                latestFixProposals.delete(finding.id);
+                vscode.window.showInformationMessage(`CodeAtlas: Fix proposal ${proposalId} rejected. Nothing was applied to the workspace.`);
+            }
+            else {
+                vscode.window.showWarningMessage('CodeAtlas: The fix proposal could not be rejected in its current state.');
+            }
+        }
+        catch (err) {
+            if (isServiceNotFound(err)) {
+                handleStaleRun();
+            }
+            else {
+                vscode.window.showErrorMessage(`CodeAtlas: Reject failed: ${err.message}`);
+            }
+        }
+    }
+    /** Resolve the finding a fix command should act on: argument, active, or quick pick. */
+    async function resolveFixFinding(item) {
+        const finding = item ? item.finding || item : activeFinding;
+        if (finding)
+            return finding;
+        if (!currentRunId) {
+            vscode.window.showInformationMessage('CodeAtlas: No active review run.');
+            return null;
+        }
+        if (!currentFindings.length) {
+            vscode.window.showInformationMessage('CodeAtlas: No findings available.');
+            return null;
+        }
+        const selected = await vscode.window.showQuickPick(currentFindings.map(quickpick_1.formatQuickPickItem), { placeHolder: 'Select a finding for the fix proposal' });
+        return selected ? selected.finding : null;
     }
     async function toggleDismissFindingAction(finding) {
         if (!finding)
@@ -833,6 +1056,30 @@ function activate(context) {
         }
         await generateDraftFixAction(finding);
     }));
+    // Phase 11C-B Command: CodeAtlas: Generate Fix (bounded, preview-only proposal)
+    context.subscriptions.push(vscode.commands.registerCommand('codeatlas.generateFix', async (item) => {
+        const finding = await resolveFixFinding(item);
+        if (finding)
+            await generateFixAction(finding, false);
+    }));
+    // Phase 11C-B Command: CodeAtlas: Preview Fix (read-only diff, never applied)
+    context.subscriptions.push(vscode.commands.registerCommand('codeatlas.previewFix', async (item) => {
+        const finding = await resolveFixFinding(item);
+        if (finding)
+            await previewFixAction(finding);
+    }));
+    // Phase 11C-B Command: CodeAtlas: Reject Fix
+    context.subscriptions.push(vscode.commands.registerCommand('codeatlas.rejectFix', async (item) => {
+        const finding = await resolveFixFinding(item);
+        if (finding)
+            await rejectFixAction(finding);
+    }));
+    // Phase 11C-B Command: CodeAtlas: Regenerate Fix
+    context.subscriptions.push(vscode.commands.registerCommand('codeatlas.regenerateFix', async (item) => {
+        const finding = await resolveFixFinding(item);
+        if (finding)
+            await generateFixAction(finding, true);
+    }));
     // QuickPick Command 5: CodeAtlas: Validate Approved Fix
     context.subscriptions.push(vscode.commands.registerCommand('codeatlas.validateApprovedFix', async (proposalItem) => {
         let proposalId = proposalItem ? proposalItem.proposal_id || proposalItem.id : null;
@@ -916,6 +1163,18 @@ function activate(context) {
                     }
                     else if (msg.action === 'draftFix') {
                         vscode.commands.executeCommand('codeatlas.generateDraftFix', target);
+                    }
+                    else if (msg.action === 'generateFix') {
+                        vscode.commands.executeCommand('codeatlas.generateFix', target);
+                    }
+                    else if (msg.action === 'previewFix') {
+                        vscode.commands.executeCommand('codeatlas.previewFix', target);
+                    }
+                    else if (msg.action === 'rejectFix') {
+                        vscode.commands.executeCommand('codeatlas.rejectFix', target);
+                    }
+                    else if (msg.action === 'regenerateFix') {
+                        vscode.commands.executeCommand('codeatlas.regenerateFix', target);
                     }
                     else if (msg.action === 'copy') {
                         await vscode.env.clipboard.writeText(JSON.stringify(target, null, 2));

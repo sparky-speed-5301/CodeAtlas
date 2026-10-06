@@ -24,6 +24,8 @@ SAFE_FIELDS = frozenset({
     # Phase 11B quality metadata: bounded scores/decisions only.
     "quality_version", "quality_decision", "quality_score", "suppressed_count",
     "feedback", "reversed",
+    # Phase 11C-A bounded repair metadata: identifiers and decisions only.
+    "adapter", "approval_required", "automatic_application_blocked", "context_truncated",
     # GitHub PR integration (Phase 9A): identifiers and outcomes only.
     "pr", "comment_id", "sha", "mode",
 })

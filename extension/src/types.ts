@@ -232,6 +232,56 @@ export interface ValidationResult {
   errors?: string[];
 }
 
+// ---------------------------------------------------------------------------
+// Phase 11C-B: FixProposal Types (bounded, preview-only)
+// ---------------------------------------------------------------------------
+
+export type FixProposalLifecycle =
+  | 'not_eligible'
+  | 'generating'
+  | 'generation_failed'
+  | 'rejected_by_policy'
+  | 'draft_ready'
+  | 'rejected'
+  | 'regeneration_requested';
+
+export interface FixProposal {
+  proposal_id: string;
+  finding_id: string;
+  run_id: string;
+  repository: string;
+  base_commit: string;
+  head_commit: string;
+  target_files: string[];
+  patch_text: string;
+  patch_hash: string;
+  diagnosis: string;
+  explanation: string;
+  expected_behavior_change: string;
+  assumptions: string[];
+  risk_level: string;
+  confidence: number;
+  evidence_strength: string;
+  evidence_sources: string[];
+  quality_decision: string;
+  policy_decision: Record<string, unknown>;
+  generation_status: FixProposalLifecycle;
+  approval_required: boolean;
+  limitations: string[];
+  rejection_reason?: string | null;
+  rejection_explanation?: string | null;
+  created_at: string;
+  schema_version: string;
+}
+
+export interface FixEligibility {
+  run_id: string;
+  finding_id: string;
+  eligible: boolean;
+  reasons: string[];
+  explanations: string[];
+}
+
 export interface ExplanationResult {
   finding_id: string;
   category: string;

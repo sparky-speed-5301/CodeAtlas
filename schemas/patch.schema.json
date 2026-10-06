@@ -10,6 +10,7 @@
     "status": {"enum": ["suggested", "validated", "rejected", "abstained"]},
     "diff": {"type": "string"},
     "validation": {"type": "object", "additionalProperties": false, "required": ["checks_run", "checks_passed", "errors"], "properties": {"checks_run": {"type": "array", "items": {"type": "string"}}, "checks_passed": {"type": "boolean"}, "errors": {"type": "array", "items": {"type": "string"}}}},
+    "approval_required": {"type": "boolean", "const": true},
     "commands": {"type": "array", "items": {"type": "string"}},
     "results": {"type": "array", "items": {"type": "string"}}
   },

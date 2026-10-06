@@ -15,7 +15,7 @@ from typing import Any
 
 from codeatlas.review.packet import ReviewPacket
 
-from .models import PatchProposal, PatchStatus
+from .models import PatchFile, PatchProposal, PatchStatus
 from .parser import parse_unified_diff, unsafe_diff_path_reason
 from .proposal import audit_patch_redaction, create_patch_proposal
 from .validator import validate_patch_proposal
@@ -104,6 +104,32 @@ def _verify_hunks_match_snapshot(snapshot_path: Path, parsed_files: list[Any]) -
                     "(stale base commit or patch conflict)"
                 )
     return errors
+
+
+def preview_patch(source: str, patch: PatchFile) -> str:
+    """Project parsed hunks onto text in memory only; never apply to a file.
+
+    Used for static language parsing before approval. Coordinates must describe
+    a single ordered, non-overlapping patch without offsets or fuzzy matching.
+    """
+    lines = source.splitlines()
+    previous_end = 0
+    delta = 0
+    edits: list[tuple[int, list[str], list[str]]] = []
+    for hunk in patch.hunks:
+        start = hunk.old_start if hunk.old_lines == 0 else hunk.old_start - 1
+        new_start = hunk.new_start if hunk.new_lines == 0 else hunk.new_start - 1
+        old = [line[1:] for line in hunk.lines if line.startswith((" ", "-"))]
+        new = [line[1:] for line in hunk.lines if line.startswith((" ", "+"))]
+        if (start < previous_end or start < 0 or start > len(lines) or new_start != start + delta
+                or lines[start:start + len(old)] != old):
+            raise ValueError("Patch hunks do not match exact source coordinates")
+        previous_end = start + len(old)
+        delta += len(new) - len(old)
+        edits.append((start, old, new))
+    for start, old, new in reversed(edits):
+        lines[start:start + len(old)] = new
+    return "\n".join(lines) + ("\n" if source.endswith("\n") else "")
 
 
 def _hunk_anchor_error(parsed_files: list[Any], packet: ReviewPacket, require_anchor: bool) -> str | None:
@@ -329,4 +355,5 @@ __all__ = [
     "SuggestionMaterialization",
     "SuggestionRejection",
     "materialize_patch_suggestions",
+    "preview_patch",
 ]

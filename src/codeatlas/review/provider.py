@@ -2,10 +2,13 @@
 
 from __future__ import annotations
 
-from typing import Any, Protocol
+from typing import Any, Protocol, TYPE_CHECKING
 from pydantic import BaseModel, ConfigDict, Field
 
 from codeatlas.review.packet import ReviewPacket
+
+if TYPE_CHECKING:
+    from codeatlas.orchestrator.repair_models import RepairContext
 
 
 class ReviewerResult(BaseModel):
@@ -40,4 +43,14 @@ class ReviewerProvider(Protocol):
     def review(self, packet: ReviewPacket) -> ReviewerResult: ...
 
 
-__all__ = ["ReviewerResult", "ReviewerProvider"]
+class RepairProvider(Protocol):
+    """Optional offline repair operation over a bounded RepairContext."""
+
+    name: str
+    version: str
+    network_access: bool
+
+    def propose(self, context: RepairContext) -> object: ...
+
+
+__all__ = ["ReviewerResult", "ReviewerProvider", "RepairProvider"]

@@ -1,0 +1,63 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://codeatlas.dev/schemas/repair-context.schema.json",
+  "title": "CodeAtlas Bounded Repair Context (Phase 11C-A)",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["finding_id", "run_id", "repository_identity", "base_commit", "head_commit", "language", "changed_file", "changed_line_range", "containing_symbol", "code_line_range", "code_context", "category", "claim", "impact", "deterministic_evidence", "quality_decision", "confidence", "evidence_strength", "repository_context", "related_tests", "limits", "target_file_limits", "maximum_patch_line_limits", "prohibited_paths", "policy_version", "context_truncated"],
+  "properties": {
+    "finding_id": {"type": "string", "pattern": "^CA-[A-Z0-9][A-Z0-9._-]*$", "maxLength": 128},
+    "run_id": {"$ref": "#/$defs/identifier"},
+    "repository_identity": {"$ref": "#/$defs/identifier"},
+    "base_commit": {"$ref": "#/$defs/identifier"},
+    "head_commit": {"$ref": "#/$defs/identifier"},
+    "language": {"enum": ["python", "javascript", "typescript"]},
+    "changed_file": {"$ref": "#/$defs/text"},
+    "changed_line_range": {"$ref": "#/$defs/range"},
+    "containing_symbol": {"anyOf": [{"$ref": "#/$defs/symbol"}, {"type": "null"}]},
+    "code_line_range": {"$ref": "#/$defs/range"},
+    "code_context": {"type": "string", "minLength": 1, "maxLength": 16000},
+    "category": {"$ref": "#/$defs/identifier"},
+    "claim": {"$ref": "#/$defs/text"},
+    "impact": {"$ref": "#/$defs/text"},
+    "deterministic_evidence": {"type": "array", "minItems": 1, "maxItems": 10, "items": {"$ref": "#/$defs/text"}},
+    "quality_decision": {"enum": ["report", "report_with_uncertainty", "review_only", "abstain", "suppress_duplicate", "suppress_low_evidence"]},
+    "confidence": {"type": "number", "minimum": 0, "maximum": 1},
+    "evidence_strength": {"enum": ["none", "weak", "supported", "strong", "reproduced"]},
+    "repository_context": {"type": "array", "maxItems": 10, "items": {"$ref": "#/$defs/text"}},
+    "related_tests": {"type": "array", "maxItems": 8, "items": {"$ref": "#/$defs/text"}},
+    "limits": {"$ref": "#/$defs/limits"},
+    "target_file_limits": {"const": 1},
+    "maximum_patch_line_limits": {"type": "integer", "minimum": 1, "maximum": 150},
+    "prohibited_paths": {"$ref": "#/$defs/prohibitedPaths"},
+    "policy_version": {"const": "11C-A.1"},
+    "context_truncated": {"type": "boolean"}
+  },
+  "$defs": {
+    "identifier": {"type": "string", "minLength": 1, "maxLength": 128},
+    "text": {"type": "string", "minLength": 1, "maxLength": 512},
+    "range": {"type": "array", "minItems": 2, "maxItems": 2, "items": {"type": "integer", "minimum": 1}},
+    "prohibitedPaths": {"type": "array", "maxItems": 32, "items": {"$ref": "#/$defs/text"}},
+    "symbol": {
+      "type": "object", "additionalProperties": false,
+      "required": ["name", "kind", "start_line", "end_line"],
+      "properties": {
+        "name": {"$ref": "#/$defs/identifier"}, "kind": {"$ref": "#/$defs/identifier"},
+        "start_line": {"type": "integer", "minimum": 1}, "end_line": {"type": "integer", "minimum": 1}
+      }
+    },
+    "limits": {
+      "type": "object", "additionalProperties": false,
+      "required": ["max_target_files", "max_patch_lines", "max_patch_bytes", "max_source_bytes", "max_context_lines", "max_context_bytes", "prohibited_paths"],
+      "properties": {
+        "max_target_files": {"const": 1},
+        "max_patch_lines": {"type": "integer", "minimum": 1, "maximum": 150},
+        "max_patch_bytes": {"type": "integer", "minimum": 1, "maximum": 64000},
+        "max_source_bytes": {"type": "integer", "minimum": 1, "maximum": 128000},
+        "max_context_lines": {"type": "integer", "minimum": 1, "maximum": 160},
+        "max_context_bytes": {"type": "integer", "minimum": 1, "maximum": 16000},
+        "prohibited_paths": {"$ref": "#/$defs/prohibitedPaths"}
+      }
+    }
+  }
+}

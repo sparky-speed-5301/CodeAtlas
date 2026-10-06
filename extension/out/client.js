@@ -88,6 +88,7 @@ class CodeAtlasClient {
                             resolve(data);
                         }
                         else {
+                            // Never echo response content into errors; it may be credential-bearing.
                             reject(new Error(`CodeAtlas request failed (HTTP ${res.statusCode}).`));
                         }
                     }
@@ -173,6 +174,28 @@ class CodeAtlasClient {
             run_tests: runTests,
             run_full_suite: runFullSuite,
         });
+    }
+    // -------------------------------------------------------------------------
+    // Phase 11C-B: bounded fix proposals (preview only; never applied here)
+    // -------------------------------------------------------------------------
+    getFixEligibility(runId, findingId) {
+        return this.request('GET', `/reviews/${encodeURIComponent(runId)}/findings/${encodeURIComponent(findingId)}/fix-eligibility`);
+    }
+    requestFixProposal(runId, findingId) {
+        return this.request('POST', `/reviews/${encodeURIComponent(runId)}/findings/${encodeURIComponent(findingId)}/fix-proposal`, { run_id: runId });
+    }
+    getFixProposal(runId, findingId, proposalId) {
+        if (proposalId) {
+            const query = `run_id=${encodeURIComponent(runId)}&finding_id=${encodeURIComponent(findingId)}`;
+            return this.request('GET', `/fix-proposals/${encodeURIComponent(proposalId)}?${query}`);
+        }
+        return this.request('GET', `/reviews/${encodeURIComponent(runId)}/findings/${encodeURIComponent(findingId)}/fix-proposal`);
+    }
+    rejectFixProposal(runId, findingId, proposalId) {
+        return this.request('POST', `/reviews/${encodeURIComponent(runId)}/findings/${encodeURIComponent(findingId)}/fix-proposal/reject`, { run_id: runId, proposal_id: proposalId });
+    }
+    regenerateFixProposal(runId, findingId) {
+        return this.request('POST', `/reviews/${encodeURIComponent(runId)}/findings/${encodeURIComponent(findingId)}/fix-proposal/regenerate`, { run_id: runId });
     }
 }
 exports.CodeAtlasClient = CodeAtlasClient;

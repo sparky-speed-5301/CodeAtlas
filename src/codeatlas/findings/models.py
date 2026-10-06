@@ -9,6 +9,10 @@ from pydantic import BaseModel, ConfigDict, Field, field_validator
 
 Severity = Literal["info", "low", "medium", "high", "blocker"]
 EvidenceStrength = Literal["none", "weak", "supported", "strong", "reproduced"]
+QualityDecision = Literal[
+    "report", "report_with_uncertainty", "review_only", "abstain",
+    "suppress_duplicate", "suppress_low_evidence",
+]
 
 
 class Finding(BaseModel):
@@ -49,14 +53,7 @@ class Finding(BaseModel):
     unsupported_flow: bool = False
     duplicate_group_id: str | None = None
     suppressed_finding_ids: list[str] = Field(default_factory=list)
-    quality_decision: Literal[
-        "report",
-        "report_with_uncertainty",
-        "review_only",
-        "abstain",
-        "suppress_duplicate",
-        "suppress_low_evidence",
-    ] = "review_only"
+    quality_decision: QualityDecision = "review_only"
     quality_score: float = Field(default=0.0, ge=0, le=1)
     score_components: dict[str, float] = Field(default_factory=dict)
     quality_limitations: list[str] = Field(default_factory=list)
@@ -78,4 +75,4 @@ class Finding(BaseModel):
         return value
 
 
-__all__ = ["EvidenceStrength", "Finding", "Severity"]
+__all__ = ["EvidenceStrength", "Finding", "QualityDecision", "Severity"]

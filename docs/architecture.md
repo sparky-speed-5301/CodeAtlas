@@ -13,6 +13,13 @@ No live LLM calls, external network dependencies, or arbitrary code execution ex
 
 ## Boundaries
 
+- **Repair Orchestrator Foundation (Phase 11C-A):** `RepairOrchestrator` accepts
+  one quality-approved finding, constructs a bounded `RepairContext`, selects a
+  Python/JavaScript/TypeScript adapter, and requests one offline provider draft.
+  It composes the existing patch materializer and static validator, returns an
+  existing `PatchProposal` requiring approval, and plans checks without running
+  them. See [repair-orchestrator.md](repair-orchestrator.md) for the API and bounds.
+
 - **CLI:** validates configuration, selects a repository, configures optional repository indexing (`--index-repository`), review packet assembly (`--assemble-review-packet`), reviewer provider (`--review-provider mock`), and patch subcommands (`codeatlas patch inspect`, `codeatlas patch validate`, `codeatlas patch apply-isolated`); it does not hide failures.
 - **Snapshot:** review uses the resolved head commit in a temporary detached
   Git worktree. The author's branch is read-only from CodeAtlas' perspective.
@@ -139,4 +146,3 @@ If the remote PR head SHA changes at any gate:
 - Read PR metadata, files, and diff: `pull-requests: read`
 - Post PR comments and summary: `pull-requests: write` or `issues: write`
 - Create and update check runs: `checks: write`
-

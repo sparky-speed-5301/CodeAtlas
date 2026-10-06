@@ -40,6 +40,12 @@ def test_extension_package_json():
     assert "codeatlas.validateApprovedFix" in commands
     assert "codeatlas.copyFinding" in commands
     assert "codeatlas.dismissFinding" in commands
+    # Phase 11C-B fix proposal commands (preview only; no Apply Fix command may exist)
+    assert "codeatlas.generateFix" in commands
+    assert "codeatlas.previewFix" in commands
+    assert "codeatlas.rejectFix" in commands
+    assert "codeatlas.regenerateFix" in commands
+    assert "codeatlas.applyFix" not in commands
     # Phase 10B QuickPick commands
     assert "codeatlas.findFinding" in commands
     assert "codeatlas.explainCurrentFinding" in commands
@@ -56,6 +62,10 @@ def test_extension_package_json():
     assert titles["codeatlas.explainCurrentFinding"] == "CodeAtlas: Explain Current Finding"
     assert titles["codeatlas.showContext"] == "CodeAtlas: Show Context"
     assert titles["codeatlas.generateDraftFix"] == "CodeAtlas: Generate Draft Fix"
+    assert titles["codeatlas.generateFix"] == "CodeAtlas: Generate Fix"
+    assert titles["codeatlas.previewFix"] == "CodeAtlas: Preview Fix"
+    assert titles["codeatlas.rejectFix"] == "CodeAtlas: Reject Fix"
+    assert titles["codeatlas.regenerateFix"] == "CodeAtlas: Regenerate Fix"
     assert titles["codeatlas.validateApprovedFix"] == "CodeAtlas: Validate Approved Fix"
     assert titles["codeatlas.dismissFinding"] == "CodeAtlas: Dismiss Finding"
     assert titles["codeatlas.startLocalService"] == "CodeAtlas: Start Local Service"

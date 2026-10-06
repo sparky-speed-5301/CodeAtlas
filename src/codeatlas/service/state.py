@@ -2,31 +2,157 @@
 
 from __future__ import annotations
 
+import dataclasses
 import json
 import tempfile
 import threading
 from datetime import datetime, timezone
+from fnmatch import fnmatchcase
 from pathlib import Path
 from typing import Any
 
+from codeatlas.adapters import select_language_adapter
+from codeatlas.findings.models import Finding
+from codeatlas.git.refs import resolve_ref
 from codeatlas.git.repository import validate_repository
+from codeatlas.git.snapshot import temporary_snapshot
+from codeatlas.orchestrator.manifest import RunManifest
+from codeatlas.orchestrator.repair import RepairOrchestrator, record_repair_result
+from codeatlas.orchestrator.repair_models import RepairLimits, RepairRepositoryState, repair_payload_is_safe
 from codeatlas.orchestrator.review import ReviewResult, run_review
 from codeatlas.patching.models import PatchProposal, PatchStatus, PatchValidationResult
 from codeatlas.patching.proposal import create_patch_proposal
 from codeatlas.patching.validator import validate_patch_proposal
+from codeatlas.review.mock import MockRepairReviewer
 from codeatlas.review.packet import ReviewPacket
 from codeatlas.service.models import (
+    FIX_PROPOSAL_SCHEMA_VERSION,
     FeedbackLabel,
     FindingContext,
     FindingDetailResponse,
     FindingFeedbackResponse,
     FindingSummary,
+    FixEligibilityResponse,
+    FixProposalLifecycle,
+    FixProposalResponse,
     LifecycleState,
     PatchProposalResponse,
     ReviewCreateRequest,
     ReviewStatusResponse,
     ValidateProposalResponse,
 )
+
+# Bounded, user-safe explanations for every fix-generation rejection code.
+# Values are fixed strings; raw orchestrator/provider text is never shown.
+FIX_REJECTION_EXPLANATIONS: dict[str, str] = {
+    "abstained": "This finding was abstained during quality evaluation, so no fix can be proposed.",
+    "suppressed_duplicate": "This finding is a suppressed duplicate of another finding.",
+    "low_evidence": "This finding lacks sufficient deterministic evidence for a fix proposal.",
+    "ambiguous": "The finding location is ambiguous; fix proposals need an exact location.",
+    "unsupported_flow": "The flagged data flow is not supported by the repair adapters.",
+    "invalid_location": "The finding location is invalid or outside the reviewed change.",
+    "review_only_without_fix_eligibility": "This finding is review-only and fix generation was not explicitly requested.",
+    "finding_not_fix_eligible": "This finding is not classified as fixable.",
+    "quality_gate_failed": "This finding did not pass the quality gates required for fix proposals.",
+    "language_review_only": "The language adapter classifies this finding as review-only.",
+    "unsupported_language": "The target file language is not supported for fix proposals.",
+    "protected_or_generated_target": "The target file is protected or generated; fixes are never proposed for it.",
+    "stale_run": "The review run is no longer current.",
+    "stale_finding": "The finding no longer matches its review run record.",
+    "finding_not_in_run": "This finding does not belong to the review run.",
+    "invalid_run_finding": "The review run record for this finding is invalid.",
+    "incompatible_repository_state": "The repository state no longer matches the review run.",
+    "repository_state_stale": "The repository has changed since the review run; start a new review.",
+    "unreadable_or_unbounded_target": "The target file could not be read within the bounded size limits.",
+    "stale_or_truncated_context": "The reviewed code context is stale or truncated; start a new review.",
+    "missing_required_context": "The reviewed code context is missing; start a new review.",
+    "required_context_exceeds_bounds": "The code context exceeds the bounded size limits.",
+    "unsafe_or_unbounded_context": "The code context could not be safely bounded.",
+    "source_parse_failed": "The target file could not be parsed.",
+    "packet_redaction_failed": "The review packet failed redaction checks.",
+    "invalid_provider_metadata": "The fix provider metadata was invalid.",
+    "offline_provider_required": "Fix generation requires an offline provider; none is available.",
+    "provider_abstained_or_failed": "The fix provider could not produce a proposal for this finding.",
+    "invalid_provider_output": "The fix provider returned an invalid proposal.",
+    "unsafe_or_unbounded_provider_output": "The provider output exceeded bounds or failed safety checks.",
+    "provider_output_redaction_failed": "The provider output failed redaction safety checks.",
+    "provider_output_exceeds_bounds": "The provider output exceeded the size bounds.",
+    "provider_failed": "The fix provider failed to produce a proposal.",
+    "provider_scope_or_explanation_invalid": "The provider proposal did not match the finding scope.",
+    "exactly_one_finding_required": "Fix generation handles exactly one finding at a time.",
+    "exactly_one_proposal_required": "The provider returned more than one proposal.",
+    "invalid_input": "The fix generation request was invalid.",
+    "patch_parse_failed": "The proposed patch could not be parsed.",
+    "patch_scope_invalid": "The proposed patch does not stay within the finding location.",
+    "language_constraint_failed": "The proposed patch violates the language constraints.",
+    "patch_preview_failed": "The proposed patch could not be previewed against the file.",
+    "patch_preview_exceeds_bounds": "The previewed result exceeds the size bounds.",
+    "empty_repair": "The proposal would not change the target file.",
+    "syntax_validation_failed": "The proposed patch does not preserve valid syntax.",
+    "patch_validation_failed": "The proposed patch failed static validation or patch policy.",
+    "repository_state_changed_during_repair": "The repository changed during generation; start a new review.",
+    # Service-level request errors.
+    "run_not_ready": "The review run has not completed, so fix proposals are unavailable.",
+    "run_failed": "The review run failed; fix proposals are unavailable.",
+    "packet_unavailable": "The review packet is unavailable; fix proposals are unavailable.",
+    "generation_in_progress": "A fix proposal is already being generated for this finding.",
+    "not_regenerable": "Fix regeneration is not available in the current proposal state.",
+    "not_rejectable": "Only a draft-ready fix proposal can be rejected.",
+    "proposal_not_found": "No fix proposal exists for this finding in this run.",
+    "scope_mismatch": "The fix proposal does not belong to the requested run and finding.",
+}
+
+# Reasons that fail closed before any provider/patch work: nothing was wrong
+# with generation itself, the finding or state is simply not eligible.
+_ELIGIBILITY_REASONS = frozenset({
+    "abstained", "suppressed_duplicate", "low_evidence", "ambiguous", "unsupported_flow",
+    "invalid_location", "review_only_without_fix_eligibility", "finding_not_fix_eligible",
+    "quality_gate_failed", "language_review_only", "unsupported_language",
+    "protected_or_generated_target", "stale_run", "stale_finding", "finding_not_in_run",
+    "invalid_run_finding", "incompatible_repository_state", "repository_state_stale",
+    "unreadable_or_unbounded_target", "stale_or_truncated_context", "missing_required_context",
+    "required_context_exceeds_bounds", "unsafe_or_unbounded_context", "source_parse_failed",
+    "packet_redaction_failed", "invalid_provider_metadata", "offline_provider_required",
+    "exactly_one_finding_required", "invalid_input", "repository_state_changed_during_repair",
+})
+
+# Provider output that failed redaction, bounds, or static patch policy.
+_POLICY_REASONS = frozenset({
+    "patch_validation_failed", "provider_output_redaction_failed",
+    "unsafe_or_unbounded_provider_output", "provider_output_exceeds_bounds",
+})
+
+
+def _lifecycle_for_reason(reason: str) -> FixProposalLifecycle:
+    if reason in _ELIGIBILITY_REASONS:
+        return "not_eligible"
+    if reason in _POLICY_REASONS:
+        return "rejected_by_policy"
+    return "generation_failed"
+
+
+def _safe_finding_path(path: str) -> bool:
+    return (
+        bool(path) and len(path) <= 512 and "\\" not in path
+        and all(part not in {"", ".", ".."} for part in path.split("/"))
+    )
+
+
+class ServiceStateError(ValueError):
+    """A fix-proposal request failed closed with a stable, safe reason code."""
+
+    def __init__(self, reason: str) -> None:
+        self.reason = reason
+        self.explanation = FIX_REJECTION_EXPLANATIONS.get(reason, "The fix request was rejected.")
+        super().__init__(self.explanation)
+
+
+class FixProposalRecord:
+    """In-memory FixProposal plus the underlying existing PatchProposal."""
+
+    def __init__(self, response: FixProposalResponse, patch_proposal: PatchProposal | None) -> None:
+        self.response = response
+        self.patch_proposal = patch_proposal
 
 
 class ServicePathError(ValueError):
@@ -102,16 +228,28 @@ class ReviewRunRecord:
         self.patch_validation_status = "not_run"
         self.truncated = False
         self.temp_packet_file: Path | None = None
+        # Phase 11C-B: latest fix-proposal state per finding id.
+        self.fix_states: dict[str, dict[str, Any]] = {}
 
 
 class ReviewStateManager:
     """Thread-safe state manager for reviews, findings, proposals, and validations."""
 
-    def __init__(self) -> None:
+    def __init__(
+        self,
+        *,
+        repair_provider: Any = None,
+        repair_limits: RepairLimits | None = None,
+    ) -> None:
         self._lock = threading.Lock()
         self._reviews: dict[str, ReviewRunRecord] = {}
         self._proposals: dict[str, tuple[PatchProposal, Path]] = {}
         self._validations: dict[str, PatchValidationResult] = {}
+        self._fix_proposals: dict[str, FixProposalRecord] = {}
+        # Offline repair provider at the existing provider boundary; network-capable
+        # providers are rejected by the orchestrator before invocation.
+        self.repair_provider = repair_provider or MockRepairReviewer()
+        self.repair_limits = repair_limits or RepairLimits()
 
     def get_review(self, run_id: str) -> ReviewRunRecord | None:
         with self._lock:
@@ -677,3 +815,311 @@ class ReviewStateManager:
             errors=val_result.errors,
             warnings=val_result.warnings,
         )
+
+    # ----------------------------------------------------------------------
+    # Phase 11C-B: bounded fix proposals (preview and reject only; the
+    # operations reuse RepairOrchestrator and the existing patch pipeline and
+    # never apply, approve, or commit anything).
+    # ----------------------------------------------------------------------
+
+    def _fix_finding_and_record(self, run_id: str, finding_id: str) -> tuple[ReviewRunRecord, dict[str, Any]]:
+        record = self.get_review(run_id)
+        if record is None:
+            raise KeyError(f"Review run '{run_id}' not found")
+        finding = next((f for f in record.findings if str(f.get("id")) == finding_id), None)
+        if finding is None:
+            raise KeyError(f"Finding '{finding_id}' not found in review run '{run_id}'")
+        return record, finding
+
+    def _fix_blockers(self, record: ReviewRunRecord, finding: dict[str, Any]) -> list[str]:
+        """Cheap mirror of the orchestrator's fail-closed gates; plan() stays authoritative."""
+        blockers: list[str] = []
+        manifest = record.result.manifest if record.result is not None else None
+        if manifest is None:
+            blockers.append("run_not_ready")
+        elif manifest.errors:
+            blockers.append("run_failed")
+        if record.packet is None:
+            blockers.append("packet_unavailable")
+        provenance = finding.get("provenance") if isinstance(finding.get("provenance"), dict) else {}
+        f_status = str(finding.get("status", ""))
+        f_quality = str(finding.get("quality_decision", "review_only"))
+        f_fixability = str(finding.get("fixability", "unknown"))
+        f_strength = str(finding.get("evidence_strength", "none"))
+        try:
+            f_confidence = float(finding.get("confidence") or 0.0)
+        except (TypeError, ValueError):
+            f_confidence = 0.0
+        if f_status == "abstained" or f_quality == "abstain":
+            blockers.append("abstained")
+        if f_quality == "suppress_duplicate" or any(
+            finding.get("id") in (item.get("suppressed_finding_ids") or []) for item in record.findings
+        ):
+            blockers.append("suppressed_duplicate")
+        if f_quality == "suppress_low_evidence" or f_strength in {"none", "weak"}:
+            blockers.append("low_evidence")
+        if finding.get("unsupported_flow") or provenance.get("unsupported_flow"):
+            blockers.append("unsupported_flow")
+        if (finding.get("ambiguity_score") or provenance.get("ambiguity_score")
+                or provenance.get("ambiguous_location") or provenance.get("quality_conflict")):
+            blockers.append("ambiguous")
+        if f_status in {"rejected", "validated", "abstained"} or f_fixability in {"unknown", "not_fixable", "validated"}:
+            blockers.append("finding_not_fix_eligible")
+        if f_confidence < 0.70 or not finding.get("evidence"):
+            blockers.append("low_evidence")
+        file = str(finding.get("file", ""))
+        packet = record.packet
+        if not _safe_finding_path(file) or packet is None or file not in packet.changed_files:
+            blockers.append("invalid_location")
+        else:
+            ranges = packet.changed_line_ranges.get(file, [])
+            try:
+                start = int(finding.get("start_line") or 0)
+                end = int(finding.get("end_line") or 0)
+            except (TypeError, ValueError):
+                start = end = 0
+            if not any(len(r) == 2 and 1 <= r[0] <= start <= end <= r[1] for r in ranges):
+                blockers.append("invalid_location")
+            adapter = select_language_adapter(file)
+            if adapter is None:
+                blockers.append("unsupported_language")
+            elif (any(fnmatchcase(file, pattern) for pattern in self.repair_limits.prohibited_paths)
+                    or adapter.is_protected(file)):
+                blockers.append("protected_or_generated_target")
+        # The repository must still be at the reviewed head commit.
+        if manifest is not None:
+            try:
+                if resolve_ref(record.repo_path, "HEAD").commit != manifest.head_commit:
+                    blockers.append("repository_state_stale")
+            except Exception:
+                blockers.append("repository_state_stale")
+        return list(dict.fromkeys(blockers))
+
+    def get_fix_eligibility(self, run_id: str, finding_id: str) -> FixEligibilityResponse:
+        record, finding = self._fix_finding_and_record(run_id, finding_id)
+        blockers = self._fix_blockers(record, finding)[:10]
+        return FixEligibilityResponse(
+            run_id=run_id,
+            finding_id=finding_id,
+            eligible=not blockers,
+            reasons=blockers,
+            explanations=[
+                FIX_REJECTION_EXPLANATIONS.get(reason, "The finding is not eligible for fix proposals.")
+                for reason in blockers
+            ],
+        )
+
+    def _non_draft_fix_response(self, run_id: str, finding_id: str, reason: str) -> FixProposalResponse:
+        return FixProposalResponse(
+            proposal_id="",
+            finding_id=finding_id,
+            run_id=run_id,
+            repository="",
+            base_commit="",
+            head_commit="",
+            generation_status=_lifecycle_for_reason(reason),
+            rejection_reason=reason,
+            rejection_explanation=FIX_REJECTION_EXPLANATIONS.get(reason, "The fix request was rejected."),
+        )
+
+    def _store_fix_state(
+        self,
+        record: ReviewRunRecord,
+        finding_id: str,
+        state: FixProposalLifecycle,
+        proposal_id: str | None,
+        response: FixProposalResponse | None,
+        reason: str | None = None,
+    ) -> None:
+        with self._lock:
+            record.fix_states[finding_id] = {
+                "state": state,
+                "proposal_id": proposal_id,
+                "response": response,
+                "rejection_reason": reason,
+                "updated_at": datetime.now(timezone.utc).isoformat(),
+            }
+
+    def _draft_fix_response(
+        self,
+        record: ReviewRunRecord,
+        finding_id: str,
+        state: RepairRepositoryState,
+        result: Any,
+    ) -> FixProposalResponse:
+        proposal = result.proposal
+        context = result.context
+        return FixProposalResponse(
+            proposal_id=proposal.proposal_id,
+            finding_id=finding_id,
+            run_id=record.run_id,
+            repository=context.repository_identity,
+            base_commit=state.base_commit,
+            head_commit=state.head_commit,
+            target_files=list(proposal.target_files)[:1],
+            patch_text=proposal.unified_diff,
+            patch_hash=proposal.patch_hash,
+            diagnosis=proposal.rationale[:2000],
+            explanation=proposal.expected_behavior[:2000],
+            expected_behavior_change=proposal.expected_behavior[:2000],
+            assumptions=(
+                ["Optional repository imports were truncated to the repair context limit."]
+                if context.context_truncated else []
+            ),
+            risk_level=proposal.risk_level,
+            confidence=context.confidence,
+            evidence_strength=context.evidence_strength,
+            evidence_sources=list(context.deterministic_evidence)[:10],
+            quality_decision=context.quality_decision,
+            policy_decision=dict(proposal.policy_decision or {}),
+            generation_status="draft_ready",
+            approval_required=True,
+            limitations=list(proposal.limitations)[:20],
+            created_at=proposal.created_at,
+            schema_version=FIX_PROPOSAL_SCHEMA_VERSION,
+        )
+
+    def request_fix_proposal(self, run_id: str, finding_id: str, *, regenerate: bool = False) -> FixProposalResponse:
+        """Generate one bounded fix proposal for one finding via RepairOrchestrator.
+
+        The user request is the explicit fix-eligibility decision for review-only
+        findings; it is never an approval. All rejections return stable reason
+        codes with fixed user-safe explanations.
+        """
+        record, finding = self._fix_finding_and_record(run_id, finding_id)
+        with self._lock:
+            current = dict(record.fix_states.get(finding_id, {}))
+        if current.get("state") == "generating":
+            pending = current.get("response")
+            if pending is not None:
+                return pending
+        if regenerate and current.get("state") not in {
+            "draft_ready", "rejected", "generation_failed", "rejected_by_policy", "regeneration_requested",
+        }:
+            raise ServiceStateError("not_regenerable")
+        if not regenerate and current.get("proposal_id"):
+            existing = self._fix_proposals.get(str(current.get("proposal_id")))
+            if existing is not None:
+                return existing.response
+
+        blockers = self._fix_blockers(record, finding)
+        if blockers:
+            reason = blockers[0]
+            response = self._non_draft_fix_response(run_id, finding_id, reason)
+            self._store_fix_state(record, finding_id, response.generation_status, None, response, reason)
+            return response
+
+        manifest = record.result.manifest
+        packet = record.packet
+        if manifest is None or packet is None:
+            response = self._non_draft_fix_response(run_id, finding_id, "run_not_ready")
+            self._store_fix_state(record, finding_id, response.generation_status, None, response, "run_not_ready")
+            return response
+        state = RepairRepositoryState(
+            run_id=manifest.run_id,
+            repository=manifest.repository,
+            base_commit=manifest.base_commit,
+            head_commit=manifest.head_commit,
+        )
+        self._store_fix_state(record, finding_id, "generating", None, None)
+        try:
+            finding_model = Finding.model_validate(finding)
+            with temporary_snapshot(record.repo_path, manifest.head_commit) as snapshot:
+                result = RepairOrchestrator(self.repair_provider, limits=self.repair_limits).plan(
+                    finding_model,
+                    packet=packet,
+                    manifest=manifest,
+                    state=state,
+                    snapshot=snapshot,
+                    fix_eligible=True,
+                )
+        except ServiceStateError:
+            raise
+        except Exception:
+            response = self._non_draft_fix_response(run_id, finding_id, "provider_failed")
+            self._store_fix_state(record, finding_id, response.generation_status, None, response, "provider_failed")
+            return response
+        if (result.status == "proposed" and result.proposal is not None and result.context is not None
+                and result.proposal.approval_required):
+            response = self._draft_fix_response(record, finding_id, state, result)
+            if not repair_payload_is_safe(response.model_dump(mode="json")):
+                response = self._non_draft_fix_response(run_id, finding_id, "provider_output_redaction_failed")
+                self._store_fix_state(
+                    record, finding_id, response.generation_status, None, response,
+                    "provider_output_redaction_failed",
+                )
+                return response
+            old_id = current.get("proposal_id")
+            with self._lock:
+                record.result = dataclasses.replace(
+                    record.result, manifest=record_repair_result(record.result.manifest, result)
+                )
+                self._fix_proposals[response.proposal_id] = FixProposalRecord(response, result.proposal)
+                # Keep the existing approval-gated validate flow available for this proposal.
+                self._proposals[response.proposal_id] = (result.proposal, record.repo_path)
+                if regenerate and old_id and old_id != response.proposal_id:
+                    previous = self._fix_proposals.get(str(old_id))
+                    if previous is not None and previous.response.generation_status == "draft_ready":
+                        if previous.patch_proposal is not None:
+                            try:
+                                previous.patch_proposal.transition_to(PatchStatus.REJECTED, reason="superseded")
+                            except ValueError:
+                                pass
+                        previous.response = previous.response.model_copy(update={
+                            "generation_status": "rejected",
+                            "rejection_reason": "superseded_by_regeneration",
+                            "rejection_explanation": "This proposal was replaced by a regenerated proposal.",
+                        })
+            self._store_fix_state(record, finding_id, "draft_ready", response.proposal_id, response)
+            return response
+        reason = result.reason or "provider_failed"
+        response = self._non_draft_fix_response(run_id, finding_id, reason)
+        self._store_fix_state(record, finding_id, response.generation_status, None, response, reason)
+        return response
+
+    def get_fix_proposal(self, run_id: str, finding_id: str, proposal_id: str | None = None) -> FixProposalResponse:
+        record, _ = self._fix_finding_and_record(run_id, finding_id)
+        with self._lock:
+            if proposal_id is None:
+                stored = record.fix_states.get(finding_id, {})
+                proposal_id = stored.get("proposal_id")
+                if not proposal_id:
+                    raise ServiceStateError("proposal_not_found")
+            fix_record = self._fix_proposals.get(proposal_id)
+        if fix_record is None:
+            raise ServiceStateError("proposal_not_found")
+        if fix_record.response.run_id != run_id or fix_record.response.finding_id != finding_id:
+            raise ServiceStateError("scope_mismatch")
+        return fix_record.response
+
+    def reject_fix_proposal(self, run_id: str, finding_id: str, proposal_id: str) -> FixProposalResponse:
+        record, _ = self._fix_finding_and_record(run_id, finding_id)
+        with self._lock:
+            fix_record = self._fix_proposals.get(proposal_id)
+        if fix_record is None:
+            raise ServiceStateError("proposal_not_found")
+        if fix_record.response.run_id != run_id or fix_record.response.finding_id != finding_id:
+            raise ServiceStateError("scope_mismatch")
+        if fix_record.response.generation_status != "draft_ready" or fix_record.patch_proposal is None:
+            raise ServiceStateError("not_rejectable")
+        try:
+            fix_record.patch_proposal.transition_to(PatchStatus.REJECTED, reason="rejected_by_user")
+        except ValueError:
+            pass
+        response = fix_record.response.model_copy(update={
+            "generation_status": "rejected",
+            "rejection_reason": "rejected_by_user",
+            "rejection_explanation": "The fix proposal was rejected by the user.",
+        })
+        fix_record.response = response
+        self._store_fix_state(record, finding_id, "rejected", proposal_id, response, "rejected_by_user")
+        return response
+
+    def regenerate_fix_proposal(self, run_id: str, finding_id: str) -> FixProposalResponse:
+        record, _ = self._fix_finding_and_record(run_id, finding_id)
+        with self._lock:
+            stored = dict(record.fix_states.get(finding_id, {}))
+        if stored.get("state"):
+            # Keep the previous proposal id so a different regenerated draft supersedes it.
+            self._store_fix_state(record, finding_id, "regeneration_requested", stored.get("proposal_id"), None)
+        return self.request_fix_proposal(run_id, finding_id, regenerate=True)

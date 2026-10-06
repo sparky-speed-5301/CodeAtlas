@@ -1,0 +1,141 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "codeatlas/fix-proposal.schema.json",
+  "title": "CodeAtlas FixProposal",
+  "description": "Typed, bounded, redacted fix proposal contract (Phase 11C-B). Never carries approval tokens, credentials, provider transcripts, or commands. A proposal is always approval_required and preview-only.",
+  "type": "object",
+  "required": [
+    "proposal_id",
+    "finding_id",
+    "run_id",
+    "repository",
+    "base_commit",
+    "head_commit",
+    "target_files",
+    "patch_text",
+    "patch_hash",
+    "diagnosis",
+    "explanation",
+    "expected_behavior_change",
+    "assumptions",
+    "risk_level",
+    "confidence",
+    "evidence_strength",
+    "evidence_sources",
+    "quality_decision",
+    "policy_decision",
+    "generation_status",
+    "approval_required",
+    "limitations",
+    "created_at",
+    "schema_version"
+  ],
+  "additionalProperties": false,
+  "properties": {
+    "proposal_id": {
+      "type": "string",
+      "minLength": 0,
+      "maxLength": 128,
+      "description": "Existing PatchProposal ID; empty for non-draft lifecycle states."
+    },
+    "finding_id": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 128,
+      "pattern": "^CA-[A-Z0-9][A-Z0-9._-]*$"
+    },
+    "run_id": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 128,
+      "description": "Service review run identifier this proposal is scoped to."
+    },
+    "repository": {
+      "type": "string",
+      "maxLength": 128,
+      "description": "Repository identity only; never an absolute local path."
+    },
+    "base_commit": { "type": "string", "maxLength": 128 },
+    "head_commit": { "type": "string", "maxLength": 128 },
+    "target_files": {
+      "type": "array",
+      "maxItems": 1,
+      "items": { "type": "string", "minLength": 1, "maxLength": 512 }
+    },
+    "patch_text": {
+      "type": "string",
+      "maxLength": 64000,
+      "description": "Bounded unified diff of the draft proposal; redaction-audited."
+    },
+    "patch_hash": { "type": "string", "maxLength": 128 },
+    "diagnosis": { "type": "string", "maxLength": 2000 },
+    "explanation": { "type": "string", "maxLength": 2000 },
+    "expected_behavior_change": { "type": "string", "maxLength": 2000 },
+    "assumptions": {
+      "type": "array",
+      "maxItems": 10,
+      "items": { "type": "string", "minLength": 1, "maxLength": 512 }
+    },
+    "risk_level": { "type": "string", "enum": ["low", "medium", "high"] },
+    "confidence": { "type": "number", "minimum": 0, "maximum": 1 },
+    "evidence_strength": {
+      "type": "string",
+      "enum": ["none", "weak", "supported", "strong"]
+    },
+    "evidence_sources": {
+      "type": "array",
+      "maxItems": 10,
+      "items": { "type": "string", "minLength": 1, "maxLength": 512 }
+    },
+    "quality_decision": {
+      "type": "string",
+      "enum": [
+        "report",
+        "report_with_uncertainty",
+        "review_only",
+        "abstain",
+        "suppress_low_evidence",
+        "suppress_duplicate"
+      ]
+    },
+    "policy_decision": {
+      "type": "object",
+      "maxProperties": 16,
+      "additionalProperties": true
+    },
+    "generation_status": {
+      "type": "string",
+      "enum": [
+        "not_eligible",
+        "generating",
+        "generation_failed",
+        "rejected_by_policy",
+        "draft_ready",
+        "rejected",
+        "regeneration_requested"
+      ]
+    },
+    "approval_required": {
+      "type": "boolean",
+      "const": true,
+      "description": "A fix proposal always requires human approval; the value can never be false."
+    },
+    "limitations": {
+      "type": "array",
+      "maxItems": 20,
+      "items": { "type": "string", "minLength": 1, "maxLength": 512 }
+    },
+    "rejection_reason": {
+      "type": ["string", "null"],
+      "maxLength": 128,
+      "description": "Stable machine-readable reason code for non-draft states."
+    },
+    "rejection_explanation": {
+      "type": ["string", "null"],
+      "maxLength": 512,
+      "description": "Fixed, user-safe explanation; never raw provider or exception text."
+    },
+    "created_at": { "type": "string", "maxLength": 64 },
+    "schema_version": { "type": "string", "const": "11C-B.1" }
+  }
+}

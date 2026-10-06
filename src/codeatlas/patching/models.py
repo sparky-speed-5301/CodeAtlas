@@ -229,6 +229,7 @@ class PatchProposal(BaseModel):
     risk_level: str = "low"
     requested_action: str = "validate"
     status: str = PatchStatus.PROPOSED
+    approval_required: bool = True
     policy_decision: dict[str, Any] | None = None
     created_at: str
     limitations: list[str] = Field(default_factory=list)

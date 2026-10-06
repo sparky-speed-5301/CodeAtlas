@@ -41,6 +41,10 @@ export function getFindingWebviewHtml(detail: FindingDetail): string {
 
   <div>
     <button onclick="vscode.postMessage({action: 'explain'})">Explain Finding</button>
+    <button onclick="vscode.postMessage({action: 'generateFix'})">Generate Fix</button>
+    <button onclick="vscode.postMessage({action: 'previewFix'})">Preview Fix</button>
+    <button onclick="vscode.postMessage({action: 'rejectFix'})">Reject Fix</button>
+    <button onclick="vscode.postMessage({action: 'regenerateFix'})">Regenerate Fix</button>
     <button onclick="vscode.postMessage({action: 'draftFix'})">Generate Draft Fix</button>
     <button onclick="vscode.postMessage({action: 'copy'})">Copy Finding</button>
     <button onclick="vscode.postMessage({action: 'dismiss'})">${
