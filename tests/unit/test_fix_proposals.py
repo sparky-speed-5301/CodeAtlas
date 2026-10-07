@@ -89,7 +89,7 @@ def _assert_contract(response: FixProposalResponse) -> None:
     assert response.policy_decision.get("allowed") is True
     assert response.policy_decision.get("decision") == "requires_human_approval"
     assert response.limitations
-    assert response.schema_version == "11C-B.1"
+    assert response.schema_version == "11C-D.1"
     assert "\\" not in response.repository and "/" not in response.repository
     assert repair_payload_is_safe(response.model_dump(mode="json"))
 
@@ -357,6 +357,8 @@ def test_fix_validation_token_binds_all_new_scope_fields(reviewed_run_fixed):
         run_id, finding_id, proposal.proposal_id, approval_token=legacy,
     )
     assert rejected.approval_verified is False
+    # Phase 11C-D adds operation="apply"; every other operation stays invalid,
+    # so an apply token can never be minted for the validate operation scope.
     with pytest.raises(ValueError):
         generate_validation_approval_token(
             proposal_id=proposal.proposal_id,
@@ -367,7 +369,7 @@ def test_fix_validation_token_binds_all_new_scope_fields(reviewed_run_fixed):
             head_commit=proposal.head_commit,
             patch_hash=proposal.patch_hash,
             target_files=proposal.target_files,
-            operation="apply",
+            operation="revert",
         )
 
 

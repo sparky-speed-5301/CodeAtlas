@@ -763,6 +763,165 @@ function activate(context) {
                 vscode.window.showErrorMessage(`CodeAtlas: FixProposal validation failed: ${err.message}`);
         }
     }
+    // -------------------------------------------------------------------------
+    // Phase 11C-D/E: explicit apply of a validated FixProposal, revert, history
+    // -------------------------------------------------------------------------
+    /** Apply an already validated FixProposal after explicit modal confirmation. */
+    async function applyFixAction(finding) {
+        if (!finding)
+            return;
+        if (!currentRunId) {
+            vscode.window.showInformationMessage('CodeAtlas: No active review run.');
+            return;
+        }
+        const runId = currentRunId;
+        const proposal = await getCurrentFixProposal(finding, runId);
+        if (!proposal)
+            return;
+        if (proposal.generation_status !== 'draft_ready' || proposal.validation_status !== 'validated') {
+            vscode.window.showWarningMessage('CodeAtlas: Only a FixProposal that passed isolated sandbox validation can be applied.');
+            return;
+        }
+        let history = null;
+        try {
+            history = await client.getFixApplyHistory(runId, finding.id, proposal.proposal_id);
+        }
+        catch (_) {
+            /* The service rechecks every pre-apply condition at apply time. */
+        }
+        if (history && history.apply_status === 'applied') {
+            vscode.window.showWarningMessage('CodeAtlas: This FixProposal has already been applied.');
+            return;
+        }
+        const decision = String(proposal.policy_decision?.decision ?? 'requires_human_approval');
+        const detail = [
+            `Proposal ${proposal.proposal_id}`,
+            `Patch hash: ${proposal.patch_hash.slice(0, 16)}`,
+            `File(s): ${proposal.target_files.join(', ')}`,
+            `Policy: ${decision} | Validated in an isolated sandbox`,
+            'The validated patch will be written to the workspace as unstaged changes. Nothing is committed.',
+        ].join('\n');
+        const choice = await vscode.window.showInformationMessage('Apply this validated fix to the workspace?', { modal: true, detail }, 'Apply Fix');
+        if (choice !== 'Apply Fix')
+            return;
+        const applyToken = await vscode.window.showInputBox({
+            prompt: `Enter the apply-scoped approval token for FixProposal ${proposal.proposal_id}`,
+            password: true,
+        });
+        if (!applyToken) {
+            vscode.window.showWarningMessage('CodeAtlas: An apply-scoped approval token is required to apply a fix.');
+            return;
+        }
+        try {
+            const applied = await client.applyFixProposal(runId, finding.id, proposal.proposal_id, applyToken, proposal.patch_hash);
+            if (currentRunId !== runId)
+                return;
+            if (applied.apply_status === 'applied' && applied.approval_verified) {
+                const refreshed = await client.getFixProposal(runId, finding.id, proposal.proposal_id);
+                latestFixProposals.set(finding.id, refreshed);
+                const after = await vscode.window.showInformationMessage(`CodeAtlas: Applied validated fix to ${applied.files_changed.join(', ')}. ` +
+                    'Revert stays available while the applied files remain unchanged.', 'Revert Applied Fix');
+                if (after === 'Revert Applied Fix') {
+                    vscode.commands.executeCommand('codeatlas.revertAppliedFix', finding);
+                }
+            }
+            else {
+                vscode.window.showWarningMessage(`CodeAtlas: Apply rejected: ${(applied.errors || []).join('; ')}`);
+            }
+        }
+        catch (err) {
+            if (isServiceNotFound(err))
+                handleStaleRun();
+            else
+                vscode.window.showErrorMessage(`CodeAtlas: Apply failed: ${err.message}`);
+        }
+    }
+    /** Revert an applied FixProposal back to its exact pre-apply contents. */
+    async function revertAppliedFixAction(finding) {
+        if (!finding)
+            return;
+        if (!currentRunId) {
+            vscode.window.showInformationMessage('CodeAtlas: No active review run.');
+            return;
+        }
+        const runId = currentRunId;
+        const proposal = await getCurrentFixProposal(finding, runId);
+        if (!proposal)
+            return;
+        let history = null;
+        try {
+            history = await client.getFixApplyHistory(runId, finding.id, proposal.proposal_id);
+        }
+        catch (err) {
+            vscode.window.showErrorMessage(`CodeAtlas: Apply history lookup failed: ${err.message}`);
+            return;
+        }
+        if (!history || history.apply_status !== 'applied' || !history.revert_available) {
+            vscode.window.showInformationMessage('CodeAtlas: There is no applied fix available to revert.');
+            return;
+        }
+        const detail = [
+            `Proposal ${proposal.proposal_id}`,
+            `The exact pre-apply contents of ${history.files_changed.join(', ')} will be restored.`,
+            'Revert is only possible while those files are unchanged since the fix was applied.',
+        ].join('\n');
+        const choice = await vscode.window.showInformationMessage('Revert this applied fix?', { modal: true, detail }, 'Revert Fix');
+        if (choice !== 'Revert Fix')
+            return;
+        try {
+            const reverted = await client.revertFixProposal(runId, finding.id, proposal.proposal_id, proposal.patch_hash);
+            if (currentRunId !== runId)
+                return;
+            if (reverted.apply_status === 'reverted') {
+                vscode.window.showInformationMessage(`CodeAtlas: Reverted applied fix; restored ${reverted.files_restored.join(', ')}.`);
+            }
+            else {
+                vscode.window.showWarningMessage(`CodeAtlas: Revert rejected: ${(reverted.errors || []).join('; ')}`);
+            }
+        }
+        catch (err) {
+            if (isServiceNotFound(err))
+                handleStaleRun();
+            else
+                vscode.window.showErrorMessage(`CodeAtlas: Revert failed: ${err.message}`);
+        }
+    }
+    /** Show the bounded apply history for the selected finding's FixProposal. */
+    async function showApplyHistoryAction(finding) {
+        if (!finding)
+            return;
+        if (!currentRunId) {
+            vscode.window.showInformationMessage('CodeAtlas: No active review run.');
+            return;
+        }
+        const runId = currentRunId;
+        let history;
+        try {
+            history = await client.getFixApplyHistory(runId, finding.id);
+        }
+        catch (err) {
+            if (isServiceNotFound(err))
+                handleStaleRun();
+            else
+                vscode.window.showErrorMessage(`CodeAtlas: Apply history lookup failed: ${err.message}`);
+            return;
+        }
+        if (!history.events.length) {
+            vscode.window.showInformationMessage('CodeAtlas: No apply history for this finding. A validated fix must be applied explicitly.');
+            return;
+        }
+        const picks = history.events.map((event) => ({
+            label: `${event.event} - ${event.at}`,
+            description: `${event.files.join(', ')}`,
+            detail: `patch ${event.patch_hash.slice(0, 16)} | head ${event.head_commit.slice(0, 12)} | ${event.branch_ref}`,
+        }));
+        const selected = await vscode.window.showQuickPick(picks, {
+            placeHolder: `CodeAtlas apply history: ${history.apply_status} (${history.events.length} event(s))`,
+        });
+        if (selected) {
+            vscode.window.showInformationMessage(`CodeAtlas: ${selected.label} - ${selected.description}`);
+        }
+    }
     /** Resolve the finding a fix command should act on: argument, active, or quick pick. */
     async function resolveFixFinding(item) {
         const finding = item ? item.finding || item : activeFinding;
@@ -1211,6 +1370,24 @@ function activate(context) {
         const finding = await resolveFixFinding(item);
         if (finding)
             await validateFixProposalAction(finding);
+    }));
+    // Phase 11C-D: explicit apply of an already validated FixProposal.
+    context.subscriptions.push(vscode.commands.registerCommand('codeatlas.applyFix', async (item) => {
+        const finding = await resolveFixFinding(item);
+        if (finding)
+            await applyFixAction(finding);
+    }));
+    // Phase 11C-E: safe revert of an applied FixProposal to its pre-apply bytes.
+    context.subscriptions.push(vscode.commands.registerCommand('codeatlas.revertAppliedFix', async (item) => {
+        const finding = await resolveFixFinding(item);
+        if (finding)
+            await revertAppliedFixAction(finding);
+    }));
+    // Phase 11C-E: bounded apply history for the selected finding's FixProposal.
+    context.subscriptions.push(vscode.commands.registerCommand('codeatlas.showApplyHistory', async (item) => {
+        const finding = await resolveFixFinding(item);
+        if (finding)
+            await showApplyHistoryAction(finding);
     }));
     // QuickPick Command 5: CodeAtlas: Validate Approved Fix
     context.subscriptions.push(vscode.commands.registerCommand('codeatlas.validateApprovedFix', async (proposalItem) => {

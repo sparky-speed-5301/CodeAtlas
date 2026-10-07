@@ -2,8 +2,11 @@
 
 from __future__ import annotations
 
-from typing import Any, Callable
+from collections.abc import Callable
+from typing import Any
+
 from pydantic import BaseModel, ConfigDict, Field, PrivateAttr
+
 from codeatlas.verification.models import TestPlan, TestResult
 
 
@@ -22,6 +25,7 @@ class PatchStatus:
     TEST_BLOCKED = "test_blocked"
     TEST_ERROR = "test_error"
     VALIDATED = "validated"
+    APPLIED = "applied"
     FAILED_VALIDATION = "failed_validation"
     ABSTAINED = "abstained"
 
@@ -38,6 +42,7 @@ class PatchStatus:
         TEST_BLOCKED,
         TEST_ERROR,
         VALIDATED,
+        APPLIED,
         FAILED_VALIDATION,
         ABSTAINED,
     }
@@ -93,7 +98,8 @@ VALID_STATUS_TRANSITIONS: dict[str, set[str]] = {
         PatchStatus.FAILED_VALIDATION,
     },
     PatchStatus.REJECTED: set(),
-    PatchStatus.VALIDATED: set(),
+    PatchStatus.VALIDATED: {PatchStatus.APPLIED},
+    PatchStatus.APPLIED: set(),
     PatchStatus.FAILED_VALIDATION: set(),
     PatchStatus.ABSTAINED: set(),
 }
@@ -255,11 +261,11 @@ class PatchProposal(BaseModel):
 
 
 __all__ = [
-    "PatchStatus",
     "VALID_STATUS_TRANSITIONS",
-    "PatchHunk",
     "PatchFile",
-    "PatchRedactionAudit",
-    "PatchValidationResult",
+    "PatchHunk",
     "PatchProposal",
+    "PatchRedactionAudit",
+    "PatchStatus",
+    "PatchValidationResult",
 ]

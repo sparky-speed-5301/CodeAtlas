@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from typing import Any, Literal
+
 from pydantic import BaseModel, ConfigDict, Field
 
 # Review lifecycle states
@@ -258,9 +259,10 @@ FixProposalLifecycle = Literal[
     "draft_ready",
     "rejected",
     "regeneration_requested",
+    "applied",
 ]
 
-FIX_PROPOSAL_SCHEMA_VERSION = "11C-B.1"
+FIX_PROPOSAL_SCHEMA_VERSION = "11C-D.1"
 
 
 class FixEligibilityResponse(BaseModel):
@@ -324,6 +326,8 @@ class FixProposalResponse(BaseModel):
         "applied_in_isolated_worktree",
         "tests_running",
         "validated",
+        "applied",
+        "reverted",
         "validation_failed",
         "cleanup_failed",
     ] = "not_requested"
@@ -410,3 +414,96 @@ class FixValidationResponse(BaseModel):
     human_approval_manifest: dict[str, Any] | None = None
     validation_history: list[str] = Field(default_factory=list)
     model_config = ConfigDict(extra="forbid", strict=True)
+
+
+# ---------------------------------------------------------------------------
+# Phase 11C-D/E: explicit apply of a validated FixProposal, revert, and history
+# ---------------------------------------------------------------------------
+
+FixApplyStatus = Literal["not_applied", "applied", "reverted"]
+
+
+class FixApplyRequest(BaseModel):
+    """Explicit user confirmation to apply one validated FixProposal.
+
+    ``approval_token`` must be minted for operation ``apply`` (a validate
+    token is rejected), and ``confirmed_patch_hash`` must be the complete
+    current patch hash of the exact proposal being applied.
+    """
+
+    model_config = ConfigDict(extra="forbid", strict=True)
+
+    run_id: str
+    finding_id: str
+    proposal_id: str
+    approval_token: str = Field(min_length=1, max_length=256)
+    confirmed_patch_hash: str = Field(min_length=64, max_length=64)
+
+
+class FixRevertRequest(BaseModel):
+    """Explicit user confirmation to revert one applied FixProposal."""
+
+    model_config = ConfigDict(extra="forbid", strict=True)
+
+    run_id: str
+    finding_id: str
+    proposal_id: str
+    confirmed_patch_hash: str = Field(min_length=64, max_length=64)
+
+
+class FixApplyEvent(BaseModel):
+    """One bounded, redacted entry in a proposal's apply history."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    event: Literal["applied", "reverted", "apply_rejected", "revert_failed"]
+    proposal_id: str
+    finding_id: str
+    run_id: str
+    patch_hash: str
+    resulting_diff_hash: str | None = None
+    head_commit: str = ""
+    branch_ref: str = ""
+    files: list[str] = Field(default_factory=list)
+    reason: str | None = None
+    at: str
+
+
+class FixApplyResponse(BaseModel):
+    """Bounded outcome of one apply or revert operation; tokens never appear."""
+
+    model_config = ConfigDict(extra="forbid", strict=True)
+
+    proposal_id: str
+    finding_id: str
+    run_id: str
+    operation: Literal["apply", "revert"]
+    apply_status: FixApplyStatus = "not_applied"
+    approval_verified: bool = False
+    head_commit: str = ""
+    branch_ref: str = ""
+    patch_hash: str = ""
+    resulting_diff_hash: str | None = None
+    validated_resulting_diff_hash: str | None = None
+    files_changed: list[str] = Field(default_factory=list)
+    files_restored: list[str] = Field(default_factory=list)
+    apply_history: list[FixApplyEvent] = Field(default_factory=list)
+    errors: list[str] = Field(default_factory=list)
+
+
+class FixApplyHistoryResponse(BaseModel):
+    """Bounded apply history and revert availability for one FixProposal."""
+
+    model_config = ConfigDict(extra="forbid", strict=True)
+
+    proposal_id: str
+    finding_id: str
+    run_id: str
+    apply_status: FixApplyStatus = "not_applied"
+    revert_available: bool = False
+    head_commit_at_apply: str = ""
+    branch_ref_at_apply: str = ""
+    patch_hash: str = ""
+    resulting_diff_hash: str | None = None
+    files_changed: list[str] = Field(default_factory=list)
+    events: list[FixApplyEvent] = Field(default_factory=list)

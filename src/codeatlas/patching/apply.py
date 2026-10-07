@@ -13,6 +13,7 @@ from __future__ import annotations
 import ast
 import hashlib
 import time
+from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any
 
@@ -30,6 +31,11 @@ from .parser import parse_unified_diff
 from .policy import evaluate_patch_policy
 from .proposal import audit_patch_redaction, compute_patch_hash, verify_approval_token
 from .sandbox import temporary_patch_sandbox
+
+# Phase 11C-D bounds for writing a validated proposal into the real workspace.
+# They mirror the patch policy budgets; nothing larger may be captured or restored.
+MAX_WORKTREE_APPLY_FILES = 8
+MAX_WORKTREE_APPLY_FILE_BYTES = 2 * 1024 * 1024
 
 
 def _emit(evidence: EvidenceLogger | None, event: str, **details: Any) -> None:
@@ -49,6 +55,163 @@ def _resulting_diff_stats(sandbox_path: Path) -> tuple[list[tuple[str, str, str]
         if len(parts) >= 3:
             entries.append((parts[0], parts[1], parts[2].replace("\\", "/").strip()))
     return entries, diff_hash
+
+
+@dataclass
+class WorktreeApplyResult:
+    """Outcome of writing a validated patch into the original workspace."""
+
+    success: bool = False
+    # Stable failure kind: workspace_dirty, capture_failed, parse_failed,
+    # scope_exceeded, check_failed, apply_failed, unexpected_files, diff_mismatch.
+    failure_kind: str = ""
+    resulting_diff_hash: str | None = None
+    changed_files: list[str] = field(default_factory=list)
+    # Path -> exact pre-apply bytes; None means the patch created the file.
+    original_contents: dict[str, bytes | None] = field(default_factory=dict)
+    post_apply_file_hashes: dict[str, str] = field(default_factory=dict)
+    head_commit: str = ""
+    branch_ref: str = ""
+    # Fixed, user-safe strings only; raw git stderr is never carried here.
+    errors: list[str] = field(default_factory=list)
+
+
+def _workspace_head(repository_root: Path) -> tuple[str, str]:
+    head = resolve_ref(repository_root, "HEAD").commit
+    branch_res = run_git(["rev-parse", "--abbrev-ref", "HEAD"], cwd=repository_root, check=False)
+    return head, branch_res.stdout.strip() or "HEAD"
+
+
+def _read_bounded_file(path: Path) -> bytes | None:
+    """Return current bytes, None when absent, or raise when unbounded."""
+    if not path.is_file():
+        return None
+    size = path.stat().st_size
+    if size > MAX_WORKTREE_APPLY_FILE_BYTES:
+        raise ValueError(f"target file exceeds {MAX_WORKTREE_APPLY_FILE_BYTES} bytes")
+    return path.read_bytes()
+
+
+def capture_worktree_file_state(
+    repository_root: Path,
+    target_files: list[str],
+) -> dict[str, bytes | None]:
+    """Capture exact pre-apply bytes for the declared target files only."""
+    return {
+        path: _read_bounded_file(repository_root / path)
+        for path in target_files[:MAX_WORKTREE_APPLY_FILES]
+    }
+
+
+def restore_worktree_files(
+    repository_root: Path,
+    original_contents: dict[str, bytes | None],
+) -> bool:
+    """Restore exact pre-apply bytes (or delete patch-created files).
+
+    Returns False when any restoration could not be completed; it never
+    touches paths outside the captured map and never runs git mutations.
+    """
+    restored = True
+    for rel_path, content in original_contents.items():
+        target = repository_root / rel_path
+        try:
+            if content is None:
+                if target.is_file():
+                    target.unlink()
+            else:
+                target.parent.mkdir(parents=True, exist_ok=True)
+                target.write_bytes(content)
+        except OSError:
+            restored = False
+    return restored
+
+
+def apply_patch_to_worktree(
+    proposal: PatchProposal,
+    repository_root: Path,
+    *,
+    expected_resulting_diff_hash: str,
+) -> WorktreeApplyResult:
+    """Apply a validated patch to the original working tree.
+
+    Phase 11C-D: the single guarded path that may write a validated
+    FixProposal into the user's workspace. The caller must already have
+    enforced the complete service pre-apply gate (validated evidence,
+    matching identity, clean workspace); this function adds the final
+    mechanical defenses: the workspace must still be clean, the patch must
+    apply cleanly, and the resulting diff must byte-match the validated
+    sandbox diff — otherwise every touched file is restored to its exact
+    pre-apply bytes. Only fixed error strings are reported; raw git output
+    is never surfaced.
+    """
+    result = WorktreeApplyResult()
+    pre_status = run_git(["status", "--porcelain"], cwd=repository_root, check=False)
+    if pre_status.stdout.strip():
+        result.failure_kind = "workspace_dirty"
+        result.errors.append("Workspace is not clean; nothing was applied")
+        return result
+
+    try:
+        result.head_commit, result.branch_ref = _workspace_head(repository_root)
+        result.original_contents = capture_worktree_file_state(repository_root, proposal.target_files)
+    except Exception:
+        result.failure_kind = "capture_failed"
+        result.errors.append("Workspace state could not be captured; nothing was applied")
+        return result
+
+    files, parse_errors = parse_unified_diff(proposal.unified_diff)
+    if parse_errors or not files:
+        result.failure_kind = "parse_failed"
+        result.errors.append("The patch could not be parsed; nothing was applied")
+        return result
+    expected_paths = {item.path for item in files}
+    if not expected_paths <= set(proposal.target_files):
+        result.failure_kind = "scope_exceeded"
+        result.errors.append("The patch modifies files beyond the declared targets")
+        return result
+
+    diff_input = proposal.unified_diff if proposal.unified_diff.endswith("\n") else proposal.unified_diff + "\n"
+    check_res = run_git(["apply", "--check", "--ignore-whitespace", "--whitespace=nowarn", "-"], cwd=repository_root, input=diff_input, check=False)
+    if check_res.returncode != 0:
+        result.failure_kind = "check_failed"
+        result.errors.append("The patch does not apply cleanly to the workspace; nothing was applied")
+        return result
+
+    apply_res = run_git(["apply", "--ignore-whitespace", "--whitespace=nowarn", "-"], cwd=repository_root, input=diff_input, check=False)
+    if apply_res.returncode != 0:
+        restore_worktree_files(repository_root, result.original_contents)
+        result.failure_kind = "apply_failed"
+        result.errors.append("The patch could not be applied; the workspace was restored")
+        return result
+
+    status_res = run_git(["status", "--porcelain"], cwd=repository_root, check=False)
+    changed: list[str] = []
+    for line in status_res.stdout.splitlines():
+        if len(line) >= 4:
+            changed.append(line[3:].strip().replace("\\", "/"))
+    result.changed_files = changed
+    if set(changed) != expected_paths:
+        restore_worktree_files(repository_root, result.original_contents)
+        result.failure_kind = "unexpected_files"
+        result.errors.append("The applied change touched unexpected files; the workspace was restored")
+        return result
+
+    _numstat, diff_hash = _resulting_diff_stats(repository_root)
+    result.resulting_diff_hash = diff_hash
+    if diff_hash != expected_resulting_diff_hash:
+        restore_worktree_files(repository_root, result.original_contents)
+        result.resulting_diff_hash = None
+        result.failure_kind = "diff_mismatch"
+        result.errors.append("The applied result did not match the validated diff; the workspace was restored")
+        return result
+
+    for rel_path in changed:
+        current = repository_root / rel_path
+        if current.is_file():
+            result.post_apply_file_hashes[rel_path] = hashlib.sha256(current.read_bytes()).hexdigest()
+    result.success = True
+    return result
 
 
 def apply_patch_in_isolated_sandbox(
@@ -435,7 +598,7 @@ def apply_patch_in_isolated_sandbox(
                 # 9. Check patch applicability without modifying files first
                 _emit(evidence, "patch_check_started", sandbox_id=sandbox_id, status="started")
                 check_res = run_git(
-                    ["apply", "--check", "--whitespace=nowarn", "-"],
+                    ["apply", "--check", "--ignore-whitespace", "--whitespace=nowarn", "-"],
                     cwd=sandbox.path,
                     input=diff_input,
                     check=False,
@@ -455,7 +618,7 @@ def apply_patch_in_isolated_sandbox(
                 else:
                     # 10. Apply patch to detached sandbox
                     apply_res = run_git(
-                        ["apply", "--whitespace=nowarn", "-"],
+                        ["apply", "--ignore-whitespace", "--whitespace=nowarn", "-"],
                         cwd=sandbox.path,
                         input=diff_input,
                         check=False,
@@ -930,9 +1093,7 @@ def apply_patch_in_isolated_sandbox(
             PatchStatus.TEST_TIMEOUT,
             PatchStatus.TEST_BLOCKED,
             PatchStatus.TEST_ERROR,
-        }:
-            proposal.transition_to(PatchStatus.FAILED_VALIDATION)
-        elif proposal.status == PatchStatus.APPLIED_IN_ISOLATED_WORKTREE and failure:
+        } or proposal.status == PatchStatus.APPLIED_IN_ISOLATED_WORKTREE and failure:
             proposal.transition_to(PatchStatus.FAILED_VALIDATION)
     else:
         if syntax_valid is False or failure:

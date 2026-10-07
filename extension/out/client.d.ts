@@ -1,5 +1,5 @@
 import * as http from 'http';
-import { ExplanationResult, FindingDetail, FindingsResponse, FixEligibility, FixProposal, FixValidationApprovalResult, FixValidationResult, PatchProposal, ReviewStatus, ServiceHealth, StartReviewOptions, ValidationResult } from './types';
+import { ExplanationResult, FindingDetail, FindingsResponse, FixApplyHistory, FixApplyResult, FixEligibility, FixProposal, FixValidationApprovalResult, FixValidationResult, PatchProposal, ReviewStatus, ServiceHealth, StartReviewOptions, ValidationResult } from './types';
 export declare class CodeAtlasClient {
     serviceUrl: string | null;
     timeoutMs: number;
@@ -31,4 +31,7 @@ export declare class CodeAtlasClient {
     regenerateFixProposal(runId: string, findingId: string): Promise<FixProposal>;
     approveFixProposalForValidation(runId: string, findingId: string, proposalId: string, approvalToken: string): Promise<FixValidationApprovalResult>;
     validateFixProposal(runId: string, findingId: string, proposalId: string, approvalToken: string, runTests?: boolean, runFullSuite?: boolean): Promise<FixValidationResult>;
+    getFixApplyHistory(runId: string, findingId: string, proposalId?: string): Promise<FixApplyHistory>;
+    applyFixProposal(runId: string, findingId: string, proposalId: string, approvalToken: string, confirmedPatchHash: string): Promise<FixApplyResult>;
+    revertFixProposal(runId: string, findingId: string, proposalId: string, confirmedPatchHash: string): Promise<FixApplyResult>;
 }

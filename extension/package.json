@@ -29,7 +29,7 @@
     "package": "node package.js",
     "verify:package": "node verify_package.js",
     "install:verify": "node verify_package.js",
-    "test": "node test_sync.js && node test_lifecycle.js && node test_migration.js && node test_workflow.js && node test_dogfood.js && node test_smoke.js && node test_packaging.js",
+    "test": "node test_sync.js && node test_lifecycle.js && node test_migration.js && node test_workflow.js && node test_autofix_workflow.js && node test_dogfood.js && node test_smoke.js && node test_packaging.js",
     "test:workflow": "node test_workflow.js",
     "test:dogfood": "node test_dogfood.js",
     "test:smoke": "node test_smoke.js",
@@ -199,6 +199,18 @@
         "command": "codeatlas.checkServiceHealth",
         "title": "CodeAtlas: Check Service Health",
         "icon": "$(pulse)"
+      },
+      {
+        "command": "codeatlas.applyFix",
+        "title": "CodeAtlas: Apply Validated Fix"
+      },
+      {
+        "command": "codeatlas.revertAppliedFix",
+        "title": "CodeAtlas: Revert Applied Fix"
+      },
+      {
+        "command": "codeatlas.showApplyHistory",
+        "title": "CodeAtlas: Show Fix Apply History"
       }
     ],
     "menus": {
@@ -279,6 +291,21 @@
           "command": "codeatlas.validateFixProposal",
           "when": "view == codeatlas.findingsView",
           "group": "fix@6"
+        },
+        {
+          "command": "codeatlas.applyFix",
+          "when": "view == codeatlas.findingsView",
+          "group": "fix@7"
+        },
+        {
+          "command": "codeatlas.revertAppliedFix",
+          "when": "view == codeatlas.findingsView",
+          "group": "fix@8"
+        },
+        {
+          "command": "codeatlas.showApplyHistory",
+          "when": "view == codeatlas.findingsView",
+          "group": "fix@9"
         }
       ]
     },

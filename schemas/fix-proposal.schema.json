@@ -118,7 +118,8 @@
         "rejected_by_policy",
         "draft_ready",
         "rejected",
-        "regeneration_requested"
+        "regeneration_requested",
+        "applied"
       ]
     },
     "approval_required": {
@@ -142,7 +143,7 @@
       "description": "Fixed, user-safe explanation; never raw provider or exception text."
     },
     "created_at": { "type": "string", "maxLength": 64 },
-    "schema_version": { "type": "string", "const": "11C-B.1" },
+    "schema_version": { "type": "string", "const": "11C-D.1" },
     "validation_operation": { "type": "string", "const": "validate" },
     "validation_status": {
       "type": "string",
@@ -154,6 +155,8 @@
         "applied_in_isolated_worktree",
         "tests_running",
         "validated",
+        "applied",
+        "reverted",
         "validation_failed",
         "cleanup_failed"
       ]

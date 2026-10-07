@@ -6,7 +6,7 @@ import json
 import logging
 import os
 import re
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from http import HTTPStatus
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from typing import Any
@@ -15,22 +15,42 @@ from urllib.parse import parse_qs, urlparse
 from codeatlas.service.models import (
     ExplainRequest,
     FindingFeedbackRequest,
+    FixApplyRequest,
+    FixProposalRequest,
+    FixRejectRequest,
+    FixRevertRequest,
+    FixValidationApprovalRequest,
+    FixValidationRequest,
     HealthResponse,
     PatchProposalRequest,
     ReviewCreateRequest,
     ValidateProposalRequest,
 )
-from codeatlas.service.models import (
-    FixProposalRequest,
-    FixRejectRequest,
-    FixValidationApprovalRequest,
-    FixValidationRequest,
+from codeatlas.service.state import (
+    ReviewStateManager,
+    ServicePathError,
+    ServiceStateError,
 )
-from codeatlas.service.state import ReviewStateManager, ServicePathError, ServiceStateError
 
 logger = logging.getLogger("codeatlas.service")
 
 MAX_REQUEST_BYTES = 1_048_576  # 1 MB maximum request payload
+
+# ServiceStateError reasons that describe a resolvable state conflict rather
+# than a malformed request; the apply/revert operations share them.
+FIX_CONFLICT_REASONS = frozenset({
+    "scope_mismatch",
+    "validation_not_approved",
+    "validation_not_available",
+    "already_applied",
+    "apply_not_available",
+    "apply_not_validated",
+    "workspace_dirty",
+    "repository_state_stale",
+    "resulting_diff_mismatch",
+    "revert_not_available",
+    "revert_state_changed",
+})
 
 
 class ReviewHttpHandler(BaseHTTPRequestHandler):
@@ -105,7 +125,7 @@ class ReviewHttpHandler(BaseHTTPRequestHandler):
                     status="ok",
                     service="codeatlas-service",
                     version="0.1.0",
-                    timestamp=datetime.now(timezone.utc).isoformat(),
+                    timestamp=datetime.now(UTC).isoformat(),
                     pid=os.getpid(),
                     **self.state_manager.health_summary(),
                 )
@@ -177,6 +197,47 @@ class ReviewHttpHandler(BaseHTTPRequestHandler):
                     self._send_error_json(status, err.explanation, err.reason)
                 except Exception as err:
                     self._send_error_json(HTTPStatus.BAD_REQUEST, f"Cannot retrieve fix proposal: {err}", "bad_request")
+                return
+
+            # 2e. GET .../fix-proposal/apply-history (latest proposal, or by ID below)
+            m_fix_apply_hist = re.match(r"^/reviews/([^/]+)/findings/([^/]+)/fix-proposal/apply-history$", path)
+            if m_fix_apply_hist:
+                run_id, finding_id = m_fix_apply_hist.group(1), m_fix_apply_hist.group(2)
+                try:
+                    history = self.state_manager.get_fix_apply_history(run_id, finding_id)
+                    self._send_json(HTTPStatus.OK, history.model_dump())
+                except KeyError as err:
+                    self._send_error_json(HTTPStatus.NOT_FOUND, str(err), "not_found")
+                except ServiceStateError as err:
+                    status = HTTPStatus.CONFLICT if err.reason == "scope_mismatch" else HTTPStatus.NOT_FOUND
+                    self._send_error_json(status, err.explanation, err.reason)
+                except Exception as err:
+                    self._send_error_json(HTTPStatus.BAD_REQUEST, f"Cannot retrieve apply history: {err}", "bad_request")
+                return
+
+            # 2f. GET /fix-proposals/{proposal_id}/apply-history?run_id=&finding_id=
+            m_fix_apply_hist_by_id = re.match(r"^/fix-proposals/([^/]+)/apply-history$", path)
+            if m_fix_apply_hist_by_id:
+                proposal_id = m_fix_apply_hist_by_id.group(1)
+                run_id = query.get("run_id", [None])[0]
+                finding_id = query.get("finding_id", [None])[0]
+                if not run_id or not finding_id:
+                    self._send_error_json(
+                        HTTPStatus.BAD_REQUEST,
+                        "Both run_id and finding_id query parameters are required",
+                        "bad_request",
+                    )
+                    return
+                try:
+                    history = self.state_manager.get_fix_apply_history(run_id, finding_id, proposal_id)
+                    self._send_json(HTTPStatus.OK, history.model_dump())
+                except KeyError as err:
+                    self._send_error_json(HTTPStatus.NOT_FOUND, str(err), "not_found")
+                except ServiceStateError as err:
+                    status = HTTPStatus.CONFLICT if err.reason == "scope_mismatch" else HTTPStatus.NOT_FOUND
+                    self._send_error_json(status, err.explanation, err.reason)
+                except Exception as err:
+                    self._send_error_json(HTTPStatus.BAD_REQUEST, f"Cannot retrieve apply history: {err}", "bad_request")
                 return
 
             # 3. GET /reviews/{run_id}/findings
@@ -342,6 +403,65 @@ class ReviewHttpHandler(BaseHTTPRequestHandler):
                     self._send_error_json(HTTPStatus.NOT_FOUND, str(err), "not_found")
                 except Exception as err:
                     self._send_error_json(HTTPStatus.BAD_REQUEST, f"Invalid finding feedback: {err}", "bad_request")
+                return
+
+            # 7b. POST .../fix-proposal/apply — explicit apply of a validated proposal
+            m_fix_apply = re.match(r"^/reviews/([^/]+)/findings/([^/]+)/fix-proposal/apply$", path)
+            if m_fix_apply:
+                run_id, finding_id = m_fix_apply.group(1), m_fix_apply.group(2)
+                try:
+                    req = FixApplyRequest.model_validate(body)
+                    if req.run_id != run_id or req.finding_id != finding_id:
+                        self._send_error_json(
+                            HTTPStatus.BAD_REQUEST,
+                            "Apply request scope does not match the URL",
+                            "scope_mismatch",
+                        )
+                        return
+                    applied = self.state_manager.apply_fix_proposal(
+                        run_id,
+                        finding_id,
+                        req.proposal_id,
+                        approval_token=req.approval_token,
+                        confirmed_patch_hash=req.confirmed_patch_hash,
+                    )
+                    self._send_json(HTTPStatus.OK, applied.model_dump())
+                except KeyError as err:
+                    self._send_error_json(HTTPStatus.NOT_FOUND, str(err), "not_found")
+                except ServiceStateError as err:
+                    status = HTTPStatus.CONFLICT if err.reason in FIX_CONFLICT_REASONS else HTTPStatus.BAD_REQUEST
+                    self._send_error_json(status, err.explanation, err.reason)
+                except Exception:
+                    self._send_error_json(HTTPStatus.BAD_REQUEST, "Invalid FixProposal apply request", "bad_request")
+                return
+
+            # 7c. POST .../fix-proposal/revert — safe revert of an applied proposal
+            m_fix_revert = re.match(r"^/reviews/([^/]+)/findings/([^/]+)/fix-proposal/revert$", path)
+            if m_fix_revert:
+                run_id, finding_id = m_fix_revert.group(1), m_fix_revert.group(2)
+                try:
+                    req = FixRevertRequest.model_validate(body)
+                    if req.run_id != run_id or req.finding_id != finding_id:
+                        self._send_error_json(
+                            HTTPStatus.BAD_REQUEST,
+                            "Revert request scope does not match the URL",
+                            "scope_mismatch",
+                        )
+                        return
+                    reverted = self.state_manager.revert_fix_apply(
+                        run_id,
+                        finding_id,
+                        req.proposal_id,
+                        confirmed_patch_hash=req.confirmed_patch_hash,
+                    )
+                    self._send_json(HTTPStatus.OK, reverted.model_dump())
+                except KeyError as err:
+                    self._send_error_json(HTTPStatus.NOT_FOUND, str(err), "not_found")
+                except ServiceStateError as err:
+                    status = HTTPStatus.CONFLICT if err.reason in FIX_CONFLICT_REASONS else HTTPStatus.BAD_REQUEST
+                    self._send_error_json(status, err.explanation, err.reason)
+                except Exception:
+                    self._send_error_json(HTTPStatus.BAD_REQUEST, "Invalid FixProposal revert request", "bad_request")
                 return
 
             # 8. POST /reviews/{run_id}/findings/{finding_id}/fix-proposal (generate)

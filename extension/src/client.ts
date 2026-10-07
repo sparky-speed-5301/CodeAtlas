@@ -5,6 +5,8 @@ import {
   ExplanationResult,
   FindingDetail,
   FindingsResponse,
+  FixApplyHistory,
+  FixApplyResult,
   FixEligibility,
   FixProposal,
   FixValidationApprovalResult,
@@ -273,6 +275,62 @@ export class CodeAtlasClient {
         approval_token: approvalToken,
         run_tests: runTests,
         run_full_suite: runFullSuite,
+      }
+    );
+  }
+
+  // -------------------------------------------------------------------------
+  // Phase 11C-D/E: explicit apply of a validated FixProposal, revert, history
+  // -------------------------------------------------------------------------
+
+  getFixApplyHistory(runId: string, findingId: string, proposalId?: string): Promise<FixApplyHistory> {
+    if (proposalId) {
+      const query = `run_id=${encodeURIComponent(runId)}&finding_id=${encodeURIComponent(findingId)}`;
+      return this.request<FixApplyHistory>(
+        'GET',
+        `/fix-proposals/${encodeURIComponent(proposalId)}/apply-history?${query}`
+      );
+    }
+    return this.request<FixApplyHistory>(
+      'GET',
+      `/reviews/${encodeURIComponent(runId)}/findings/${encodeURIComponent(findingId)}/fix-proposal/apply-history`
+    );
+  }
+
+  applyFixProposal(
+    runId: string,
+    findingId: string,
+    proposalId: string,
+    approvalToken: string,
+    confirmedPatchHash: string
+  ): Promise<FixApplyResult> {
+    return this.request<FixApplyResult>(
+      'POST',
+      `/reviews/${encodeURIComponent(runId)}/findings/${encodeURIComponent(findingId)}/fix-proposal/apply`,
+      {
+        run_id: runId,
+        finding_id: findingId,
+        proposal_id: proposalId,
+        approval_token: approvalToken,
+        confirmed_patch_hash: confirmedPatchHash,
+      }
+    );
+  }
+
+  revertFixProposal(
+    runId: string,
+    findingId: string,
+    proposalId: string,
+    confirmedPatchHash: string
+  ): Promise<FixApplyResult> {
+    return this.request<FixApplyResult>(
+      'POST',
+      `/reviews/${encodeURIComponent(runId)}/findings/${encodeURIComponent(findingId)}/fix-proposal/revert`,
+      {
+        run_id: runId,
+        finding_id: findingId,
+        proposal_id: proposalId,
+        confirmed_patch_hash: confirmedPatchHash,
       }
     );
   }

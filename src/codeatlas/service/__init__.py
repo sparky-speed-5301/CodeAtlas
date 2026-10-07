@@ -10,7 +10,12 @@ from .models import (
     FindingFeedbackResponse,
     FindingsListResponse,
     FindingSummary,
+    FixApplyEvent,
+    FixApplyHistoryResponse,
+    FixApplyRequest,
+    FixApplyResponse,
     FixProposalResponse,
+    FixRevertRequest,
     FixValidationApprovalRequest,
     FixValidationApprovalResponse,
     FixValidationRequest,
@@ -25,7 +30,12 @@ from .models import (
     ValidateProposalResponse,
 )
 from .server import CodeAtlasServer, ReviewHttpHandler, create_server, run_service
-from .state import ReviewRunRecord, ReviewStateManager, ServicePathError, validate_service_repo_path
+from .state import (
+    ReviewRunRecord,
+    ReviewStateManager,
+    ServicePathError,
+    validate_service_repo_path,
+)
 
 __all__ = [
     "CancelResponse",
@@ -37,12 +47,17 @@ __all__ = [
     "FindingFeedbackRequest",
     "FindingFeedbackResponse",
     "FindingSummary",
+    "FindingsListResponse",
+    "FixApplyEvent",
+    "FixApplyHistoryResponse",
+    "FixApplyRequest",
+    "FixApplyResponse",
     "FixProposalResponse",
+    "FixRevertRequest",
     "FixValidationApprovalRequest",
     "FixValidationApprovalResponse",
     "FixValidationRequest",
     "FixValidationResponse",
-    "FindingsListResponse",
     "HealthResponse",
     "LifecycleState",
     "PatchProposalRequest",

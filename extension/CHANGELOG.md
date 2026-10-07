@@ -4,6 +4,17 @@ All notable changes to the "codeatlas" extension will be documented in this file
 
 Check [Keep a Changelog](http://keepachangelog.com/) for recommendations on how to structure this file.
 
+## [Unreleased] - Phase 11C-D/E/F
+
+#### Added
+- **Apply Validated Fix** (`codeatlas.applyFix`): explicit, modal-confirmed application of a FixProposal that passed isolated sandbox validation, requiring an apply-scoped approval token and the confirmed exact patch hash. The service re-verifies proposal identity, evidence identity, policy version, parse/policy/redaction, and a clean workspace immediately before writing; the applied result must byte-match the validated sandbox diff or the workspace is restored automatically.
+- **Revert Applied Fix** (`codeatlas.revertAppliedFix`): byte-exact restoration of the captured pre-apply contents; refused if the target files changed since the apply, so user edits are never clobbered.
+- **Show Fix Apply History** (`codeatlas.showApplyHistory`): bounded apply/revert event history with stable, redacted metadata.
+
+#### Security Invariants
+- **Nothing Applies Automatically**: generation, preview, approval, validation, and test success never modify the workspace; only the explicit Apply command with an apply-scoped token and confirmation hash can, and only for a validated proposal.
+- **Operation-Scoped Tokens**: a validation token can never authorize an apply; tokens are never returned, logged, or displayed.
+
 ## [0.1.0] - 2026-10-03
 
 ### Initial Production Release

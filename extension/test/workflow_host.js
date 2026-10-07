@@ -18,7 +18,7 @@ function createHost(root, settings) {
   const commands = new Map(), views = new Map(), panels = [], messages = [], inputs = [], picks = [];
   const updates = [], clipboard = [], editors = new Map(), intervals = new Map();
   const activeListeners = [], cursorListeners = [];
-  let nextInput, nextPick;
+  let nextInput, nextPick, nextChoice;
   const disposable = () => ({ dispose() {} });
   const subscribe = listeners => (fn, _this, subscriptions) => {
     listeners.push(fn);
@@ -66,8 +66,18 @@ function createHost(root, settings) {
       registerTreeDataProvider(id, provider) { views.set(id, provider); return disposable(); },
       onDidChangeActiveTextEditor: subscribe(activeListeners),
       onDidChangeTextEditorSelection: subscribe(cursorListeners),
-      async showInformationMessage(text) { messages.push({ kind: 'info', text }); },
-      async showWarningMessage(text) { messages.push({ kind: 'warning', text }); },
+      async showInformationMessage(text, ...rest) {
+        const modal = rest.find(r => r && typeof r === 'object');
+        messages.push({ kind: 'info', text, detail: modal?.detail, modal: Boolean(modal?.modal),
+          buttons: rest.filter(r => typeof r === 'string') });
+        const value = nextChoice; nextChoice = undefined; return value;
+      },
+      async showWarningMessage(text, ...rest) {
+        const modal = rest.find(r => r && typeof r === 'object');
+        messages.push({ kind: 'warning', text, detail: modal?.detail, modal: Boolean(modal?.modal),
+          buttons: rest.filter(r => typeof r === 'string') });
+        const value = nextChoice; nextChoice = undefined; return value;
+      },
       async showErrorMessage(text) { messages.push({ kind: 'error', text }); },
       async showInputBox(options) { inputs.push(options); const v = nextInput; nextInput = undefined; return v; },
       async showQuickPick(items, options) { picks.push({ items, options }); return nextPick?.(items); },
@@ -113,6 +123,7 @@ function createHost(root, settings) {
     command(name, ...args) { return vscode.commands.executeCommand(`codeatlas.${name}`, ...args); },
     async poll() { for (const fn of [...intervals.values()]) await fn(); },
     input(value) { nextInput = value; }, pick(fn) { nextPick = fn; },
+    choice(value) { nextChoice = value; },
     cursor(editor, line) { editor.selection = { active: { line } }; cursorListeners.forEach(fn => fn({ textEditor: editor })); },
     labels(view) { return views.get(`codeatlas.${view}View`).getChildren().map(item => item.label); },
   };

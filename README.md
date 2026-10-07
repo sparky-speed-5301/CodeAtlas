@@ -36,6 +36,19 @@ isolated validator runs approved patches only in detached worktrees and returns
 observed test evidence, manifests, and cleanup status; the original workspace
 is never modified and there is no Apply Fix command.
 
+Phase 11C-D adds the explicit application of an already validated FixProposal
+(`CodeAtlas: Apply Validated Fix`). Application re-checks proposal identity,
+patch hash, validation-evidence identity, policy version, fresh parse/policy/
+redaction, and a clean workspace; requires an apply-scoped approval token plus
+the confirmed exact patch hash; writes the patch through a single guarded
+primitive that captures pre-apply bytes and requires the resulting workspace
+diff to byte-match the validated sandbox diff (restoring everything on any
+mismatch). Phase 11C-E adds safe revert/undo (byte-exact restoration, blocked
+if the files changed since the apply) and bounded apply history, and
+Phase 11C-F verifies the complete chain end to end over the real service,
+offline evaluation, and the compiled VS Code extension. Nothing is ever
+applied automatically; see docs/repair-orchestrator.md.
+
 1. Establish the schemas, threat model, and benchmark cases (complete).
 2. Add read-only repository snapshots, language detection, and deterministic evidence collection (complete).
 3. Add deterministic repository intelligence, symbol extraction, and context retrieval (complete).

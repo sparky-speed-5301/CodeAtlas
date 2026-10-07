@@ -210,6 +210,33 @@ class CodeAtlasClient {
             run_full_suite: runFullSuite,
         });
     }
+    // -------------------------------------------------------------------------
+    // Phase 11C-D/E: explicit apply of a validated FixProposal, revert, history
+    // -------------------------------------------------------------------------
+    getFixApplyHistory(runId, findingId, proposalId) {
+        if (proposalId) {
+            const query = `run_id=${encodeURIComponent(runId)}&finding_id=${encodeURIComponent(findingId)}`;
+            return this.request('GET', `/fix-proposals/${encodeURIComponent(proposalId)}/apply-history?${query}`);
+        }
+        return this.request('GET', `/reviews/${encodeURIComponent(runId)}/findings/${encodeURIComponent(findingId)}/fix-proposal/apply-history`);
+    }
+    applyFixProposal(runId, findingId, proposalId, approvalToken, confirmedPatchHash) {
+        return this.request('POST', `/reviews/${encodeURIComponent(runId)}/findings/${encodeURIComponent(findingId)}/fix-proposal/apply`, {
+            run_id: runId,
+            finding_id: findingId,
+            proposal_id: proposalId,
+            approval_token: approvalToken,
+            confirmed_patch_hash: confirmedPatchHash,
+        });
+    }
+    revertFixProposal(runId, findingId, proposalId, confirmedPatchHash) {
+        return this.request('POST', `/reviews/${encodeURIComponent(runId)}/findings/${encodeURIComponent(findingId)}/fix-proposal/revert`, {
+            run_id: runId,
+            finding_id: findingId,
+            proposal_id: proposalId,
+            confirmed_patch_hash: confirmedPatchHash,
+        });
+    }
 }
 exports.CodeAtlasClient = CodeAtlasClient;
 //# sourceMappingURL=client.js.map

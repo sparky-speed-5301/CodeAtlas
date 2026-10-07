@@ -3,26 +3,40 @@
 from __future__ import annotations
 
 import dataclasses
+import hashlib
 import json
 import tempfile
 import threading
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from fnmatch import fnmatchcase
 from pathlib import Path
 from typing import Any
 
 from codeatlas.adapters import select_language_adapter
 from codeatlas.findings.models import Finding
+from codeatlas.git.executable import run_git
 from codeatlas.git.refs import resolve_ref
 from codeatlas.git.repository import validate_repository
 from codeatlas.git.snapshot import temporary_snapshot
-from codeatlas.orchestrator.manifest import RunManifest
 from codeatlas.orchestrator.repair import RepairOrchestrator, record_repair_result
-from codeatlas.orchestrator.repair_models import RepairLimits, RepairRepositoryState, repair_payload_is_safe
+from codeatlas.orchestrator.repair_models import (
+    REPAIR_POLICY_VERSION,
+    RepairLimits,
+    RepairRepositoryState,
+    repair_payload_is_safe,
+)
 from codeatlas.orchestrator.review import ReviewResult, run_review
 from codeatlas.orchestrator.validation import build_validation_review
+from codeatlas.patching.apply import (
+    apply_patch_to_worktree,
+    capture_worktree_file_state,
+    restore_worktree_files,
+)
 from codeatlas.patching.models import PatchProposal, PatchStatus, PatchValidationResult
+from codeatlas.patching.parser import parse_unified_diff
+from codeatlas.patching.policy import evaluate_patch_policy
 from codeatlas.patching.proposal import (
+    audit_patch_redaction,
     compute_patch_hash,
     create_patch_proposal,
     verify_validation_approval_token,
@@ -37,6 +51,9 @@ from codeatlas.service.models import (
     FindingDetailResponse,
     FindingFeedbackResponse,
     FindingSummary,
+    FixApplyEvent,
+    FixApplyHistoryResponse,
+    FixApplyResponse,
     FixEligibilityResponse,
     FixProposalLifecycle,
     FixProposalResponse,
@@ -112,6 +129,26 @@ FIX_REJECTION_EXPLANATIONS: dict[str, str] = {
     "validation_scope_invalid": "The FixProposal validation scope no longer matches the review run.",
     "validation_token_invalid": "The approval token does not match this FixProposal validation scope.",
     "validation_redaction_failed": "Validation evidence failed redaction checks and was not returned.",
+    # Phase 11C-D: explicit apply of a validated FixProposal.
+    "apply_not_validated": "Run isolated sandbox validation on this FixProposal before applying it.",
+    "apply_validation_failed": "This FixProposal failed sandbox validation and cannot be applied.",
+    "apply_evidence_missing": "Validation evidence for this FixProposal is missing; revalidate before applying.",
+    "apply_evidence_identity_mismatch": "Validation evidence does not match this FixProposal; revalidate before applying.",
+    "apply_scope_invalid": "The FixProposal apply scope no longer matches the review run.",
+    "apply_policy_version_incompatible": "The FixProposal was generated under an incompatible repair policy version.",
+    "apply_not_available": "This FixProposal is not available for application in its current state.",
+    "apply_confirmation_invalid": "The apply confirmation does not match the current FixProposal patch hash.",
+    "apply_redaction_failed": "The patch failed redaction checks and cannot be applied.",
+    "patch_hash_mismatch": "The patch hash no longer matches the FixProposal content.",
+    "already_applied": "This FixProposal has already been applied.",
+    "workspace_dirty": "The workspace has uncommitted changes; resolve them before applying a fix.",
+    "apply_failed": "The FixProposal could not be applied; no files were changed.",
+    "resulting_diff_mismatch": "The applied result did not match the validated diff; the workspace was restored.",
+    # Phase 11C-E: safe revert and apply history.
+    "revert_not_available": "This FixProposal is not available for revert in its current state.",
+    "revert_confirmation_invalid": "The revert confirmation does not match the applied FixProposal patch hash.",
+    "revert_state_changed": "The target files changed after the fix was applied; revert is unavailable.",
+    "revert_failed": "The revert could not be completed; the applied files were left unchanged.",
 }
 
 # Reasons that fail closed before any provider/patch work: nothing was wrong
@@ -166,6 +203,11 @@ class FixProposalRecord:
         self.response = response
         self.patch_proposal = patch_proposal
         self.operation_lock = threading.Lock()
+        # Phase 11C-D/E: apply state and bounded audit history. The captured
+        # pre-apply bytes live only in memory, so revert availability is
+        # scoped to this service session.
+        self.apply_state: dict[str, Any] | None = None
+        self.apply_events: list[FixApplyEvent] = []
 
 
 class ServicePathError(ValueError):
@@ -234,7 +276,7 @@ class ReviewRunRecord:
         self.cancel_requested = threading.Event()
         self.errors: list[str] = []
         self.limitations: list[str] = []
-        self.created_at = datetime.now(timezone.utc).isoformat()
+        self.created_at = datetime.now(UTC).isoformat()
         self.completed_at = ""
         self.test_status = "not_run"
         self.full_suite_status = "not_run"
@@ -317,7 +359,7 @@ class ReviewStateManager:
             if record.cancel_requested.is_set():
                 record.status = "cancelled"
                 record.progress_text = "Review cancelled by operator"
-                record.completed_at = datetime.now(timezone.utc).isoformat()
+                record.completed_at = datetime.now(UTC).isoformat()
                 return
 
             record.status = "indexing"
@@ -345,7 +387,7 @@ class ReviewStateManager:
             if record.cancel_requested.is_set():
                 record.status = "cancelled"
                 record.progress_text = "Review cancelled by operator"
-                record.completed_at = datetime.now(timezone.utc).isoformat()
+                record.completed_at = datetime.now(UTC).isoformat()
                 return
 
             record.result = res
@@ -378,13 +420,13 @@ class ReviewStateManager:
 
             # Transition to completed if no errors or completed with warnings
             record.status = "completed" if not manifest.errors else "failed"
-            record.completed_at = datetime.now(timezone.utc).isoformat()
+            record.completed_at = datetime.now(UTC).isoformat()
 
         except Exception as err:
             record.status = "failed"
             record.progress_text = f"Review failed: {err}"
             record.errors.append(str(err))
-            record.completed_at = datetime.now(timezone.utc).isoformat()
+            record.completed_at = datetime.now(UTC).isoformat()
         finally:
             try:
                 temp_dir.cleanup()
@@ -399,7 +441,7 @@ class ReviewStateManager:
         if record.status not in {"completed", "failed"}:
             record.status = "cancelled"
             record.progress_text = "Review cancelled by operator"
-            record.completed_at = datetime.now(timezone.utc).isoformat()
+            record.completed_at = datetime.now(UTC).isoformat()
         return True
 
     def get_review_status(self, run_id: str) -> ReviewStatusResponse:
@@ -969,7 +1011,7 @@ class ReviewStateManager:
                 "proposal_id": proposal_id,
                 "response": response,
                 "rejection_reason": reason,
-                "updated_at": datetime.now(timezone.utc).isoformat(),
+                "updated_at": datetime.now(UTC).isoformat(),
             }
 
     def _draft_fix_response(
@@ -1194,6 +1236,7 @@ class ReviewStateManager:
         *,
         response: FixProposalResponse,
         token: str | None,
+        operation: str = "validate",
     ) -> tuple[bool, str | None]:
         """Verify the complete operator scope; provider fields never authorize this."""
         return verify_validation_approval_token(
@@ -1206,7 +1249,7 @@ class ReviewStateManager:
             head_commit=response.head_commit,
             patch_hash=response.patch_hash,
             target_files=response.target_files,
-            operation=response.validation_operation,
+            operation=operation,
         )
 
     def _transition_fix_validation(
@@ -1219,7 +1262,14 @@ class ReviewStateManager:
             "validating": {"applied_in_isolated_worktree", "validation_failed", "cleanup_failed"},
             "applied_in_isolated_worktree": {"tests_running", "validated", "validation_failed", "cleanup_failed"},
             "tests_running": {"validated", "validation_failed", "cleanup_failed"},
-            "validated": set(), "validation_failed": set(), "cleanup_failed": set(),
+            # Phase 11C-D/E: the validated evidence authorizes exactly one
+            # explicit apply to the original workspace, followed by at most
+            # one revert back to the captured pre-apply bytes.
+            "validated": {"applied"},
+            "applied": {"reverted"},
+            "reverted": set(),
+            "validation_failed": set(),
+            "cleanup_failed": set(),
         }
         with self._lock:
             response = fix_record.response
@@ -1535,6 +1585,394 @@ class ReviewStateManager:
         )
 
     validate_fix = validate_fix_proposal
+
+    # ----------------------------------------------------------------------
+    # Phase 11C-D/E: explicit apply of one validated FixProposal to the
+    # original workspace, safe revert, and bounded apply history. Nothing is
+    # ever applied automatically: every path below requires a validated
+    # proposal, matching evidence, a clean rechecked workspace, an apply-scoped
+    # approval token, and the confirmed exact patch hash.
+    # ----------------------------------------------------------------------
+
+    _MAX_APPLY_EVENTS = 50
+
+    def _resolve_fix_record(
+        self, run_id: str, finding_id: str, proposal_id: str | None
+    ) -> tuple[ReviewRunRecord, FixProposalRecord]:
+        record, _ = self._fix_finding_and_record(run_id, finding_id)
+        with self._lock:
+            if proposal_id is None:
+                proposal_id = record.fix_states.get(finding_id, {}).get("proposal_id")
+                if not proposal_id:
+                    raise ServiceStateError("proposal_not_found")
+            fix_record = self._fix_proposals.get(str(proposal_id))
+        if fix_record is None:
+            raise ServiceStateError("proposal_not_found")
+        if fix_record.response.run_id != run_id or fix_record.response.finding_id != finding_id:
+            raise ServiceStateError("scope_mismatch")
+        return record, fix_record
+
+    def _fix_apply_scope(
+        self, run_id: str, finding_id: str, proposal_id: str
+    ) -> tuple[ReviewRunRecord, FixProposalRecord, PatchProposal]:
+        """Resolve the proposal and independently re-verify its apply scope."""
+        record, _ = self._fix_finding_and_record(run_id, finding_id)
+        with self._lock:
+            fix_record = self._fix_proposals.get(proposal_id)
+        if fix_record is None:
+            raise ServiceStateError("proposal_not_found")
+        response = fix_record.response
+        if response.run_id != run_id or response.finding_id != finding_id:
+            raise ServiceStateError("scope_mismatch")
+        if fix_record.patch_proposal is None:
+            raise ServiceStateError("apply_not_available")
+        if response.validation_status == "applied":
+            raise ServiceStateError("already_applied")
+        if response.validation_status == "reverted":
+            raise ServiceStateError("apply_not_available")
+        if response.validation_status == "validation_failed":
+            raise ServiceStateError("apply_validation_failed")
+        if response.validation_status != "validated" or response.generation_status != "draft_ready":
+            raise ServiceStateError("apply_not_validated")
+        return record, fix_record, fix_record.patch_proposal
+
+    def _check_fix_apply_workspace(
+        self, record: ReviewRunRecord, fix_record: FixProposalRecord
+    ) -> tuple[str, str]:
+        """Run the full pre-apply gate; return the current (HEAD, branch).
+
+        Implements the complete Phase 11C-D pre-apply checklist: proposal
+        identity, recomputed patch hash, fresh parse, fresh policy decision,
+        fresh redaction scan, validation-evidence identity, workspace HEAD,
+        and a clean working tree. Any failure raises a stable reason code
+        before the apply confirmation path can mutate anything.
+        """
+        response = fix_record.response
+        patch = fix_record.patch_proposal
+        if patch is None:  # pragma: no cover - guarded by _fix_apply_scope
+            raise ServiceStateError("apply_not_available")
+        manifest = record.result.manifest if record.result is not None else None
+        if manifest is None or not manifest.base_commit or not manifest.head_commit:
+            raise ServiceStateError("apply_scope_invalid")
+        repository_identity = self._repository_identity(record.repo_path.resolve())
+        provenance = patch.provenance if isinstance(patch.provenance, dict) else {}
+        if provenance.get("repair_policy_version") != REPAIR_POLICY_VERSION:
+            raise ServiceStateError("apply_policy_version_incompatible")
+        scope_matches = (
+            response.repository == repository_identity
+            and response.base_commit == manifest.base_commit
+            and response.head_commit == manifest.head_commit
+            and patch.finding_id == response.finding_id
+            and patch.base_commit == response.head_commit
+            and provenance.get("run_id") == manifest.run_id
+            and provenance.get("review_base_commit") == response.base_commit
+            and provenance.get("review_head_commit") == response.head_commit
+            and provenance.get("repository_identity") == response.repository
+            and response.target_files == patch.target_files
+            and response.patch_text == patch.unified_diff
+            and response.patch_hash == patch.patch_hash
+            and compute_patch_hash(patch.unified_diff) == patch.patch_hash
+        )
+        if not scope_matches:
+            raise ServiceStateError("apply_scope_invalid")
+        # Validation evidence must exist and identity-match this exact proposal.
+        with self._lock:
+            validation = self._validations.get(response.proposal_id)
+        if validation is None:
+            raise ServiceStateError("apply_evidence_missing")
+        if not validation.valid:
+            raise ServiceStateError("apply_validation_failed")
+        if (
+            validation.proposal_id != response.proposal_id
+            or validation.patch_hash != response.patch_hash
+            or validation.base_commit != response.head_commit
+            or not validation.resulting_diff_hash
+        ):
+            raise ServiceStateError("apply_evidence_identity_mismatch")
+        if patch.status != PatchStatus.VALIDATED:
+            raise ServiceStateError("apply_not_validated")
+        # Fresh parse, policy decision, and secret scan on the exact patch text.
+        files, parse_errors = parse_unified_diff(patch.unified_diff)
+        if parse_errors or not files:
+            raise ServiceStateError("patch_parse_failed")
+        decision = evaluate_patch_policy(patch, files)
+        if not decision.allowed:
+            raise ServiceStateError("patch_validation_failed")
+        if not audit_patch_redaction(patch.unified_diff).safe:
+            raise ServiceStateError("apply_redaction_failed")
+        # The workspace must still be exactly where validation left it.
+        try:
+            current_head = resolve_ref(record.repo_path, "HEAD").commit
+        except Exception:
+            raise ServiceStateError("repository_state_stale") from None
+        if current_head != response.head_commit:
+            raise ServiceStateError("repository_state_stale")
+        status_res = run_git(["status", "--porcelain"], cwd=record.repo_path, check=False)
+        if status_res.stdout.strip():
+            raise ServiceStateError("workspace_dirty")
+        branch_res = run_git(["rev-parse", "--abbrev-ref", "HEAD"], cwd=record.repo_path, check=False)
+        return current_head, branch_res.stdout.strip() or "HEAD"
+
+    def _append_apply_event(
+        self,
+        fix_record: FixProposalRecord,
+        event: str,
+        *,
+        head: str = "",
+        branch: str = "",
+        files: list[str] | None = None,
+        resulting_diff_hash: str | None = None,
+        reason: str | None = None,
+    ) -> FixApplyEvent:
+        response = fix_record.response
+        entry = FixApplyEvent(
+            event=event,  # type: ignore[arg-type]
+            proposal_id=response.proposal_id,
+            finding_id=response.finding_id,
+            run_id=response.run_id,
+            patch_hash=response.patch_hash,
+            resulting_diff_hash=resulting_diff_hash,
+            head_commit=head,
+            branch_ref=branch,
+            files=list(files or response.target_files)[:8],
+            reason=reason,
+            at=datetime.now(UTC).isoformat(),
+        )
+        fix_record.apply_events = (fix_record.apply_events + [entry])[-self._MAX_APPLY_EVENTS:]
+        return entry
+
+    def apply_fix_proposal(
+        self,
+        run_id: str,
+        finding_id: str,
+        proposal_id: str,
+        *,
+        approval_token: str,
+        confirmed_patch_hash: str,
+    ) -> FixApplyResponse:
+        """Apply one validated FixProposal to the original workspace.
+
+        Requires, in order: a validated proposal with identity-matched
+        evidence, the exact current patch hash as confirmation, an
+        operation="apply" approval token, and a clean rechecked workspace.
+        The applied result must byte-match the validated sandbox diff or
+        every touched file is restored immediately. A validate token never
+        authorizes this operation.
+        """
+        record, fix_record, _patch = self._fix_apply_scope(run_id, finding_id, proposal_id)
+        with fix_record.operation_lock:
+            response = fix_record.response
+            if response.validation_status != "validated":
+                raise ServiceStateError("apply_not_available")
+            if confirmed_patch_hash != response.patch_hash:
+                raise ServiceStateError("apply_confirmation_invalid")
+            verified, _reason = self._verify_fix_validation_token(
+                response=response, token=approval_token, operation="apply"
+            )
+            if not verified:
+                return FixApplyResponse(
+                    proposal_id=proposal_id,
+                    finding_id=finding_id,
+                    run_id=run_id,
+                    operation="apply",
+                    apply_status="not_applied",
+                    approval_verified=False,
+                    patch_hash=response.patch_hash,
+                    errors=[FIX_REJECTION_EXPLANATIONS["validation_token_invalid"]],
+                )
+            head, branch = self._check_fix_apply_workspace(record, fix_record)
+            with self._lock:
+                validation = self._validations.get(proposal_id)
+            if validation is None or not validation.resulting_diff_hash:
+                raise ServiceStateError("apply_evidence_missing")
+            patch = fix_record.patch_proposal
+            if patch is None:  # pragma: no cover - guarded above
+                raise ServiceStateError("apply_not_available")
+            apply_result = apply_patch_to_worktree(
+                patch,
+                record.repo_path,
+                expected_resulting_diff_hash=validation.resulting_diff_hash,
+            )
+            if not apply_result.success:
+                self._append_apply_event(
+                    fix_record, "apply_rejected",
+                    head=head, branch=branch,
+                    files=apply_result.changed_files or list(response.target_files),
+                    reason="apply_failed",
+                )
+                reason = (
+                    "resulting_diff_mismatch"
+                    if apply_result.failure_kind == "diff_mismatch"
+                    else "workspace_dirty"
+                    if apply_result.failure_kind == "workspace_dirty"
+                    else "apply_failed"
+                )
+                raise ServiceStateError(reason)
+            try:
+                patch.transition_to(PatchStatus.APPLIED, reason="applied_to_workspace")
+            except ValueError as err:
+                restore_worktree_files(record.repo_path, apply_result.original_contents)
+                raise ServiceStateError("apply_not_available") from err
+            self._transition_fix_validation(record, fix_record, "applied")
+            fix_record.apply_state = {
+                "status": "applied",
+                "patch_hash": response.patch_hash,
+                "head_commit": apply_result.head_commit,
+                "branch_ref": apply_result.branch_ref,
+                "applied_at": datetime.now(UTC).isoformat(),
+                "original_contents": apply_result.original_contents,
+                "post_apply_file_hashes": apply_result.post_apply_file_hashes,
+                "resulting_diff_hash": apply_result.resulting_diff_hash,
+                "validated_resulting_diff_hash": validation.resulting_diff_hash,
+                "files_changed": list(apply_result.changed_files),
+            }
+            updated = fix_record.response.model_copy(update={"generation_status": "applied"})
+            fix_record.response = updated
+            with self._lock:
+                record.fix_states[finding_id]["response"] = updated
+                record.fix_states[finding_id]["state"] = "applied"
+                record.patch_validation_status = "applied"
+            self._append_apply_event(
+                fix_record, "applied",
+                head=apply_result.head_commit, branch=apply_result.branch_ref,
+                files=list(apply_result.changed_files),
+                resulting_diff_hash=apply_result.resulting_diff_hash,
+            )
+        return FixApplyResponse(
+            proposal_id=proposal_id,
+            finding_id=finding_id,
+            run_id=run_id,
+            operation="apply",
+            apply_status="applied",
+            approval_verified=True,
+            head_commit=apply_result.head_commit,
+            branch_ref=apply_result.branch_ref,
+            patch_hash=response.patch_hash,
+            resulting_diff_hash=apply_result.resulting_diff_hash,
+            validated_resulting_diff_hash=validation.resulting_diff_hash,
+            files_changed=list(apply_result.changed_files),
+            apply_history=list(fix_record.apply_events),
+        )
+
+    def revert_fix_apply(
+        self,
+        run_id: str,
+        finding_id: str,
+        proposal_id: str,
+        *,
+        confirmed_patch_hash: str,
+    ) -> FixApplyResponse:
+        """Revert one applied FixProposal by restoring exact pre-apply bytes.
+
+        The revert only touches the declared target files, only while their
+        current bytes still hash-match the post-apply state recorded at apply
+        time, and never runs any git mutation (no checkout/reset/stash).
+        """
+        record, fix_record = self._resolve_fix_record(run_id, finding_id, proposal_id)
+        with fix_record.operation_lock:
+            response = fix_record.response
+            apply_state = fix_record.apply_state
+            if not apply_state or apply_state.get("status") != "applied":
+                raise ServiceStateError("revert_not_available")
+            if confirmed_patch_hash != response.patch_hash:
+                raise ServiceStateError("revert_confirmation_invalid")
+            target_files = list(apply_state.get("files_changed") or response.target_files)
+            try:
+                current = capture_worktree_file_state(record.repo_path, target_files)
+            except Exception:
+                raise ServiceStateError("revert_state_changed") from None
+            post_hashes = apply_state.get("post_apply_file_hashes") or {}
+            for rel_path, expected_hash in post_hashes.items():
+                data = current.get(rel_path)
+                if data is None or hashlib.sha256(data).hexdigest() != expected_hash:
+                    self._append_apply_event(
+                        fix_record, "revert_failed",
+                        head=str(apply_state.get("head_commit", "")),
+                        branch=str(apply_state.get("branch_ref", "")),
+                        files=target_files,
+                        reason="revert_state_changed",
+                    )
+                    raise ServiceStateError("revert_state_changed")
+            original_contents = apply_state.get("original_contents") or {}
+            if not restore_worktree_files(record.repo_path, original_contents):
+                self._append_apply_event(
+                    fix_record, "revert_failed",
+                    head=str(apply_state.get("head_commit", "")),
+                    branch=str(apply_state.get("branch_ref", "")),
+                    files=target_files,
+                    reason="revert_failed",
+                )
+                raise ServiceStateError("revert_failed")
+            for rel_path, original in original_contents.items():
+                target = record.repo_path / rel_path
+                if original is None:
+                    if target.exists():
+                        self._append_apply_event(
+                            fix_record, "revert_failed",
+                            head=str(apply_state.get("head_commit", "")),
+                            branch=str(apply_state.get("branch_ref", "")),
+                            files=target_files,
+                            reason="revert_failed",
+                        )
+                        raise ServiceStateError("revert_failed")
+                elif target.read_bytes() != original:
+                    self._append_apply_event(
+                        fix_record, "revert_failed",
+                        head=str(apply_state.get("head_commit", "")),
+                        branch=str(apply_state.get("branch_ref", "")),
+                        files=target_files,
+                        reason="revert_failed",
+                    )
+                    raise ServiceStateError("revert_failed")
+            apply_state["status"] = "reverted"
+            apply_state["reverted_at"] = datetime.now(UTC).isoformat()
+            self._transition_fix_validation(record, fix_record, "reverted")
+            with self._lock:
+                record.patch_validation_status = "reverted"
+            self._append_apply_event(
+                fix_record, "reverted",
+                head=str(apply_state.get("head_commit", "")),
+                branch=str(apply_state.get("branch_ref", "")),
+                files=target_files,
+                resulting_diff_hash=None,
+            )
+        return FixApplyResponse(
+            proposal_id=proposal_id,
+            finding_id=finding_id,
+            run_id=run_id,
+            operation="revert",
+            apply_status="reverted",
+            approval_verified=True,
+            head_commit=str(apply_state.get("head_commit", "")),
+            branch_ref=str(apply_state.get("branch_ref", "")),
+            patch_hash=response.patch_hash,
+            files_restored=target_files,
+            apply_history=list(fix_record.apply_events),
+        )
+
+    def get_fix_apply_history(
+        self,
+        run_id: str,
+        finding_id: str,
+        proposal_id: str | None = None,
+    ) -> FixApplyHistoryResponse:
+        """Return the bounded apply history and revert availability."""
+        _record, fix_record = self._resolve_fix_record(run_id, finding_id, proposal_id)
+        apply_state = fix_record.apply_state or {}
+        status = apply_state.get("status", "not_applied")
+        return FixApplyHistoryResponse(
+            proposal_id=fix_record.response.proposal_id,
+            finding_id=finding_id,
+            run_id=run_id,
+            apply_status=status,  # type: ignore[arg-type]
+            revert_available=status == "applied",
+            head_commit_at_apply=str(apply_state.get("head_commit", "")),
+            branch_ref_at_apply=str(apply_state.get("branch_ref", "")),
+            patch_hash=fix_record.response.patch_hash,
+            resulting_diff_hash=apply_state.get("resulting_diff_hash"),
+            files_changed=list(apply_state.get("files_changed") or []),
+            events=list(fix_record.apply_events),
+        )
 
     def reject_fix_proposal(self, run_id: str, finding_id: str, proposal_id: str) -> FixProposalResponse:
         record, _ = self._fix_finding_and_record(run_id, finding_id)

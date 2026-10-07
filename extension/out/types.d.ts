@@ -177,7 +177,7 @@ export interface ValidationResult {
     errors?: string[];
 }
 export type FixProposalLifecycle = 'not_eligible' | 'generating' | 'generation_failed' | 'rejected_by_policy' | 'draft_ready' | 'rejected' | 'regeneration_requested';
-export type FixValidationLifecycle = 'not_requested' | 'approval_required' | 'approved_for_validation' | 'validating' | 'applied_in_isolated_worktree' | 'tests_running' | 'validated' | 'validation_failed' | 'cleanup_failed';
+export type FixValidationLifecycle = 'not_requested' | 'approval_required' | 'approved_for_validation' | 'validating' | 'applied_in_isolated_worktree' | 'tests_running' | 'validated' | 'applied' | 'reverted' | 'validation_failed' | 'cleanup_failed';
 export interface FixProposal {
     proposal_id: string;
     finding_id: string;
@@ -250,6 +250,50 @@ export interface FixValidationResult {
     review_packet?: Record<string, unknown> | null;
     human_approval_manifest?: Record<string, unknown> | null;
     validation_history: string[];
+}
+export type FixApplyStatus = 'not_applied' | 'applied' | 'reverted';
+export interface FixApplyEvent {
+    event: 'applied' | 'reverted' | 'apply_rejected' | 'revert_failed';
+    proposal_id: string;
+    finding_id: string;
+    run_id: string;
+    patch_hash: string;
+    resulting_diff_hash?: string | null;
+    head_commit: string;
+    branch_ref: string;
+    files: string[];
+    reason?: string | null;
+    at: string;
+}
+export interface FixApplyResult {
+    proposal_id: string;
+    finding_id: string;
+    run_id: string;
+    operation: 'apply' | 'revert';
+    apply_status: FixApplyStatus;
+    approval_verified: boolean;
+    head_commit: string;
+    branch_ref: string;
+    patch_hash: string;
+    resulting_diff_hash?: string | null;
+    validated_resulting_diff_hash?: string | null;
+    files_changed: string[];
+    files_restored: string[];
+    apply_history: FixApplyEvent[];
+    errors: string[];
+}
+export interface FixApplyHistory {
+    proposal_id: string;
+    finding_id: string;
+    run_id: string;
+    apply_status: FixApplyStatus;
+    revert_available: boolean;
+    head_commit_at_apply: string;
+    branch_ref_at_apply: string;
+    patch_hash: string;
+    resulting_diff_hash?: string | null;
+    files_changed: string[];
+    events: FixApplyEvent[];
 }
 export interface FixEligibility {
     run_id: string;

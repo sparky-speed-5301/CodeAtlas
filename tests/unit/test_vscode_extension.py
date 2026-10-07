@@ -40,12 +40,19 @@ def test_extension_package_json():
     assert "codeatlas.validateApprovedFix" in commands
     assert "codeatlas.copyFinding" in commands
     assert "codeatlas.dismissFinding" in commands
-    # Phase 11C-B fix proposal commands (preview only; no Apply Fix command may exist)
+    # Phase 11C-B fix proposal commands (preview only)
     assert "codeatlas.generateFix" in commands
     assert "codeatlas.previewFix" in commands
     assert "codeatlas.rejectFix" in commands
     assert "codeatlas.regenerateFix" in commands
-    assert "codeatlas.applyFix" not in commands
+    # Phase 11C-D/E: explicit apply of a validated proposal, revert, history.
+    # There is still no automatic apply: applying is a single dedicated
+    # command with explicit modal confirmation and an apply-scoped token.
+    assert "codeatlas.applyFix" in commands
+    assert "codeatlas.revertAppliedFix" in commands
+    assert "codeatlas.showApplyHistory" in commands
+    assert "codeatlas.autoApplyFix" not in commands
+    assert "codeatlas.applyAllFixes" not in commands
     # Phase 10B QuickPick commands
     assert "codeatlas.findFinding" in commands
     assert "codeatlas.explainCurrentFinding" in commands
@@ -66,6 +73,9 @@ def test_extension_package_json():
     assert titles["codeatlas.previewFix"] == "CodeAtlas: Preview Fix"
     assert titles["codeatlas.rejectFix"] == "CodeAtlas: Reject Fix"
     assert titles["codeatlas.regenerateFix"] == "CodeAtlas: Regenerate Fix"
+    assert titles["codeatlas.applyFix"] == "CodeAtlas: Apply Validated Fix"
+    assert titles["codeatlas.revertAppliedFix"] == "CodeAtlas: Revert Applied Fix"
+    assert titles["codeatlas.showApplyHistory"] == "CodeAtlas: Show Fix Apply History"
     assert titles["codeatlas.validateApprovedFix"] == "CodeAtlas: Validate Approved Fix"
     assert titles["codeatlas.dismissFinding"] == "CodeAtlas: Dismiss Finding"
     assert titles["codeatlas.startLocalService"] == "CodeAtlas: Start Local Service"

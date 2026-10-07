@@ -7,7 +7,7 @@ import hmac
 import json
 import re
 from collections.abc import Sequence
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from typing import Any
 
 from .models import PatchProposal, PatchRedactionAudit, PatchStatus
@@ -142,14 +142,17 @@ def generate_validation_approval_token(
     target_files: Sequence[str],
     operation: str = "validate",
 ) -> str:
-    """Generate the complete approval scope for FixProposal sandbox validation.
+    """Generate the complete approval scope for a FixProposal operation.
 
-    This is a pure existing-mechanism helper for an operator or test harness.
-    The service never mints this value as part of a provider response or HTTP
-    response.
+    Only two operations exist: ``validate`` (run the proposal in an isolated
+    sandbox worktree) and ``apply`` (Phase 11C-D, write the validated patch to
+    the original workspace).  The operation is part of the hashed scope, so a
+    validate token can never authorize an apply and vice versa.  This is a
+    pure existing-mechanism helper for an operator or test harness; the service
+    never mints this value as part of a provider response or HTTP response.
     """
-    if operation != "validate":
-        raise ValueError("FixProposal approval is only valid for operation 'validate'")
+    if operation not in {"validate", "apply"}:
+        raise ValueError("FixProposal approval is only valid for operation 'validate' or 'apply'")
     raw = _validation_scope_payload(
         proposal_id=proposal_id,
         finding_id=finding_id,
@@ -266,7 +269,7 @@ def create_patch_proposal(
         proposal_id = f"prop-{hashlib.sha256(seed.encode('utf-8')).hexdigest()[:12]}"
 
     if not created_at:
-        created_at = datetime.now(timezone.utc).isoformat()
+        created_at = datetime.now(UTC).isoformat()
 
     redaction = audit_patch_redaction(norm_diff)
 
@@ -293,12 +296,12 @@ def create_patch_proposal(
 
 
 __all__ = [
-    "normalize_diff",
-    "compute_patch_hash",
     "audit_patch_redaction",
+    "compute_patch_hash",
+    "create_patch_proposal",
     "generate_approval_token",
     "generate_validation_approval_token",
-    "verify_validation_approval_token",
+    "normalize_diff",
     "verify_approval_token",
-    "create_patch_proposal",
+    "verify_validation_approval_token",
 ]

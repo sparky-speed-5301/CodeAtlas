@@ -2,7 +2,13 @@
 
 from __future__ import annotations
 
-from .apply import apply_patch_in_isolated_sandbox
+from .apply import (
+    WorktreeApplyResult,
+    apply_patch_in_isolated_sandbox,
+    apply_patch_to_worktree,
+    capture_worktree_file_state,
+    restore_worktree_files,
+)
 from .mock import MockFixer
 from .models import (
     VALID_STATUS_TRANSITIONS,
@@ -36,31 +42,31 @@ from .sandbox import PatchSandbox, temporary_patch_sandbox
 from .validator import validate_patch_proposal
 
 __all__ = [
-    "PatchStatus",
+    "DEFAULT_PATCH_CONFIG",
     "VALID_STATUS_TRANSITIONS",
-    "PatchHunk",
+    "MockFixer",
     "PatchFile",
-    "PatchRedactionAudit",
-    "PatchValidationResult",
+    "PatchHunk",
+    "PatchPolicyDecision",
     "PatchProposal",
-    "normalize_diff",
-    "compute_patch_hash",
+    "PatchRedactionAudit",
+    "PatchSandbox",
+    "PatchStatus",
+    "PatchValidationResult",
+    "apply_patch_in_isolated_sandbox",
     "audit_patch_redaction",
+    "compute_patch_hash",
+    "create_patch_proposal",
+    "evaluate_patch_policy",
     "generate_approval_token",
     "generate_validation_approval_token",
+    "is_dependency_manifest_path",
+    "is_lockfile_path",
+    "is_workflow_path",
+    "normalize_diff",
+    "parse_unified_diff",
+    "temporary_patch_sandbox",
+    "validate_patch_proposal",
     "verify_approval_token",
     "verify_validation_approval_token",
-    "create_patch_proposal",
-    "parse_unified_diff",
-    "DEFAULT_PATCH_CONFIG",
-    "is_workflow_path",
-    "is_lockfile_path",
-    "is_dependency_manifest_path",
-    "PatchPolicyDecision",
-    "evaluate_patch_policy",
-    "PatchSandbox",
-    "temporary_patch_sandbox",
-    "apply_patch_in_isolated_sandbox",
-    "validate_patch_proposal",
-    "MockFixer",
 ]
