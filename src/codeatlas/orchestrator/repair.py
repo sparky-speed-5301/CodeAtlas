@@ -29,8 +29,9 @@ from codeatlas.review.provider import RepairProvider, ReviewerProvider, Reviewer
 from codeatlas.review.quality import QUALITY_VERSION, assess_finding, has_deterministic_support
 from codeatlas.review.packet import redact_text
 from .manifest import RunManifest
+from .context import RepairContextBuilder
 from .repair_models import (
-    REPAIR_POLICY_VERSION, RepairContext, RepairLimits, RepairRepositoryState, RepairResult, RepairSymbol,
+    REPAIR_POLICY_VERSION, RepairContext, RepairLimits, RepairRepositoryState, RepairResult,
     repair_payload_is_safe,
 )
 
@@ -293,41 +294,23 @@ class RepairOrchestrator:
         parsed_source = adapter.parse_modified_file(file, source)
         if parsed_source.errors:
             return reject("source_parse_failed")
-        symbols = [s for s in parsed_source.symbols if s.start_line <= finding.start_line <= finding.end_line <= s.end_line]
-        symbol = min(symbols, key=lambda s: s.end_line - s.start_line) if symbols else None
-        start = symbol.start_line if symbol else max(1, finding.start_line - 10)
-        end = symbol.end_line if symbol else min(len(lines), finding.end_line + 10)
-        code, _ = redact_text("\n".join(lines[start - 1:end]))
-        if end - start + 1 > limits.max_context_lines or len(code.encode("utf-8")) > limits.max_context_bytes:
-            return reject("required_context_exceeds_bounds")
-        available_tests = packet.relevant_tests[:64]
-        related_tests = adapter.discover_targeted_tests(file, available_tests, finding.tests_consulted)
-        # Project named imports for this file, never arbitrary packet config,
-        # provider provenance, transcripts, observed logs, or unrelated files.
-        imports = tuple(str(i.get("module", "")) for i in packet.relevant_imports[:20]
-                        if i.get("file") == file and isinstance(i.get("module"), str) and i["module"])
-        optional_context_truncated = len(imports) > 10
+        context_result = RepairContextBuilder(limits).build_result(
+            finding, packet=packet, manifest=manifest, state=state, snapshot=snapshot,
+        )
+        if context_result.context is None:
+            return reject(context_result.limitations[0] if context_result.limitations else "unsafe_or_unbounded_context")
+        context = context_result.context
+        context_limitations = list(context_result.limitations)
+        optional_context_truncated = context.context_truncated
         try:
-            context = RepairContext(
-                finding_id=finding.id, run_id=state.run_id,
-                repository_identity=_repository_identity(state.repository),
-                base_commit=state.base_commit, head_commit=state.head_commit, language=adapter.language,
-                changed_file=file, changed_line_range=(finding.start_line, finding.end_line),
-                containing_symbol=RepairSymbol(name=symbol.name, kind=symbol.kind, start_line=start, end_line=end) if symbol else None,
-                code_line_range=(start, end), code_context=code, category=finding.category,
-                claim=finding.claim, impact=finding.impact, deterministic_evidence=tuple(finding.evidence),
-                quality_decision=finding.quality_decision, confidence=finding.confidence,
-                evidence_strength=finding.evidence_strength, repository_context=imports[:10],
-                related_tests=related_tests, limits=limits, target_file_limits=limits.max_target_files,
-                maximum_patch_line_limits=limits.max_patch_lines, prohibited_paths=limits.prohibited_paths,
-                context_truncated=optional_context_truncated,
-            )
+            RepairContext.model_validate_json(context.model_dump_json())
         except ValidationError:
             return reject("unsafe_or_unbounded_context")
         emit("repair_context_built", run_id=state.run_id, finding_id=finding.id, language=adapter.language, status="ok")
         provider_packet = _provider_packet(context)
         try:
             proposer = getattr(self.provider, "propose", None) or getattr(self.provider, "repair", None)
+            result: ReviewerResult | None = None
             if callable(proposer):
                 output = proposer(context.model_copy(deep=True))
                 if isinstance(output, ReviewerResult):
@@ -349,11 +332,13 @@ class RepairOrchestrator:
                     suggestions = output.get("patch_suggestions", [output])
                     if not isinstance(suggestions, list) or len(suggestions) != 1:
                         return reject("exactly_one_proposal_required")
-                    result = ReviewerResult(
-                        **({"provider_name": provider_metadata["name"], **output} if "patch_suggestions" in output else {
-                            "provider_name": provider_metadata["name"], "patch_suggestions": suggestions,
-                        }),
-                    )
+                    if "patch_suggestions" in output:
+                        result = ReviewerResult.model_validate({"provider_name": provider_metadata["name"], **output})
+                    else:
+                        result = ReviewerResult(
+                            provider_name=provider_metadata["name"],
+                            patch_suggestions=suggestions,
+                        )
             else:
                 output = self.provider.review(provider_packet)  # type: ignore[union-attr]
                 result = output if isinstance(output, ReviewerResult) else None
@@ -380,8 +365,8 @@ class RepairOrchestrator:
                 or not suggestion.rationale.strip() or not suggestion.expected_behavior.strip()):
             return reject("provider_scope_or_explanation_invalid")
         syntax_valid: bool | None = None
-        syntax_limits = list(parsed_source.limitations)
-        if optional_context_truncated:
+        syntax_limits = list(parsed_source.limitations) + context_limitations
+        if optional_context_truncated and not context_limitations:
             syntax_limits.append("Optional repository imports were truncated to the repair context limit.")
 
         normalized_diff = normalize_diff(suggestion.unified_diff)
@@ -437,7 +422,9 @@ class RepairOrchestrator:
         proposal.provenance.update({"origin": "repair_orchestrator", "repository_identity": context.repository_identity,
                                     "review_base_commit": state.base_commit, "review_head_commit": state.head_commit,
                                     "repair_policy_version": REPAIR_POLICY_VERSION, "quality_decision": context.quality_decision,
-                                    "language": context.language, "context_truncated": context.context_truncated})
+                                    "language": context.language, "context_truncated": context.context_truncated,
+                                    "context_hash": context.context_hash,
+                                    "truncated_sections": list(context.truncated_sections)})
         proposal.limitations = list(dict.fromkeys(proposal.limitations + _LIMITATIONS + syntax_limits))[:20]
         summary = materialized.validation_summaries[0] if materialized.validation_summaries else {}
         if (summary.get("valid") is not True or summary.get("execution_allowed") is not False
@@ -454,7 +441,7 @@ class RepairOrchestrator:
             cleanup_status="not_applicable",
         )
         tools = adapter.report_tool_availability(snapshot.path)
-        planned = adapter.allowlisted_check_commands(file, tools) + adapter.check_commands(related_tests, tools)
+        planned = adapter.allowlisted_check_commands(file, tools) + adapter.check_commands(context.related_tests, tools)
         emit("repair_proposal_created", run_id=state.run_id, finding_id=finding.id,
              proposal_id=proposal.proposal_id, status=proposal.status, approval_required=True,
              automatic_application_blocked=True, context_truncated=context.context_truncated)

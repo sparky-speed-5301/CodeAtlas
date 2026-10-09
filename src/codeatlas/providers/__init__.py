@@ -13,13 +13,8 @@ from .errors import (
     ProviderResponseSizeError,
     ProviderTimeoutError,
     ProviderTransportError,
-)
-from .live import LiveReviewer
-from .prompt import (
-    OUTPUT_SCHEMA_DESCRIPTION,
-    SYSTEM_INSTRUCTION,
-    build_repository_context,
-    build_review_prompt,
+    REPAIR_FAILURE_CODES,
+    RepairProviderFailure,
 )
 from .transport import (
     FakeTransport,
@@ -27,6 +22,34 @@ from .transport import (
     ProviderTransport,
     TransportResponse,
 )
+from .prompt import (
+    OUTPUT_SCHEMA_DESCRIPTION,
+    SYSTEM_INSTRUCTION,
+    build_repository_context,
+    build_review_prompt,
+)
+from .live import LiveReviewer
+from .repair import DeterministicRepairProvider, LiveRepairProvider, RealRepairProvider, StructuredRepairProvider
+from .repair_config import (
+    REPAIR_CONFIG_KEYS,
+    SUPPORTED_REPAIR_PROVIDERS,
+    RepairMode,
+    RepairProviderConfig,
+    load_repair_provider_config,
+)
+from .repair_models import (
+    RepairCandidate,
+    RepairFinding,
+    RepairLanguage,
+    RepairLanguageCapabilities,
+    RepairOutput,
+    RepairPolicy,
+    RepairRequest,
+    RepairResponse,
+    repair_output_schema,
+    safe_test_paths,
+)
+from .repair_prompt import REPAIR_SYSTEM_INSTRUCTION, build_repair_prompt
 
 # Backwards compatibility for legacy phase 2 stub
 from collections.abc import Sequence
@@ -69,6 +92,8 @@ __all__ = [
     "ProviderResponseSizeError",
     "ProviderBudgetExceededError",
     "ProviderOutputParseError",
+    "RepairProviderFailure",
+    "REPAIR_FAILURE_CODES",
     "ProviderTransport",
     "TransportResponse",
     "HttpTransport",
@@ -78,6 +103,27 @@ __all__ = [
     "build_repository_context",
     "build_review_prompt",
     "LiveReviewer",
+    "RepairMode",
+    "RepairProviderConfig",
+    "REPAIR_CONFIG_KEYS",
+    "SUPPORTED_REPAIR_PROVIDERS",
+    "load_repair_provider_config",
+    "RepairCandidate",
+    "RepairFinding",
+    "RepairLanguage",
+    "RepairLanguageCapabilities",
+    "RepairOutput",
+    "RepairPolicy",
+    "RepairRequest",
+    "RepairResponse",
+    "repair_output_schema",
+    "safe_test_paths",
+    "REPAIR_SYSTEM_INSTRUCTION",
+    "build_repair_prompt",
+    "StructuredRepairProvider",
+    "LiveRepairProvider",
+    "RealRepairProvider",
+    "DeterministicRepairProvider",
     "Provider",
     "FakeProvider",
 ]

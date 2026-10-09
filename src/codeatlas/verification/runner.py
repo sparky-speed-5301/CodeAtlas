@@ -139,6 +139,8 @@ class BaseTestRunner:
             sandbox_id=sandbox_id,
             extra_tokens=self.extra_tokens,
             test_targets=test_plan.test_targets,
+            runner=self.name,
+            language=next(iter(self.supported_languages), test_plan.language),
         )
 
 
@@ -238,6 +240,27 @@ class JestTestRunner(BaseTestRunner):
         return plan
 
 
+class CompiledTestRunner(BaseTestRunner):
+    """Runner facade for bounded offline Go, Java, and Rust command plans."""
+
+    __test__ = False
+
+    def __init__(self, language: str, *, evidence: EvidenceLogger | None = None,
+                 extra_tokens: Sequence[str] = ()):
+        self.name = {"go": "go", "java": "maven", "rust": "cargo"}.get(language, language)
+        self.supported_languages = {language}
+        super().__init__(evidence=evidence, extra_tokens=extra_tokens)
+
+    def discover(self, sandbox: Any, changed_files: Sequence[str], index: Any = None) -> TestPlan:
+        plan, blocked = discover_test_plan(
+            self._sandbox_path(sandbox), changed_files, index=index,
+            runner_preference=self.name,
+        )
+        if blocked and not plan.limitations:
+            plan.limitations.append(blocked)
+        return plan
+
+
 def get_test_runner(
     language: str,
     preference: str | None = None,
@@ -258,6 +281,9 @@ def get_test_runner(
             return JestTestRunner(evidence=evidence, extra_tokens=extra_tokens)
         return VitestTestRunner(evidence=evidence, extra_tokens=extra_tokens)
 
+    if lang in {"go", "java", "rust"}:
+        return CompiledTestRunner(lang, evidence=evidence, extra_tokens=extra_tokens)
+
     return None
 
 
@@ -268,5 +294,6 @@ __all__ = [
     "UnittestTestRunner",
     "VitestTestRunner",
     "JestTestRunner",
+    "CompiledTestRunner",
     "get_test_runner",
 ]

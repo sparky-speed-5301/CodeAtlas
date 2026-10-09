@@ -1,7 +1,8 @@
-"""Bounded, data-only Phase 11C-A contracts. No provider transcripts or tokens."""
+"""Bounded, data-only repair contracts. No provider transcripts or tokens."""
 
 from __future__ import annotations
 
+import hashlib
 import json
 from typing import Annotated, Literal
 
@@ -13,7 +14,8 @@ from codeatlas.patching.models import PatchProposal, PatchValidationResult
 from codeatlas.review.packet import SECRET_RAW_MARKERS, audit_packet_redaction
 from codeatlas.verification.redaction import redact_test_output
 
-REPAIR_POLICY_VERSION = "11C-A.1"
+REPAIR_POLICY_VERSION: Literal["11C-A.1"] = "11C-A.1"
+RepairLanguage = Literal["python", "javascript", "typescript", "go", "java", "rust"]
 MAX_REPAIR_CONTEXT_BYTES = 24_000
 BoundedText = Annotated[str, Field(min_length=1, max_length=512)]
 Identifier = Annotated[str, Field(min_length=1, max_length=128)]
@@ -48,6 +50,12 @@ class RepairLimits(BaseModel):
     max_source_bytes: int = Field(default=64_000, ge=1, le=128_000)
     max_context_lines: int = Field(default=160, ge=1, le=160)
     max_context_bytes: int = Field(default=16_000, ge=1, le=16_000)
+    max_context_files: int = Field(default=4, ge=1, le=8)
+    max_lines_per_file: int = Field(default=160, ge=1, le=200)
+    max_symbols: int = Field(default=20, ge=1, le=64)
+    max_callers_callees: int = Field(default=8, ge=1, le=16)
+    max_tests: int = Field(default=8, ge=1, le=32)
+    max_diagnostic_bytes: int = Field(default=4_000, ge=256, le=16_000)
     prohibited_paths: tuple[BoundedText, ...] = Field(default=(
         ".git/**", "**/node_modules/**", "**/vendor/**", "**/dist/**", "**/build/**",
         "**/*.generated.*", "**/*.min.js", "**/*.d.ts", "**/*_pb2.py",
@@ -85,7 +93,7 @@ class RepairContext(BaseModel):
     repository_identity: Identifier
     base_commit: Commit
     head_commit: Commit
-    language: Literal["python", "javascript", "typescript"]
+    language: RepairLanguage
     changed_file: BoundedText
     changed_line_range: tuple[int, int]
     containing_symbol: RepairSymbol | None
@@ -100,6 +108,12 @@ class RepairContext(BaseModel):
     evidence_strength: EvidenceStrength
     repository_context: tuple[BoundedText, ...] = Field(default=(), max_length=10)
     related_tests: tuple[BoundedText, ...] = Field(default=(), max_length=8)
+    relevant_symbol_definitions: tuple[BoundedText, ...] = Field(default=(), max_length=20)
+    bounded_callers: tuple[BoundedText, ...] = Field(default=(), max_length=8)
+    bounded_callees: tuple[BoundedText, ...] = Field(default=(), max_length=8)
+    diagnostic_evidence: tuple[BoundedText, ...] = Field(default=(), max_length=10)
+    provenance_labels: tuple[BoundedText, ...] = Field(default=(), max_length=20)
+    truncated_sections: tuple[BoundedText, ...] = Field(default=(), max_length=20)
     limits: RepairLimits = Field(default_factory=RepairLimits)
     target_file_limits: Literal[1] = 1
     maximum_patch_line_limits: int = Field(default=60, ge=1, le=150)
@@ -108,6 +122,7 @@ class RepairContext(BaseModel):
     )
     policy_version: Literal["11C-A.1"] = REPAIR_POLICY_VERSION
     context_truncated: bool = False
+    context_hash: Annotated[str, Field(pattern=r"^[a-f0-9]{64}$")] = ""
 
     @model_validator(mode="after")
     def check_bounds_and_redaction(self) -> RepairContext:
@@ -119,6 +134,14 @@ class RepairContext(BaseModel):
                 or end - start + 1 > self.limits.max_context_lines
                 or len(self.code_context.encode("utf-8")) > self.limits.max_context_bytes):
             raise ValueError("Repair code exceeds line or byte bounds")
+        if len(self.relevant_symbol_definitions) > self.limits.max_symbols:
+            raise ValueError("Repair symbol context exceeds bounds")
+        if len(self.bounded_callers) + len(self.bounded_callees) > self.limits.max_callers_callees:
+            raise ValueError("Repair caller/callee context exceeds bounds")
+        if len(self.related_tests) > self.limits.max_tests:
+            raise ValueError("Repair test context exceeds bounds")
+        if sum(len(item.encode("utf-8")) for item in self.diagnostic_evidence) > self.limits.max_diagnostic_bytes:
+            raise ValueError("Repair diagnostics exceed byte bounds")
         if not (start <= self.changed_line_range[0] <= self.changed_line_range[1] <= end):
             raise ValueError("Repair code must contain the complete finding location")
         if (self.target_file_limits != self.limits.max_target_files
@@ -135,7 +158,16 @@ class RepairContext(BaseModel):
             raise ValueError("Repair context exceeds byte budget")
         if not repair_payload_is_safe(self.model_dump(mode="json")):
             raise ValueError("Repair context contains unsafe secret material")
+        if self.context_hash and self.context_hash != compute_context_hash(self):
+            raise ValueError("Repair context hash does not match bounded content")
         return self
+
+
+def compute_context_hash(context: RepairContext) -> str:
+    """Hash only the canonical bounded context, excluding the hash field itself."""
+    payload = context.model_dump(mode="json", exclude={"context_hash"})
+    canonical = json.dumps(payload, ensure_ascii=False, sort_keys=True, separators=(",", ":"))
+    return hashlib.sha256(canonical.encode("utf-8")).hexdigest()
 
 
 class RepairResult(BaseModel):

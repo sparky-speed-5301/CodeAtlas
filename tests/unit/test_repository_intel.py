@@ -516,9 +516,10 @@ def test_original_repository_unchanged(tmp_path: Path):
 # 25. No repository-code-execution test
 def test_no_repository_code_execution(tmp_path: Path):
     sentinel = tmp_path / "SENTINEL.txt"
+    sentinel_path = str(sentinel).replace("\\", "/")
     evil_code = f"""
 import os
-with open('{str(sentinel).replace('\\', '/')}', 'w') as f:
+with open('{sentinel_path}', 'w') as f:
     f.write('EXECUTED')
 """
     (tmp_path / "malicious.py").write_text(evil_code, encoding="utf-8")

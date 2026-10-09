@@ -41,6 +41,8 @@ _TEST_SEGMENTS = {"test", "tests", "__tests__", "__test__", "spec", "specs"}
 _TEST_SUFFIXES = (
     "_test.py", "_spec.py", "test.py",
     ".test.ts", ".test.js", ".test.tsx", ".test.jsx",
+    "_test.go", "_test.rs", "test.java", "tests.java",
+    "Test.java", "Tests.java",
     ".spec.ts", ".spec.js", ".spec.tsx", ".spec.jsx",
 )
 
@@ -50,6 +52,7 @@ _CONFIG_FILENAMES = {
     "package.json", "tsconfig.json", "jsconfig.json",
     "pytest.ini", "tox.ini", ".editorconfig", ".gitignore",
     "makefile", "dockerfile", "cargo.toml", "go.mod", "go.sum",
+    "pom.xml", "build.gradle", "build.gradle.kts", "settings.gradle", "gradle.properties",
 }
 
 _CONFIG_PATTERNS = [

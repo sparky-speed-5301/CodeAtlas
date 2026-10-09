@@ -91,7 +91,7 @@ class ObservedTestEvidence(BaseModel):
     proposal_id: str = Field(min_length=1, max_length=128)
     sandbox_id: str = Field(min_length=1, max_length=128)
     runner: Literal["pytest", "unittest", "vitest", "jest"]
-    language: Literal["python", "typescript", "javascript"]
+    language: Literal["python", "typescript", "javascript", "go", "java", "rust"]
     command: list[BoundedText] = Field(min_length=1, max_length=64)
     targets: list[BoundedText] = Field(max_length=64)
     status: Literal["passed", "failed", "timed_out", "error"]

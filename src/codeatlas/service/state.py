@@ -19,6 +19,7 @@ from codeatlas.git.refs import resolve_ref
 from codeatlas.git.repository import validate_repository
 from codeatlas.git.snapshot import temporary_snapshot
 from codeatlas.orchestrator.repair import RepairOrchestrator, record_repair_result
+from codeatlas.orchestrator.repair_loop import RepairVerificationLoop
 from codeatlas.orchestrator.repair_models import (
     REPAIR_POLICY_VERSION,
     RepairLimits,
@@ -42,6 +43,7 @@ from codeatlas.patching.proposal import (
     verify_validation_approval_token,
 )
 from codeatlas.patching.validator import validate_patch_proposal
+from codeatlas.providers.repair_config import RepairProviderConfig
 from codeatlas.review.mock import MockRepairReviewer
 from codeatlas.review.packet import ReviewPacket
 from codeatlas.service.models import (
@@ -62,6 +64,7 @@ from codeatlas.service.models import (
     LifecycleState,
     PatchProposalResponse,
     ReviewCreateRequest,
+    ReviewsListResponse,
     ReviewStatusResponse,
     ValidateProposalResponse,
 )
@@ -301,14 +304,26 @@ class ReviewStateManager:
         self._proposals: dict[str, tuple[PatchProposal, Path]] = {}
         self._validations: dict[str, PatchValidationResult] = {}
         self._fix_proposals: dict[str, FixProposalRecord] = {}
-        # Offline repair provider at the existing provider boundary; network-capable
-        # providers are rejected by the orchestrator before invocation.
+        # The legacy reviewer boundary remains deterministic by default. A
+        # structured provider implementing ``generate`` is routed through the
+        # bounded repair verification loop instead of the legacy adapter.
         self.repair_provider = repair_provider or MockRepairReviewer()
         self.repair_limits = repair_limits or RepairLimits()
 
     def get_review(self, run_id: str) -> ReviewRunRecord | None:
         with self._lock:
             return self._reviews.get(run_id)
+
+    def list_reviews(self, *, limit: int = 50, offset: int = 0) -> ReviewsListResponse:
+        """List this service session's runs, newest first, with bounded pagination."""
+        if not 1 <= limit <= 200 or offset < 0:
+            raise ValueError("limit must be 1..200 and offset must be non-negative")
+        with self._lock:
+            ids = list(reversed(self._reviews))
+        return ReviewsListResponse(
+            total=len(ids), limit=limit, offset=offset,
+            reviews=[self.get_review_status(run_id) for run_id in ids[offset:offset + limit]],
+        )
 
     def health_summary(self) -> dict[str, Any]:
         """Return only bounded service metadata, never repository or provider content."""
@@ -1023,6 +1038,14 @@ class ReviewStateManager:
     ) -> FixProposalResponse:
         proposal = result.proposal
         context = result.context
+        proposed_confidence = context.confidence
+        try:
+            proposed_confidence = min(
+                context.confidence,
+                max(0.0, min(1.0, float(proposal.provenance.get("final_confidence", context.confidence)))),
+            )
+        except (TypeError, ValueError):
+            proposed_confidence = context.confidence
         return FixProposalResponse(
             proposal_id=proposal.proposal_id,
             finding_id=finding_id,
@@ -1037,11 +1060,12 @@ class ReviewStateManager:
             explanation=proposal.expected_behavior[:2000],
             expected_behavior_change=proposal.expected_behavior[:2000],
             assumptions=(
-                ["Optional repository imports were truncated to the repair context limit."]
-                if context.context_truncated else []
-            ),
+                [str(item)[:512] for item in proposal.provenance.get("assumptions", [])[:8]]
+                + (["Optional repository imports were truncated to the repair context limit."]
+                   if context.context_truncated else [])
+            )[:8],
             risk_level=proposal.risk_level,
-            confidence=context.confidence,
+            confidence=proposed_confidence,
             evidence_strength=context.evidence_strength,
             evidence_sources=list(context.deterministic_evidence)[:10],
             quality_decision=context.quality_decision,
@@ -1107,14 +1131,43 @@ class ReviewStateManager:
         try:
             finding_model = Finding.model_validate(finding)
             with temporary_snapshot(record.repo_path, manifest.head_commit) as snapshot:
-                result = RepairOrchestrator(self.repair_provider, limits=self.repair_limits).plan(
-                    finding_model,
-                    packet=packet,
-                    manifest=manifest,
-                    state=state,
-                    snapshot=snapshot,
-                    fix_eligible=True,
-                )
+                if callable(getattr(self.repair_provider, "generate", None)):
+                    provider_config = getattr(self.repair_provider, "config", None)
+                    loop_result = RepairVerificationLoop(
+                        self.repair_provider, limits=self.repair_limits,  # type: ignore[arg-type]
+                        config=provider_config if isinstance(provider_config, RepairProviderConfig) else None,
+                    ).run(
+                        finding_model,
+                        packet=packet,
+                        manifest=manifest,
+                        state=state,
+                        snapshot=snapshot,
+                        fix_eligible=True,
+                    )
+                    if loop_result.status != "accepted":
+                        response = self._non_draft_fix_response(run_id, finding_id, loop_result.reason or "provider_failed")
+                        self._store_fix_state(
+                            record, finding_id, response.generation_status, None, response,
+                            loop_result.reason or "provider_failed",
+                        )
+                        return response
+                    result = loop_result.proposal_result
+                    if result is None:
+                        response = self._non_draft_fix_response(run_id, finding_id, loop_result.reason or "provider_failed")
+                        self._store_fix_state(
+                            record, finding_id, response.generation_status, None, response,
+                            loop_result.reason or "provider_failed",
+                        )
+                        return response
+                else:
+                    result = RepairOrchestrator(self.repair_provider, limits=self.repair_limits).plan(
+                        finding_model,
+                        packet=packet,
+                        manifest=manifest,
+                        state=state,
+                        snapshot=snapshot,
+                        fix_eligible=True,
+                    )
         except ServiceStateError:
             raise
         except Exception:

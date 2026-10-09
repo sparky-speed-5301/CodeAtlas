@@ -33,6 +33,42 @@ class HealthResponse(BaseModel):
     pid: int
     active_reviews: int = 0
     provider: Literal["mock", "live", "deterministic", "mixed"] = "deterministic"
+    api_version: Literal["1"] = "1"
+
+
+class ErrorResponse(BaseModel):
+    error: str
+    message: str
+
+
+CapabilityStatus = Literal[
+    "available", "unavailable", "unsupported", "not_run", "passed", "failed", "blocked",
+]
+
+
+class LanguageCapabilityResponse(BaseModel):
+    language: str
+    language_version: str | None = None
+    parser: CapabilityStatus
+    syntax_validation: CapabilityStatus
+    formatter: CapabilityStatus
+    linter: CapabilityStatus
+    type_checker: CapabilityStatus
+    test_runner: CapabilityStatus
+    protected_generated_files: CapabilityStatus = "available"
+    limitations: list[str] = Field(default_factory=list)
+
+
+class CapabilitiesResponse(BaseModel):
+    api_version: Literal["1"] = "1"
+    api_prefix: Literal["/api/v1"] = "/api/v1"
+    openapi_url: str = "/api/v1/openapi.json"
+    state_lifetime: Literal["process"] = "process"
+    capabilities: list[str] = Field(default_factory=lambda: [
+        "reviews", "findings", "feedback", "fix_proposals", "isolated_validation",
+        "explicit_apply", "safe_revert", "apply_history",
+    ])
+    language_capabilities: list[LanguageCapabilityResponse] = Field(default_factory=list)
 
 
 class ReviewCreateRequest(BaseModel):
@@ -101,6 +137,19 @@ class FindingsListResponse(BaseModel):
     total: int
     filtered_total: int
     findings: list[FindingSummary] = Field(default_factory=list)
+
+
+class ReviewsListResponse(BaseModel):
+    total: int
+    limit: int
+    offset: int
+    reviews: list[ReviewStatusResponse]
+
+
+class DismissResponse(BaseModel):
+    run_id: str
+    finding_id: str
+    dismissed: bool
 
 
 class FindingContext(BaseModel):

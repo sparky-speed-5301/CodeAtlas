@@ -10,7 +10,7 @@
     "proposal_id": {"type": "string", "minLength": 1, "maxLength": 128},
     "sandbox_id": {"type": "string", "minLength": 1, "maxLength": 128},
     "runner": {"enum": ["pytest", "unittest", "vitest", "jest"]},
-    "language": {"enum": ["python", "typescript", "javascript"]},
+    "language": {"enum": ["python", "typescript", "javascript", "go", "java", "rust"]},
     "command": {"type": "array", "minItems": 1, "maxItems": 64, "items": {"type": "string", "maxLength": 512}},
     "targets": {"type": "array", "maxItems": 64, "items": {"type": "string", "maxLength": 512}},
     "status": {"enum": ["passed", "failed", "timed_out", "error"]},

@@ -13,6 +13,7 @@ from .models import (
 from .redaction import audit_and_redact_results, redact_test_output
 from .runner import (
     BaseTestRunner,
+    CompiledTestRunner,
     JestTestRunner,
     PytestTestRunner,
     TestRunner,
@@ -35,6 +36,7 @@ __all__ = [
     "TestResult",
     "TestRunner",
     "BaseTestRunner",
+    "CompiledTestRunner",
     "PytestTestRunner",
     "UnittestTestRunner",
     "VitestTestRunner",

@@ -15,7 +15,6 @@ from codeatlas.repository.imports import (
 from codeatlas.repository.models import (
     ImportReference,
     IndexDiagnostic,
-    RepositoryFile,
     RepositoryIndex,
     Symbol,
     SymbolReference,
@@ -23,6 +22,7 @@ from codeatlas.repository.models import (
 from codeatlas.repository.references import extract_references_for_file
 from codeatlas.repository.scanner import scan_repository
 from codeatlas.repository.symbols import (
+    extract_compiled_symbols,
     extract_python_symbols,
     extract_ts_js_symbols,
 )
@@ -102,6 +102,12 @@ def build_repository_index(
             all_diagnostics.extend(sym_diags)
             has_errors = any(d.level == "error" for d in (imp_diags + sym_diags))
             repo_file.parse_status = "failed" if has_errors else "parsed"
+
+        elif repo_file.language in {"go", "java", "rust"}:
+            file_symbols, sym_diags = extract_compiled_symbols(rel_path, source, repo_file.language)
+            all_symbols.extend(file_symbols)
+            all_diagnostics.extend(sym_diags)
+            repo_file.parse_status = "parsed" if not any(d.level == "error" for d in sym_diags) else "failed"
 
     # Phase 2: Statically resolve imports
     available_files = set(inventory.keys())

@@ -317,7 +317,7 @@ def duplicate_group_id(findings: Sequence[Finding]) -> str:
     """Return a stable ID for a deterministic duplicate group."""
     identity = "|".join(
         sorted(
-            f"{f.file.replace('\\', '/')}:" f"{f.start_line}-{f.end_line}:" f"{normalize_category(f.category)}:{normalize_claim(f.claim)}"
+            f.file.replace("\\", "/") + f":{f.start_line}-{f.end_line}:{normalize_category(f.category)}:{normalize_claim(f.claim)}"
             for f in findings
         )
     )

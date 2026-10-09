@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import shutil
+import subprocess
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Literal, Protocol, Sequence
@@ -18,10 +19,38 @@ from codeatlas.verification.discovery import _is_pytest_available
 from codeatlas.verification.runner_selection import find_js_runner
 
 
+CapabilityStatus = Literal[
+    "available",
+    "unavailable",
+    "unsupported",
+    "not_run",
+    "passed",
+    "failed",
+    "blocked",
+]
+
+
+@dataclass(frozen=True)
+class LanguageCapabilityReport:
+    """Typed, non-executing capability information for one language adapter."""
+
+    language: str
+    language_version: str | None
+    parser: CapabilityStatus
+    syntax_validation: CapabilityStatus
+    formatter: CapabilityStatus
+    linter: CapabilityStatus
+    type_checker: CapabilityStatus
+    test_runner: CapabilityStatus
+    protected_generated_files: CapabilityStatus = "available"
+    limitations: tuple[str, ...] = ()
+
+
 @dataclass(frozen=True)
 class LanguageParseResult:
     symbols: tuple[Symbol, ...] = ()
     syntax_valid: bool | None = None
+    syntax_status: CapabilityStatus = "not_run"
     errors: tuple[str, ...] = ()
     limitations: tuple[str, ...] = ()
 
@@ -32,6 +61,8 @@ class LanguageAdapter(Protocol):
     language: str
 
     def detect_language(self, path: str) -> bool: ...
+    def language_version(self, root: Path | None = None) -> str | None: ...
+    def capability_report(self, root: Path | None = None) -> LanguageCapabilityReport: ...
     def tool_availability(self, root: Path | None = None) -> dict[str, bool]: ...
     def parse_modified_file(self, path: str, source: str) -> LanguageParseResult: ...
     def classify_fixability(self, finding: Finding) -> Literal["fix_eligible", "review_only"]: ...
@@ -53,6 +84,49 @@ class BaseLanguageAdapter:
 
     language = "unknown"
 
+    def parse_modified_file(self, path: str, source: str) -> LanguageParseResult:
+        raise NotImplementedError(f"No parser implementation for {self.language}: {path}")
+
+    def language_version(self, root: Path | None = None) -> str | None:
+        """Return a bounded version string from a known tool, when available.
+
+        Adapters never inspect project scripts or execute repository code. The
+        command is a fixed language-tool version probe and has a short timeout.
+        Subclasses provide ``version_command`` where this is supported.
+        """
+        command = getattr(self, "version_command", None)
+        if not command or not shutil.which(command[0]):
+            return None
+        try:
+            result = subprocess.run(
+                list(command), cwd=str(root) if root else None, capture_output=True,
+                text=True, check=False, timeout=1.0,
+            )
+        except (OSError, subprocess.SubprocessError):
+            return None
+        output = (result.stdout or result.stderr).strip().splitlines()
+        return output[0][:128] if result.returncode == 0 and output else None
+
+    @staticmethod
+    def _status(enabled: bool) -> CapabilityStatus:
+        return "available" if enabled else "unavailable"
+
+    def capability_report(self, root: Path | None = None) -> LanguageCapabilityReport:
+        tools = self.report_tool_availability(root)
+        return LanguageCapabilityReport(
+            language=self.language,
+            language_version=self.language_version(root),
+            parser=self._status(bool(tools.get("parser") or tools.get("ast") or tools.get("static_symbol_parser"))),
+            syntax_validation=self._status(bool(tools.get("syntax_validation", True))),
+            formatter=self._status(bool(tools.get("formatter"))),
+            linter=self._status(bool(tools.get("linter") or tools.get("ruff") or tools.get("eslint") or tools.get("golangci_lint"))),
+            type_checker=self._status(bool(tools.get("type_checker") or tools.get("compiler"))),
+            test_runner=self._status(bool(tools.get("targeted_tests") or tools.get("pytest") or tools.get("vitest")
+                                          or tools.get("jest") or tools.get("go_test") or tools.get("maven")
+                                          or tools.get("gradle") or tools.get("cargo"))),
+            limitations=tuple(getattr(self, "capability_limitations", ())),
+        )
+
     def detect_language(self, path: str) -> bool:
         return detect_language(path).value == self.language
 
@@ -65,7 +139,7 @@ class BaseLanguageAdapter:
     def is_protected(self, path: str, source: str = "") -> bool:
         parts = path.replace("\\", "/").lower().split("/")
         return (
-            any(part in {".git", "node_modules", "vendor", "dist", "build", "__pycache__", ".venv"} for part in parts)
+            any(part in {".git", "node_modules", "vendor", "dist", "build", "target", ".gradle", "__pycache__", ".venv"} for part in parts)
             or path.lower().endswith((".d.ts", ".d.tsx"))
             or is_generated_file(path, source)
             or is_test_file(path)

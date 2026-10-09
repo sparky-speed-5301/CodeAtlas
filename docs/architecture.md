@@ -2,7 +2,13 @@
 
 ## Planned review flow
 
-`CLI -> immutable snapshot/worktree -> language detection -> repository intelligence & symbol indexing -> deterministic tools -> retrieval -> bounded review packet assembly -> policy gate -> reviewer provider -> output validation -> finding merge & ranking -> patch proposal & isolated validation -> evidence manifest`
+`CLI / versioned local HTTP API -> immutable snapshot/worktree -> language detection -> repository intelligence & symbol indexing -> deterministic tools -> retrieval -> bounded review packet assembly -> policy gate -> reviewer provider -> output validation -> finding merge & ranking -> patch proposal & isolated validation -> evidence manifest`
+
+The [Work Package 3 CLI/API contract](cli-api.md) exposes the core independently
+of any IDE. `codeatlas review` runs in-process; `reviews`, `findings`, and `fix`
+use the public `/api/v1` service through `codeatlas.client.CodeAtlasClient`.
+The existing IDE routes remain aliases over the same state. OpenAPI discovery
+is generated from service models at `/api/v1/openapi.json`.
 
 Phase 6 implements safe, approval-gated patch proposal modeling, path protection policies, and isolated temporary worktree validation (`codeatlas.patching`).
 Phase 5 implements deterministic review packet assembly, explicit policy gating, reviewer provider abstraction, and explainable finding merging (`codeatlas.review`).

@@ -3,6 +3,23 @@
 **Navigate complexity. Review intelligently. Fix safely.**
 
 CodeAtlas is an evidence-first, repository-aware software engineering platform.
+
+Work Package 3 adds a [first-class CLI and versioned local API](docs/cli-api.md):
+standalone JSON/CI reviews, service-managed review and repair commands, a typed
+Python client, and `/api/v1` with OpenAPI discovery. All clients share the Python
+core's policy, validation, apply, and revert workflows.
+
+Work Package 4 adds [capability-based Go, Java, and Rust support](docs/language-support.md)
+through the same adapter, repair, validation, and benchmark contracts.
+
+```bash
+codeatlas review --repo /path/to/repo --base main --json --fail-on high
+codeatlas serve
+# From another terminal:
+codeatlas --json reviews start --repo /path/to/repo --base main --wait
+codeatlas --json health
+```
+
 Phase 6 adds an isolated, approval-gated patch proposal and validation interface (`codeatlas.patching`)
 featuring memory-safe unified diff parsing, protected path policies, cryptographic approval tokens,
 ephemeral detached worktree sandboxes, and offline MockFixer test modes.

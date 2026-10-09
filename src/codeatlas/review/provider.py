@@ -44,13 +44,21 @@ class ReviewerProvider(Protocol):
 
 
 class RepairProvider(Protocol):
-    """Optional offline repair operation over a bounded RepairContext."""
+    """Repair boundary used by static orchestration and the verification loop.
+
+    ``propose`` is the backwards-compatible Phase 11C operation.  Production
+    providers may additionally implement ``generate`` and receive the strict
+    structured request defined by ``codeatlas.providers``.  Neither operation
+    has authority to apply, approve, execute, or change policy.
+    """
 
     name: str
     version: str
     network_access: bool
 
     def propose(self, context: RepairContext) -> object: ...
+
+    def generate(self, request: object) -> object: ...
 
 
 __all__ = ["ReviewerResult", "ReviewerProvider", "RepairProvider"]

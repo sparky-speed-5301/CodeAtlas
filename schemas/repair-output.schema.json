@@ -1,0 +1,35 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://codeatlas.dev/schemas/repair-output.schema.json",
+  "title": "CodeAtlas Structured Repair Output (Phase 12A)",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "diagnosis",
+    "patch",
+    "target_files",
+    "explanation",
+    "assumptions",
+    "expected_behavior_change",
+    "risk_level",
+    "confidence",
+    "tests_to_run",
+    "limitations"
+  ],
+  "properties": {
+    "diagnosis": {"type": "string", "minLength": 1, "maxLength": 2000},
+    "patch": {"type": "string", "minLength": 1, "maxLength": 64000},
+    "target_files": {"type": "array", "minItems": 1, "maxItems": 1, "items": {"$ref": "#/$defs/path"}},
+    "explanation": {"type": "string", "minLength": 1, "maxLength": 2000},
+    "assumptions": {"type": "array", "maxItems": 8, "items": {"$ref": "#/$defs/text"}},
+    "expected_behavior_change": {"type": "string", "minLength": 1, "maxLength": 2000},
+    "risk_level": {"enum": ["low", "medium", "high"]},
+    "confidence": {"type": "number", "minimum": 0, "maximum": 1},
+    "tests_to_run": {"type": "array", "maxItems": 8, "items": {"$ref": "#/$defs/path"}},
+    "limitations": {"type": "array", "maxItems": 12, "items": {"$ref": "#/$defs/text"}}
+  },
+  "$defs": {
+    "text": {"type": "string", "minLength": 1, "maxLength": 2000},
+    "path": {"type": "string", "minLength": 1, "maxLength": 512}
+  }
+}

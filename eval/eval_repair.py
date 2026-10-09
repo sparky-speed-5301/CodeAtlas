@@ -92,7 +92,7 @@ def evaluate_case(kind: str) -> dict:
         language = kind if kind in SOURCES else "python"
         path = {"python": "src/calc.py", "javascript": "src/calc.js", "typescript": "src/calc.ts"}[language]
         if kind == "unsupported_language":
-            path = "src/calc.rs"
+            path = "src/calc.txt"
         finding, request = repair_request(root, path, language)
         suggestion = repair_suggestion(path, language)
         provider = OfflineRepairReviewer(suggestion)

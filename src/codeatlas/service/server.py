@@ -6,13 +6,22 @@ import json
 import logging
 import os
 import re
+import socket
 from datetime import UTC, datetime
 from http import HTTPStatus
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
+from pathlib import Path
 from typing import Any
 from urllib.parse import parse_qs, urlparse
 
+from pydantic import ValidationError
+
+from codeatlas import __version__
+from codeatlas.adapters import language_capability_reports
+from codeatlas.service.contract import API_PREFIX, API_VERSION, ENDPOINTS, endpoint_for, openapi_document
 from codeatlas.service.models import (
+    CapabilitiesResponse,
+    LanguageCapabilityResponse,
     ExplainRequest,
     FindingFeedbackRequest,
     FixApplyRequest,
@@ -56,7 +65,7 @@ FIX_CONFLICT_REASONS = frozenset({
 class ReviewHttpHandler(BaseHTTPRequestHandler):
     """Handles REST API requests for CodeAtlas reviews, findings, and proposals."""
 
-    server_version = "CodeAtlasService/0.1.0"
+    server_version = f"CodeAtlasService/{__version__}"
     state_manager: ReviewStateManager
 
     def log_message(self, format: str, *args: Any) -> None:
@@ -69,6 +78,7 @@ class ReviewHttpHandler(BaseHTTPRequestHandler):
         self.send_response(status)
         self.send_header("Content-Type", "application/json; charset=utf-8")
         self.send_header("Content-Length", str(len(encoded)))
+        self.send_header("CodeAtlas-API-Version", API_VERSION)
         self.send_header("Access-Control-Allow-Origin", "*")
         self.send_header("Access-Control-Allow-Methods", "GET, POST, OPTIONS")
         self.send_header("Access-Control-Allow-Headers", "Content-Type")
@@ -91,6 +101,8 @@ class ReviewHttpHandler(BaseHTTPRequestHandler):
 
         if length > MAX_REQUEST_BYTES:
             raise OverflowError(f"Request payload exceeds limit of {MAX_REQUEST_BYTES} bytes")
+        if length < 0:
+            raise ValueError("Invalid Content-Length header")
 
         raw_body = self.rfile.read(length)
         if not raw_body:
@@ -104,6 +116,42 @@ class ReviewHttpHandler(BaseHTTPRequestHandler):
         except json.JSONDecodeError as err:
             raise ValueError(f"Malformed JSON: {err}") from err
 
+    def _route_path(self) -> str | None:
+        """Resolve v1 once, retaining unversioned aliases for existing clients."""
+        path = urlparse(self.path).path
+        if path.startswith(API_PREFIX + "/"):
+            path = path[len(API_PREFIX):]
+            if endpoint_for(self.command, path) is None:
+                known = any(item.matches(item.method, path) for item in ENDPOINTS)
+                self._send_error_json(
+                    HTTPStatus.METHOD_NOT_ALLOWED if known else HTTPStatus.NOT_FOUND,
+                    "Method not allowed" if known else "Endpoint not found",
+                    "method_not_allowed" if known else "not_found",
+                )
+                return None
+        elif path == "/api" or path.startswith("/api/"):
+            self._send_error_json(HTTPStatus.NOT_FOUND, "Unsupported API version or endpoint", "unsupported_api_version")
+            return None
+        return path
+
+    def _validate_v1_body(self, path: str, body: dict[str, Any]) -> bool:
+        if not urlparse(self.path).path.startswith(API_PREFIX + "/"):
+            return True
+        endpoint = endpoint_for(self.command, path)
+        model = endpoint.request if endpoint else None
+        try:
+            if model:
+                if body.keys() - model.model_fields.keys():
+                    raise ValueError("Unknown request fields")
+                model.model_validate(body, strict=True)
+            elif body:
+                raise ValueError("This operation takes no request body")
+        except (ValueError, ValidationError):
+            # Pydantic errors can contain raw input, including approval tokens.
+            self._send_error_json(HTTPStatus.BAD_REQUEST, "Request does not match the API schema", "bad_request")
+            return False
+        return True
+
     def do_OPTIONS(self) -> None:
         """Handle CORS preflight requests."""
         self.send_response(HTTPStatus.NO_CONTENT)
@@ -112,19 +160,61 @@ class ReviewHttpHandler(BaseHTTPRequestHandler):
         self.send_header("Access-Control-Allow-Headers", "Content-Type")
         self.end_headers()
 
+    def _unsupported_method(self) -> None:
+        if self._route_path() is not None:
+            self._send_error_json(HTTPStatus.METHOD_NOT_ALLOWED, "Method not allowed", "method_not_allowed")
+
+    do_PUT = _unsupported_method
+    do_PATCH = _unsupported_method
+    do_DELETE = _unsupported_method
+
     def do_GET(self) -> None:
         """Route GET endpoints."""
         try:
             parsed_url = urlparse(self.path)
-            path = parsed_url.path
+            path = self._route_path()
+            if path is None:
+                return
             query = parse_qs(parsed_url.query)
+
+            if path == "/openapi.json":
+                self._send_json(HTTPStatus.OK, openapi_document())
+                return
+            if path == "/capabilities":
+                reports = [
+                    LanguageCapabilityResponse(
+                        language=item.language,
+                        language_version=item.language_version,
+                        parser=item.parser,
+                        syntax_validation=item.syntax_validation,
+                        formatter=item.formatter,
+                        linter=item.linter,
+                        type_checker=item.type_checker,
+                        test_runner=item.test_runner,
+                        protected_generated_files=item.protected_generated_files,
+                        limitations=list(item.limitations),
+                    )
+                    for item in language_capability_reports()
+                ]
+                self._send_json(HTTPStatus.OK, CapabilitiesResponse(language_capabilities=reports).model_dump())
+                return
+            if path == "/reviews":
+                try:
+                    result = self.state_manager.list_reviews(
+                        limit=int(query.get("limit", ["50"])[0]),
+                        offset=int(query.get("offset", ["0"])[0]),
+                    )
+                    self._send_json(HTTPStatus.OK, result.model_dump())
+                except ValueError:
+                    self._send_error_json(HTTPStatus.BAD_REQUEST, "Invalid pagination parameters", "bad_request")
+                return
 
             # 1. GET /health
             if path == "/health":
                 resp = HealthResponse(
                     status="ok",
                     service="codeatlas-service",
-                    version="0.1.0",
+                    version=__version__,
                     timestamp=datetime.now(UTC).isoformat(),
                     pid=os.getpid(),
                     **self.state_manager.health_summary(),
@@ -291,8 +381,9 @@ class ReviewHttpHandler(BaseHTTPRequestHandler):
     def do_POST(self) -> None:
         """Route POST endpoints."""
         try:
-            parsed_url = urlparse(self.path)
-            path = parsed_url.path
+            path = self._route_path()
+            if path is None:
+                return
 
             try:
                 body = self._read_json_body()
@@ -301,6 +392,8 @@ class ReviewHttpHandler(BaseHTTPRequestHandler):
                 return
             except ValueError as err:
                 self._send_error_json(HTTPStatus.BAD_REQUEST, str(err), "bad_request")
+                return
+            if not self._validate_v1_body(path, body):
                 return
 
             # 1. POST /reviews
@@ -320,9 +413,11 @@ class ReviewHttpHandler(BaseHTTPRequestHandler):
             if m_cancel:
                 run_id = m_cancel.group(1)
                 if self.state_manager.cancel_review(run_id):
+                    current = self.state_manager.get_review_status(run_id)
                     self._send_json(
                         HTTPStatus.OK,
-                        {"run_id": run_id, "status": "cancelled", "message": "Review cancelled successfully"},
+                        {"run_id": run_id, "status": current.status,
+                         "message": "Review cancelled successfully" if current.status == "cancelled" else "Review already finished"},
                     )
                 else:
                     self._send_error_json(HTTPStatus.NOT_FOUND, f"Review '{run_id}' not found", "not_found")
@@ -655,13 +750,11 @@ class CodeAtlasServer(ThreadingHTTPServer):
     ) -> None:
         self.state_manager = state_manager or ReviewStateManager()
 
-        def handler_factory(*args: Any, **kwargs: Any) -> ReviewHttpHandler:
-            handler = ReviewHttpHandler(*args, **kwargs)
-            return handler
-
-        # Assign state_manager to handler class
-        ReviewHttpHandler.state_manager = self.state_manager
-        super().__init__(server_address, ReviewHttpHandler)
+        # Each server owns its handler state; two embedded services must not share runs.
+        handler = type("BoundReviewHttpHandler", (ReviewHttpHandler,), {"state_manager": self.state_manager})
+        if ":" in server_address[0]:
+            self.address_family = socket.AF_INET6
+        super().__init__(server_address, handler)
 
 
 def create_server(host: str = "127.0.0.1", port: int = 8765, state_manager: ReviewStateManager | None = None) -> CodeAtlasServer:
@@ -671,10 +764,20 @@ def create_server(host: str = "127.0.0.1", port: int = 8765, state_manager: Revi
     return CodeAtlasServer((host, port), state_manager=state_manager)
 
 
-def run_service(host: str = "127.0.0.1", port: int = 8765) -> None:
+def run_service(host: str = "127.0.0.1", port: int = 8765, *, repair_config: str | Path | None = None) -> None:
     """Start and run the CodeAtlas service indefinitely."""
-    server = create_server(host, port)
-    print(f"CodeAtlas service listening on http://{host}:{port} (press Ctrl+C to stop)")
+    manager = None
+    if repair_config is not None:
+        from codeatlas.providers import LiveRepairProvider, ProviderConfigError, load_repair_provider_config
+
+        try:
+            config = load_repair_provider_config(repair_config)
+        except Exception:
+            raise ProviderConfigError("Invalid repair provider configuration") from None
+        manager = ReviewStateManager(repair_provider=LiveRepairProvider(config))
+    server = create_server(host, port, state_manager=manager)
+    display_host = f"[{host}]" if ":" in host else host
+    print(f"CodeAtlas service listening on http://{display_host}:{port}{API_PREFIX} (press Ctrl+C to stop)")
     try:
         server.serve_forever()
     except KeyboardInterrupt:

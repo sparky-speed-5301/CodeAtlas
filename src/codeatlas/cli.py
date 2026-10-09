@@ -1,16 +1,20 @@
 import importlib.util
+import json
 from pathlib import Path
 from typing import Optional
 
 import typer
 
 from codeatlas.orchestrator import run_review
+from codeatlas.cli_platform import FailOn, findings_fail, options, register
 
 app = typer.Typer(help="Evidence-first repository-aware code review.")
+register(app)
 
 
 @app.command()
 def review(
+    ctx: typer.Context,
     repo: str = typer.Option(".", "--repo", help="Path to the target Git repository."),
     base: str = typer.Option("main", "--base", help="Base Git reference."),
     head: str = typer.Option("HEAD", "--head", help="Head Git reference."),
@@ -35,8 +39,11 @@ def review(
         False, "--allow-patch-suggestions",
         help="Opt in to materializing provider draft PatchProposals (never applied automatically).",
     ),
+    json_stdout: bool = typer.Option(False, "--json", help="Print one run manifest JSON object to stdout."),
+    fail_on: FailOn = typer.Option(FailOn.none, "--fail-on", help="Exit 3 when active findings meet this severity threshold."),
 ) -> None:
     """Collect read-only repository and diff evidence for a review run."""
+    machine_output = json_stdout or options(ctx).json_output
     result = run_review(
         repo,
         base,
@@ -58,9 +65,16 @@ def review(
         provider_timeout=provider_timeout,
         provider_max_output_tokens=provider_max_output_tokens,
         provider_dry_run=dry_run,
-        banner_callback=typer.echo,
+        banner_callback=lambda message: typer.echo(message, err=machine_output),
         allow_patch_suggestions=allow_patch_suggestions,
     )
+    if machine_output:
+        typer.echo(json.dumps(result.manifest.model_dump(mode="json"), indent=2, sort_keys=True))
+        if result.manifest.errors:
+            raise typer.Exit(code=1)
+        if findings_fail(result.manifest.findings, fail_on):
+            raise typer.Exit(code=3)
+        return
     typer.echo(result.summary)
     typer.echo(f"Evidence log: {result.evidence_path}")
     if json_output:
@@ -79,12 +93,8 @@ def review(
         for error in result.manifest.errors:
             typer.echo(f"Error: {error}", err=True)
         raise typer.Exit(code=1)
-
-
-@app.command()
-def fix(finding: str, approve: bool = False) -> None:
-    """Plan a validation-gated fix placeholder."""
-    typer.echo(f"Fix scaffold for {finding}; approved={approve}")
+    if findings_fail(result.manifest.findings, fail_on):
+        raise typer.Exit(code=3)
 
 
 @app.command()
@@ -660,15 +670,20 @@ def github_review(
 def serve(
     host: str = typer.Option("127.0.0.1", "--host", help="Host address to bind (defaults to localhost)."),
     port: int = typer.Option(8765, "--port", min=1, max=65535, help="Port to listen on."),
+    repair_config: Optional[str] = typer.Option(None, "--repair-config", help="Structured repair provider configuration (JSON/YAML; credentials via environment)."),
 ) -> None:
-    """Start local HTTP service for VS Code and IDE integrations."""
+    """Start the versioned local API for CLI, CI, and IDE clients."""
     from codeatlas.service import run_service
+    from codeatlas.providers import ProviderConfigError
 
     if host not in {"127.0.0.1", "localhost", "::1"}:
         typer.echo(f"Warning: binding to non-localhost address '{host}'. Do not expose publicly.", err=True)
 
     try:
-        run_service(host=host, port=port)
+        run_service(host=host, port=port, repair_config=repair_config)
+    except ProviderConfigError:
+        typer.echo("Invalid repair provider configuration. Check the configured mode, provider, and limits.", err=True)
+        raise typer.Exit(code=1)
     except OSError as err:
         typer.echo(f"Failed to start service on {host}:{port}: {err}", err=True)
         raise typer.Exit(code=1)

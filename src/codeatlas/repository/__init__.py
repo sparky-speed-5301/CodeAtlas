@@ -32,6 +32,7 @@ from codeatlas.repository.references import extract_references_for_file
 from codeatlas.repository.retrieval import identify_changed_symbols, retrieve_context
 from codeatlas.repository.scanner import DEFAULT_EXCLUSIONS, scan_repository
 from codeatlas.repository.symbols import (
+    extract_compiled_symbols,
     extract_python_symbols,
     extract_ts_js_symbols,
     make_symbol_id,
@@ -58,6 +59,7 @@ __all__ = [
     "make_symbol_id",
     "extract_python_symbols",
     "extract_ts_js_symbols",
+    "extract_compiled_symbols",
     "extract_references_for_file",
     "DependencyGraph",
     "build_repository_index",

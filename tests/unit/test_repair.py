@@ -380,7 +380,8 @@ def test_context_bounds_immutable_contract_and_result_approval(request_data):
 
 
 @pytest.mark.parametrize("path,language", [("a.py", "python"), ("a.js", "javascript"), ("a.jsx", "javascript"),
-                                           ("a.ts", "typescript"), ("a.tsx", "typescript"), ("a.rs", None), ("a.go", None)])
+                                           ("a.ts", "typescript"), ("a.tsx", "typescript"), ("a.rs", "rust"),
+                                           ("a.go", "go"), ("a.java", "java")])
 def test_language_selection(path, language):
     adapter = select_language_adapter(path)
     assert (adapter.language if adapter else None) == language

@@ -224,7 +224,8 @@ def test_unsupported_language(tmp_path: Path) -> None:
     )
     assert res.valid is False
     assert res.full_suite_status == "blocked"
-    assert "unsupported" in (res.full_suite_blocked_reason or "").lower()
+    assert "rust" in (res.full_suite_blocked_reason or "").lower()
+    assert "unavailable" in (res.full_suite_blocked_reason or "").lower()
 
 
 def test_missing_runner(tmp_path: Path) -> None:

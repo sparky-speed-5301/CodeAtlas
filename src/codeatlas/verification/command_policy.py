@@ -29,6 +29,12 @@ _ALLOWED_PREFIXES: list[list[str]] = [
     ["node_modules/.bin/jest"],
     ["./node_modules/.bin/vitest"],
     ["./node_modules/.bin/jest"],
+    ["go", "test", "-mod=readonly"],
+    ["mvn", "-o", "test"],
+    ["./mvnw", "-o", "test"],
+    ["gradle", "--offline", "test"],
+    ["./gradlew", "--offline", "test"],
+    ["cargo", "test", "--offline"],
 ]
 
 
@@ -209,16 +215,21 @@ def validate_check_command(command: Sequence[str]) -> CommandValidation:
     shell, provider-selected flags, dependency installation, or fix mode.
     """
     templates = (
-        ("ruff", "check", "--no-fix"), ("ruff", "format", "--check"),
-        ("black", "--check"), ("tsc", "--noEmit", "--pretty", "false"),
-        ("eslint",), ("prettier", "--check"),
+        (("ruff", "check", "--no-fix"), True), (("ruff", "format", "--check"), True),
+        (("black", "--check"), True), (("tsc", "--noEmit", "--pretty", "false"), True),
+        (("eslint",), True), (("prettier", "--check"), True),
+        (("gofmt", "-d"), True), (("rustfmt", "--check"), True),
+        (("google-java-format", "--dry-run", "--set-exit-if-changed"), True),
+        (("cargo", "check", "--offline"), False),
     )
     parts = tuple(command)
-    for prefix in templates:
-        if len(parts) != len(prefix) + 1 or parts[:-1] != prefix:
+    for prefix, requires_target in templates:
+        if requires_target and (len(parts) != len(prefix) + 1 or parts[:-1] != prefix):
             continue
-        target = parts[-1]
-        if (not target or len(target) > 512 or target.startswith("-") or "\\" in target
+        if not requires_target and parts != prefix:
+            break
+        target = parts[-1] if requires_target else ""
+        if requires_target and (not target or len(target) > 512 or target.startswith("-") or "\\" in target
                 or ":" in target or any(p in {"", ".", ".."} for p in target.split("/"))
                 or any(ord(c) < 32 for c in target)
                 or not validate_test_command(["pytest", target]).allowed):

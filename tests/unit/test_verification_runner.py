@@ -11,6 +11,7 @@ from codeatlas.verification.models import ResourceLimits, TestPlan, TestResult
 from codeatlas.verification.redaction import audit_and_redact_results, redact_test_output
 from codeatlas.verification.runner import (
     JestTestRunner,
+    CompiledTestRunner,
     PytestTestRunner,
     TestRunner,
     UnittestTestRunner,
@@ -142,7 +143,7 @@ def test_runner_protocol_implementations(tmp_path: Path) -> None:
 
     assert isinstance(get_test_runner("python"), PytestTestRunner)
     assert isinstance(get_test_runner("typescript"), VitestTestRunner)
-    assert get_test_runner("rust") is None
+    assert isinstance(get_test_runner("rust"), CompiledTestRunner)
 
 
 def test_runner_selection_linux_posix(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:

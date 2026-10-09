@@ -39,6 +39,37 @@ class ProviderOutputParseError(ProviderError):
     """Raised when provider output cannot be parsed into valid JSON or findings."""
 
 
+REPAIR_FAILURE_CODES = frozenset({
+    "provider_unavailable",
+    "timeout",
+    "rate_limit",
+    "malformed_response",
+    "schema_failure",
+    "output_too_large",
+    "secret_detected",
+    "unsupported_model",
+    "budget_exceeded",
+    "network_disabled",
+    "retry_exhausted",
+})
+
+
+class RepairProviderFailure(ProviderError):
+    """A stable, user-safe failure from the structured repair provider.
+
+    The exception deliberately stores only a reason code.  Provider exception
+    text can contain prompts, response fragments, URLs, or credentials and is
+    therefore never part of the repair result or evidence stream.
+    """
+
+    CODES = REPAIR_FAILURE_CODES
+
+    def __init__(self, code: str) -> None:
+        self.code = code if code in self.CODES else "provider_unavailable"
+        self.reason_code = self.code
+        super().__init__(self.code)
+
+
 __all__ = [
     "ProviderError",
     "ProviderConfigError",
@@ -49,4 +80,6 @@ __all__ = [
     "ProviderResponseSizeError",
     "ProviderBudgetExceededError",
     "ProviderOutputParseError",
+    "RepairProviderFailure",
+    "REPAIR_FAILURE_CODES",
 ]

@@ -3,12 +3,14 @@
 from __future__ import annotations
 
 import importlib.util
+import shutil
 import sys
 from pathlib import Path
 from typing import Any, Sequence
 
 from .models import ResourceLimits, TestPlan
 from .runner_selection import find_js_runner
+from .command_policy import validate_test_command
 
 _find_js_runner = find_js_runner
 
@@ -17,6 +19,10 @@ def _detect_language(changed_files: Sequence[str]) -> str | None:
     """Infer the primary language from changed files or return None if mixed/unsupported."""
     py_files = [f for f in changed_files if f.endswith(".py")]
     ts_files = [f for f in changed_files if f.endswith((".ts", ".tsx", ".js", ".jsx"))]
+    go_files = [f for f in changed_files if f.endswith(".go")]
+    java_files = [f for f in changed_files if f.endswith(".java")]
+    rust_files = [f for f in changed_files if f.endswith(".rs")]
+    compiled = go_files or java_files or rust_files
 
     if py_files and not ts_files:
         return "python"
@@ -24,7 +30,97 @@ def _detect_language(changed_files: Sequence[str]) -> str | None:
         return "typescript"
     if py_files and ts_files:
         return "mixed"
+    if compiled and not (py_files or ts_files) and len({Path(f).suffix.lower() for f in compiled}) == 1:
+        suffix = Path(compiled[0]).suffix.lower()
+        return {".go": "go", ".java": "java", ".rs": "rust"}.get(suffix, "unsupported")
+    if compiled:
+        return "mixed"
     return "unsupported"
+
+
+def _compiled_test_plan(
+    sandbox_path: Path,
+    changed_files: Sequence[str],
+    language: str,
+    *,
+    full_suite: bool,
+    timeout: float,
+    runner_preference: str | None,
+    policy: dict[str, Any],
+) -> tuple[TestPlan, str | None]:
+    """Discover Go/Java/Rust tests using fixed, offline command templates."""
+    if language == "go":
+        patterns = ["**/*_test.go"]
+        runner = "go"
+        command = ["go", "test", "-mod=readonly", "./..."] if full_suite else None
+        installed = shutil.which("go") is not None
+    elif language == "java":
+        patterns = ["**/*Test.java", "**/*Tests.java", "**/src/test/**/*.java"]
+        preferred = (runner_preference or "").lower()
+        if preferred not in {"", "maven", "gradle"}:
+            return TestPlan(language=language, discovery_reason="Unknown Java test runner", confidence=0.0,
+                            limitations=["unknown_runner"], timeout=timeout, full_suite=full_suite), "Unapproved Java test runner"
+        maven = (sandbox_path / "pom.xml").is_file() and (shutil.which("mvn") is not None or (sandbox_path / "mvnw").is_file())
+        gradle = ((sandbox_path / "build.gradle").is_file() or (sandbox_path / "build.gradle.kts").is_file()) and (
+            shutil.which("gradle") is not None or (sandbox_path / "gradlew").is_file()
+        )
+        if preferred == "maven":
+            maven, gradle = True, False
+        elif preferred == "gradle":
+            maven, gradle = False, True
+        if maven:
+            executable = "./mvnw" if (sandbox_path / "mvnw").is_file() else "mvn"
+            runner, command = "maven", [executable, "-o", "test"]
+        elif gradle:
+            executable = "./gradlew" if (sandbox_path / "gradlew").is_file() else "gradle"
+            runner, command = "gradle", [executable, "--offline", "test"]
+        else:
+            runner, command = "maven", None
+        installed = maven or gradle
+    else:
+        patterns = ["**/*_test.rs", "tests/**/*.rs"]
+        runner, command = "cargo", ["cargo", "test", "--offline"] if full_suite else None
+        installed = (sandbox_path / "Cargo.toml").is_file() and shutil.which("cargo") is not None
+
+    found: set[str] = set()
+    for pattern in patterns:
+        for match in sandbox_path.glob(pattern):
+            if match.is_file() and "target" not in match.parts:
+                found.add(match.relative_to(sandbox_path).as_posix())
+    targets = sorted(found)
+    if not full_suite:
+        stems = {Path(item).stem.removesuffix("_test") for item in changed_files}
+        targets = [item for item in targets if Path(item).stem.removesuffix("_test") in stems or language == "java"]
+        if language == "java" and changed_files:
+            target_stems = {Path(item).stem for item in changed_files}
+            targets = [item for item in targets if any(stem in Path(item).stem for stem in target_stems)]
+        if targets and language == "go":
+            command = ["go", "test", "-mod=readonly", "./" + str(Path(targets[0]).parent).replace("\\", "/").rstrip(".")]
+        elif targets and language == "rust":
+            command = ["cargo", "test", "--offline"]
+
+    if not installed:
+        return TestPlan(language=language, test_files=targets, test_targets=targets,
+                        discovery_reason=f"{language} test toolchain is unavailable",
+                        confidence=0.0, limitations=["missing_runner"], timeout=timeout, full_suite=full_suite), \
+            f"{language} test toolchain is unavailable; dependency installation is forbidden"
+    if not targets and not full_suite:
+        return TestPlan(language=language, discovery_reason=f"No reliable targeted {language} tests found",
+                        confidence=0.0, limitations=["no_targeted_tests"], timeout=timeout), \
+            f"No reliable targeted {language} tests found"
+    if command is None:
+        return TestPlan(language=language, test_files=targets, test_targets=targets,
+                        discovery_reason=f"No {language} test command could be bounded",
+                        confidence=0.0, limitations=["no_test_command"], timeout=timeout, full_suite=full_suite), \
+            f"No reliable {language} test command found"
+    if policy.get("missing_runner") or not validate_test_command(command).allowed:
+        return TestPlan(language=language, test_files=targets, test_targets=targets,
+                        discovery_reason=f"{runner} command is blocked by the strict allowlist",
+                        confidence=0.0, limitations=["blocked_runner"], timeout=timeout, full_suite=full_suite), \
+            f"{runner} command is blocked by the strict allowlist"
+    return TestPlan(language=language, test_files=targets, test_targets=targets,
+                    exact_command=command, discovery_reason=f"Discovered {language} tests with {runner}",
+                    confidence=1.0, timeout=timeout, full_suite=full_suite), None
 
 
 def _is_pytest_available() -> bool:
@@ -136,7 +232,13 @@ def discover_test_plan(
                 timeout=timeout,
                 full_suite=full_suite,
             ),
-            f"Unsupported or mixed language '{lang}'; only Python and JavaScript/TypeScript are supported",
+            f"Unsupported or mixed language '{lang}'; no compatible test plan is available",
+        )
+
+    if lang in {"go", "java", "rust"}:
+        return _compiled_test_plan(
+            sandbox_path, changed_files, lang, full_suite=full_suite, timeout=timeout,
+            runner_preference=runner_preference, policy=pol,
         )
 
     # 1. Full-suite test discovery
@@ -295,7 +397,7 @@ def discover_test_plan(
             )
 
     # 2. Targeted test discovery
-    discovered_test_files: set[str] = set()
+    targeted_test_files: set[str] = set()
 
     if lang == "python":
         for cf in changed_files:
@@ -312,7 +414,7 @@ def discover_test_plan(
                 for match in sandbox_path.glob(pat):
                     if match.is_file():
                         rel = match.relative_to(sandbox_path).as_posix()
-                        discovered_test_files.add(rel)
+                        targeted_test_files.add(rel)
 
         # Consult index if available to find referencing tests
         if index is not None and hasattr(index, "imports"):
@@ -322,9 +424,9 @@ def discover_test_plan(
                     source_file = getattr(imp, "file", "")
                     if "test" in source_file.lower() and stem in getattr(imp, "module", ""):
                         if (sandbox_path / source_file).is_file():
-                            discovered_test_files.add(source_file)
+                            targeted_test_files.add(source_file)
 
-        test_files_sorted = sorted(discovered_test_files)
+        test_files_sorted = sorted(targeted_test_files)
         if not test_files_sorted:
             return (
                 TestPlan(
@@ -400,9 +502,9 @@ def discover_test_plan(
                 for match in sandbox_path.glob(pat):
                     if match.is_file():
                         rel = match.relative_to(sandbox_path).as_posix()
-                        discovered_test_files.add(rel)
+                        targeted_test_files.add(rel)
 
-        test_files_sorted = sorted(discovered_test_files)
+        test_files_sorted = sorted(targeted_test_files)
         if not test_files_sorted:
             return (
                 TestPlan(

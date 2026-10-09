@@ -1,17 +1,17 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "https://codeatlas.dev/schemas/repair-context.schema.json",
-  "title": "CodeAtlas Bounded Repair Context (Phase 11C-A)",
+  "title": "CodeAtlas Bounded Repair Context (Phase 12B)",
   "type": "object",
   "additionalProperties": false,
-  "required": ["finding_id", "run_id", "repository_identity", "base_commit", "head_commit", "language", "changed_file", "changed_line_range", "containing_symbol", "code_line_range", "code_context", "category", "claim", "impact", "deterministic_evidence", "quality_decision", "confidence", "evidence_strength", "repository_context", "related_tests", "limits", "target_file_limits", "maximum_patch_line_limits", "prohibited_paths", "policy_version", "context_truncated"],
+  "required": ["finding_id", "run_id", "repository_identity", "base_commit", "head_commit", "language", "changed_file", "changed_line_range", "containing_symbol", "code_line_range", "code_context", "category", "claim", "impact", "deterministic_evidence", "quality_decision", "confidence", "evidence_strength", "repository_context", "related_tests", "relevant_symbol_definitions", "bounded_callers", "bounded_callees", "diagnostic_evidence", "provenance_labels", "truncated_sections", "limits", "target_file_limits", "maximum_patch_line_limits", "prohibited_paths", "policy_version", "context_truncated", "context_hash"],
   "properties": {
     "finding_id": {"type": "string", "pattern": "^CA-[A-Z0-9][A-Z0-9._-]*$", "maxLength": 128},
     "run_id": {"$ref": "#/$defs/identifier"},
     "repository_identity": {"$ref": "#/$defs/identifier"},
     "base_commit": {"$ref": "#/$defs/identifier"},
     "head_commit": {"$ref": "#/$defs/identifier"},
-    "language": {"enum": ["python", "javascript", "typescript"]},
+    "language": {"enum": ["python", "javascript", "typescript", "go", "java", "rust"]},
     "changed_file": {"$ref": "#/$defs/text"},
     "changed_line_range": {"$ref": "#/$defs/range"},
     "containing_symbol": {"anyOf": [{"$ref": "#/$defs/symbol"}, {"type": "null"}]},
@@ -31,7 +31,14 @@
     "maximum_patch_line_limits": {"type": "integer", "minimum": 1, "maximum": 150},
     "prohibited_paths": {"$ref": "#/$defs/prohibitedPaths"},
     "policy_version": {"const": "11C-A.1"},
-    "context_truncated": {"type": "boolean"}
+    "context_truncated": {"type": "boolean"},
+    "relevant_symbol_definitions": {"type": "array", "maxItems": 20, "items": {"$ref": "#/$defs/text"}},
+    "bounded_callers": {"type": "array", "maxItems": 8, "items": {"$ref": "#/$defs/text"}},
+    "bounded_callees": {"type": "array", "maxItems": 8, "items": {"$ref": "#/$defs/text"}},
+    "diagnostic_evidence": {"type": "array", "maxItems": 10, "items": {"$ref": "#/$defs/text"}},
+    "provenance_labels": {"type": "array", "maxItems": 20, "items": {"$ref": "#/$defs/text"}},
+    "truncated_sections": {"type": "array", "maxItems": 20, "items": {"$ref": "#/$defs/text"}},
+    "context_hash": {"type": "string", "pattern": "^[a-f0-9]{64}$"}
   },
   "$defs": {
     "identifier": {"type": "string", "minLength": 1, "maxLength": 128},
@@ -48,7 +55,7 @@
     },
     "limits": {
       "type": "object", "additionalProperties": false,
-      "required": ["max_target_files", "max_patch_lines", "max_patch_bytes", "max_source_bytes", "max_context_lines", "max_context_bytes", "prohibited_paths"],
+      "required": ["max_target_files", "max_patch_lines", "max_patch_bytes", "max_source_bytes", "max_context_lines", "max_context_bytes", "max_context_files", "max_lines_per_file", "max_symbols", "max_callers_callees", "max_tests", "max_diagnostic_bytes", "prohibited_paths"],
       "properties": {
         "max_target_files": {"const": 1},
         "max_patch_lines": {"type": "integer", "minimum": 1, "maximum": 150},
@@ -56,6 +63,12 @@
         "max_source_bytes": {"type": "integer", "minimum": 1, "maximum": 128000},
         "max_context_lines": {"type": "integer", "minimum": 1, "maximum": 160},
         "max_context_bytes": {"type": "integer", "minimum": 1, "maximum": 16000},
+        "max_context_files": {"type": "integer", "minimum": 1, "maximum": 8},
+        "max_lines_per_file": {"type": "integer", "minimum": 1, "maximum": 200},
+        "max_symbols": {"type": "integer", "minimum": 1, "maximum": 64},
+        "max_callers_callees": {"type": "integer", "minimum": 1, "maximum": 16},
+        "max_tests": {"type": "integer", "minimum": 1, "maximum": 32},
+        "max_diagnostic_bytes": {"type": "integer", "minimum": 256, "maximum": 16000},
         "prohibited_paths": {"$ref": "#/$defs/prohibitedPaths"}
       }
     }

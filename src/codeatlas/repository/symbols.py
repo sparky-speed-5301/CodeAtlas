@@ -245,6 +245,21 @@ _TS_METHOD_DECL = re.compile(
     r"""(?m)^[ \t]*(?:(?:public|private|protected|static|readonly|override)\s+)*(?P<async>async\s+)?(?P<name>[A-Za-z_$][\w$]*)\s*\((?P<params>[^)]*)\)\s*(?::\s*[^{]+)?\s*\{"""
 )
 
+def extract_compiled_symbols(
+    file_path: str,
+    source: str,
+    language: str,
+) -> tuple[list[Symbol], list[IndexDiagnostic]]:
+    """Extract grammar-validated declarations without invoking a toolchain."""
+    from codeatlas.repository.compiled import parse_source
+
+    result = parse_source(file_path, source, language)
+    diagnostics = [] if result.valid else [IndexDiagnostic(
+        file=file_path, level="error" if result.valid is False else "warning",
+        message="; ".join(result.errors) or result.reason, reason=result.reason,
+    )]
+    return list(result.symbols), diagnostics
+
 
 def extract_ts_js_symbols(
     file_path: str,
@@ -456,4 +471,5 @@ __all__ = [
     "make_symbol_id",
     "extract_python_symbols",
     "extract_ts_js_symbols",
+    "extract_compiled_symbols",
 ]
