@@ -31,6 +31,7 @@ from .models import (
     ValidateProposalResponse,
 )
 from .server import CodeAtlasServer, ReviewHttpHandler, create_server, run_service
+from .persistence import PersistenceConfig, PersistenceError, SQLitePersistence, default_database_path
 from .state import (
     ReviewRunRecord,
     ReviewStateManager,
@@ -73,6 +74,10 @@ __all__ = [
     "ValidateProposalRequest",
     "ValidateProposalResponse",
     "create_server",
+    "default_database_path",
+    "PersistenceConfig",
+    "PersistenceError",
+    "SQLitePersistence",
     "run_service",
     "validate_service_repo_path",
 ]

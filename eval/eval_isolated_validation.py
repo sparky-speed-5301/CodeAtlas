@@ -118,7 +118,7 @@ def evaluate_isolated_validation_case(case_dir: Path) -> dict[str, Any]:
         evidence_path = Path(temp) / "evidence.jsonl"
 
         cmd = [
-            "python", "-m", "codeatlas.cli", "patch", "apply-isolated",
+            sys.executable, "-m", "codeatlas.cli", "patch", "apply-isolated",
             "--proposal", str(proposal_path),
             "--repo", str(work),
             "--base", base_sha,

@@ -102,7 +102,7 @@ def evaluate_test_execution_case(case_dir: Path) -> dict[str, Any]:
             config_path.write_text(json.dumps(cfg, indent=2), encoding="utf-8")
 
         cmd = [
-            "python", "-m", "codeatlas.cli", "patch", "validate",
+            sys.executable, "-m", "codeatlas.cli", "patch", "validate",
             "--proposal", str(proposal_path),
             "--repo", str(work),
             "--base", base_sha,

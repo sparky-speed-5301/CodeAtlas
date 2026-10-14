@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import os
 from typing import Any, Literal
 
 from pydantic import BaseModel, ConfigDict, Field
@@ -21,7 +22,12 @@ LifecycleState = Literal[
     "completed",
     "failed",
     "cancelled",
+    "pending_recovery",
+    "recovery_failed",
+    "expired",
 ]
+
+RecoveryState = Literal["not_required", "pending_recovery", "recovered", "recovery_failed", "expired"]
 
 
 class HealthResponse(BaseModel):
@@ -31,6 +37,7 @@ class HealthResponse(BaseModel):
     version: str = "0.1.0"
     timestamp: str
     pid: int
+    parent_pid: int = Field(default_factory=os.getppid)
     active_reviews: int = 0
     provider: Literal["mock", "live", "deterministic", "mixed"] = "deterministic"
     api_version: Literal["1"] = "1"
@@ -63,7 +70,7 @@ class CapabilitiesResponse(BaseModel):
     api_version: Literal["1"] = "1"
     api_prefix: Literal["/api/v1"] = "/api/v1"
     openapi_url: str = "/api/v1/openapi.json"
-    state_lifetime: Literal["process"] = "process"
+    state_lifetime: Literal["process", "persistent"] = "process"
     capabilities: list[str] = Field(default_factory=lambda: [
         "reviews", "findings", "feedback", "fix_proposals", "isolated_validation",
         "explicit_apply", "safe_revert", "apply_history",
@@ -129,6 +136,8 @@ class ReviewStatusResponse(BaseModel):
     errors: list[str] = Field(default_factory=list)
     created_at: str = ""
     completed_at: str = ""
+    recovery_state: RecoveryState = "not_required"
+    retry_of: str | None = None
 
 
 class FindingsListResponse(BaseModel):
@@ -144,6 +153,20 @@ class ReviewsListResponse(BaseModel):
     limit: int
     offset: int
     reviews: list[ReviewStatusResponse]
+
+
+class ReviewLifecycleEvent(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+    event: str = Field(max_length=128)
+    status: str = Field(max_length=64)
+    at: str = Field(max_length=64)
+    operation: dict[str, str] | None = None
+
+
+class ReviewEventsResponse(BaseModel):
+    run_id: str
+    repository_id: str
+    events: list[ReviewLifecycleEvent] = Field(default_factory=list, max_length=50)
 
 
 class DismissResponse(BaseModel):
@@ -384,6 +407,7 @@ class FixProposalResponse(BaseModel):
     review_packet: dict[str, Any] | None = None
     human_approval_manifest: dict[str, Any] | None = None
     validation_history: list[str] = Field(default_factory=list)
+    recovery_state: RecoveryState = "not_required"
 
 
 class FixValidationApprovalRequest(BaseModel):
@@ -463,6 +487,7 @@ class FixValidationResponse(BaseModel):
     human_approval_manifest: dict[str, Any] | None = None
     validation_history: list[str] = Field(default_factory=list)
     model_config = ConfigDict(extra="forbid", strict=True)
+    recovery_state: RecoveryState = "not_required"
 
 
 # ---------------------------------------------------------------------------
@@ -556,3 +581,4 @@ class FixApplyHistoryResponse(BaseModel):
     resulting_diff_hash: str | None = None
     files_changed: list[str] = Field(default_factory=list)
     events: list[FixApplyEvent] = Field(default_factory=list)
+    recovery_state: RecoveryState = "not_required"

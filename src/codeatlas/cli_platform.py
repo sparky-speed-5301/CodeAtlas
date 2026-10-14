@@ -207,7 +207,7 @@ def start_review(
             emit(ctx, result)
             raise
     emit(ctx, result)
-    if result.status in {"failed", "cancelled"}:
+    if result.status in {"failed", "cancelled", "recovery_failed", "expired"}:
         raise typer.Exit(1)
 
 
@@ -225,7 +225,7 @@ def review_status(ctx: typer.Context, run_id: str) -> None:
     """Fetch the status of a run."""
     result = client(ctx).get_review(run_id)
     emit(ctx, result)
-    if result.status in {"failed", "cancelled"}:
+    if result.status in {"failed", "cancelled", "recovery_failed", "expired"}:
         raise typer.Exit(1)
 
 
@@ -236,7 +236,7 @@ def wait_review(ctx: typer.Context, run_id: str,
     """Wait for completion, with a bounded overall deadline."""
     result = client(ctx).wait_for_review(run_id, timeout=wait_timeout)
     emit(ctx, result)
-    if result.status in {"failed", "cancelled"}:
+    if result.status in {"failed", "cancelled", "recovery_failed", "expired"}:
         raise typer.Exit(1)
 
 
@@ -245,6 +245,20 @@ def wait_review(ctx: typer.Context, run_id: str,
 def cancel_review(ctx: typer.Context, run_id: str) -> None:
     """Request cooperative cancellation."""
     emit(ctx, client(ctx).cancel_review(run_id))
+
+
+@reviews_app.command("retry")
+@guarded
+def retry_review(ctx: typer.Context, run_id: str) -> None:
+    """Explicitly create a new run for a failed or interrupted review."""
+    emit(ctx, client(ctx).retry_review(run_id))
+
+
+@reviews_app.command("events")
+@guarded
+def review_events(ctx: typer.Context, run_id: str) -> None:
+    """Inspect the bounded durable lifecycle history for one run."""
+    emit(ctx, client(ctx).get_review_events(run_id))
 
 
 @findings_app.command("list")

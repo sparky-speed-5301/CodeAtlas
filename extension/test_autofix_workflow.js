@@ -126,7 +126,10 @@ async function runTests() {
     const port = await freePort();
     const child = childFixture(port); children.push(child);
     await eventually(async () => {
-      try { return (await getJson(port, '/health')).body.pid === child.pid; } catch { return false; }
+      try {
+        const health = (await getJson(port, '/health')).body;
+        return health.pid === child.pid || health.parent_pid === child.pid;
+      } catch { return false; }
     }, 'fixture service must become healthy');
 
     host = createHost(root, { serviceMode: 'external', serviceUrl: `http://127.0.0.1:${port}`,

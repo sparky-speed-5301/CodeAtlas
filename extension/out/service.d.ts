@@ -1,6 +1,10 @@
 import { ChildProcess } from 'child_process';
-import { HealthStatus, ServiceCommandParseResult, ServiceHealth, ServiceLifecycleOptions, ServiceMode, ServiceStartResult, ServiceStopResult } from './types';
+import { HealthStatus, ServiceCommandParseResult, ServiceFailureCode, ServiceHealth, ServiceLifecycleOptions, ServiceMode, ServiceStartResult, ServiceStopResult } from './types';
 export declare const SETUP_MESSAGE = "Configure codeatlas.serviceUrl or .codeatlas/service.json, or use CodeAtlas: Start Local Service. Managed auto-start requires serviceMode=managed and autoStartService=true.";
+export declare class ServiceLifecycleError extends Error {
+    readonly code: ServiceFailureCode;
+    constructor(code: ServiceFailureCode, message: string);
+}
 export declare function validateServiceUrl(value: unknown): string;
 export declare function managedUrl(host: string, port: number): string;
 export declare function parseServiceCommand(command: unknown): ServiceCommandParseResult;
@@ -27,6 +31,7 @@ export declare class ServiceLifecycleManager {
     lastHealth: ServiceHealth | null;
     lastHealthStatus: HealthStatus;
     lastHealthCheck: string | null;
+    lastErrorCode: ServiceFailureCode | null;
     lastErrorMessage: string | null;
     message: string;
     stdoutBuffer: string;

@@ -6,12 +6,14 @@
  */
 import * as vscode from 'vscode';
 export type ServiceMode = 'external' | 'managed' | 'disabled';
+export type ServiceFailureCode = 'service_start_failed' | 'service_health_timeout' | 'service_crashed' | 'service_unreachable' | 'configuration_invalid' | 'environment_unavailable';
 export type HealthStatus = 'unknown' | 'healthy' | 'unreachable' | 'starting' | 'stopping' | 'stopped' | 'crashed' | 'disabled' | 'not_configured' | 'error' | 'stale';
 export interface ServiceHealth {
     status: 'ok';
     service: 'codeatlas-service';
     version: string;
     pid: number | null;
+    parent_pid: number | null;
     active_reviews: number | null;
     provider: 'mock' | 'live' | 'deterministic' | 'mixed' | 'unknown' | string;
 }
@@ -132,7 +134,8 @@ export interface FindingDetail extends Finding {
     limitations?: string[];
     context?: FindingContext;
 }
-export type ReviewRunStatus = 'pending' | 'running' | 'completed' | 'failed' | 'cancelled';
+export type RecoveryState = 'not_required' | 'pending_recovery' | 'recovered' | 'recovery_failed' | 'expired';
+export type ReviewRunStatus = 'pending' | 'running' | 'completed' | 'failed' | 'cancelled' | 'pending_recovery' | 'recovery_failed' | 'expired';
 export interface ReviewStatus {
     run_id?: string;
     status: ReviewRunStatus | string;
@@ -145,6 +148,8 @@ export interface ReviewStatus {
     /** Resolved revisions, present only after the service resolved them. */
     base_commit?: string | null;
     head_commit?: string | null;
+    recovery_state?: RecoveryState;
+    retry_of?: string | null;
 }
 export interface StartReviewOptions {
     base?: string;
@@ -179,6 +184,7 @@ export interface ValidationResult {
 export type FixProposalLifecycle = 'not_eligible' | 'generating' | 'generation_failed' | 'rejected_by_policy' | 'draft_ready' | 'rejected' | 'regeneration_requested';
 export type FixValidationLifecycle = 'not_requested' | 'approval_required' | 'approved_for_validation' | 'validating' | 'applied_in_isolated_worktree' | 'tests_running' | 'validated' | 'applied' | 'reverted' | 'validation_failed' | 'cleanup_failed';
 export interface FixProposal {
+    recovery_state?: RecoveryState;
     proposal_id: string;
     finding_id: string;
     run_id: string;

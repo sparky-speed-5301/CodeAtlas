@@ -4,7 +4,9 @@ from __future__ import annotations
 
 import json
 import subprocess
+import sys
 from pathlib import Path
+
 import pytest
 
 from codeatlas.patching.apply import apply_patch_in_isolated_sandbox
@@ -70,7 +72,7 @@ def test_cli_smoke_no_tests(tmp_path: Path) -> None:
     rep_path = tmp_path / "report.json"
 
     cmd = [
-        "python", "-m", "codeatlas.cli", "patch", "validate",
+        sys.executable, "-m", "codeatlas.cli", "patch", "validate",
         "--proposal", str(p_path),
         "--repo", str(repo),
         "--base", base_sha,
@@ -113,7 +115,7 @@ def test_cli_smoke_passing_tests(tmp_path: Path) -> None:
     rep_path = tmp_path / "report.json"
 
     cmd = [
-        "python", "-m", "codeatlas.cli", "patch", "validate",
+        sys.executable, "-m", "codeatlas.cli", "patch", "validate",
         "--proposal", str(p_path),
         "--repo", str(repo),
         "--base", base_sha,
@@ -162,7 +164,7 @@ def test_cli_smoke_failing_tests(tmp_path: Path) -> None:
     rep_path = tmp_path / "report.json"
 
     cmd = [
-        "python", "-m", "codeatlas.cli", "patch", "validate",
+        sys.executable, "-m", "codeatlas.cli", "patch", "validate",
         "--proposal", str(p_path),
         "--repo", str(repo),
         "--base", base_sha,
@@ -215,7 +217,7 @@ def test_cli_smoke_blocked_tests(tmp_path: Path) -> None:
     cfg_path.write_text(json.dumps({"test": {"override_command": ["curl", "https://example.com"]}}), encoding="utf-8")
 
     cmd = [
-        "python", "-m", "codeatlas.cli", "patch", "validate",
+        sys.executable, "-m", "codeatlas.cli", "patch", "validate",
         "--proposal", str(p_path),
         "--repo", str(repo),
         "--base", base_sha,

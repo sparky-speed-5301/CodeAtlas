@@ -126,6 +126,21 @@ async function runTests(vscode) {
       assert.strictEqual((await manager.stopManagedService()).stopped, false);
     });
 
+    await test('Windows Python launcher child is accepted only through its reported parent PID', async () => {
+      const manager = new ServiceLifecycleManager({ serviceMode: 'managed' });
+      const options = startup(childProcess(1234));
+      let calls = 0;
+      options.client.getHealth = async () => {
+        if (++calls === 1) throw new Error('offline');
+        return { ...health(5678), parent_pid: 1234 };
+      };
+      const result = await manager.startManagedService(options);
+      assert.strictEqual(result.health.pid, 5678);
+      assert.strictEqual(result.health.parent_pid, 1234);
+      assert.strictEqual(manager.managedPid, 5678);
+      await manager.dispose();
+    });
+
     await test('Status view exposes lifecycle, ownership, health metadata, and active profile', async () => {
       const manager = new ServiceLifecycleManager({ serviceMode: 'managed' });
       const profiles = new ProfileManager(null, { ci: {} });
@@ -162,7 +177,9 @@ async function runTests(vscode) {
       let calls = 0;
       options.client.getHealth = () => ++calls === 1 ? Promise.reject(new Error('offline')) : new Promise(() => {});
       const start = Date.now();
-      await assert.rejects(manager.startManagedService(options), /startup timed out/);
+      await assert.rejects(manager.startManagedService(options), error =>
+        error.code === 'service_health_timeout' && /startup timed out/.test(error.message));
+      assert.strictEqual(manager.lastErrorCode, 'service_health_timeout');
       assert.ok(Date.now() - start < 1500);
       assert.deepStrictEqual(options.child.signals, ['SIGTERM']);
       assert.strictEqual(manager.owned, false);
@@ -173,7 +190,8 @@ async function runTests(vscode) {
       const options = startup();
       let calls = 0;
       options.client.getHealth = async () => { if (++calls === 1) throw new Error(); return health(777); };
-      await assert.rejects(manager.startManagedService(options), /timed out/);
+      await assert.rejects(manager.startManagedService(options), error =>
+        error.code === 'service_health_timeout' && /timed out/.test(error.message));
       assert.strictEqual(manager.lastHealth, null);
       assert.deepStrictEqual(options.child.signals, ['SIGTERM']);
     });
@@ -187,6 +205,7 @@ async function runTests(vscode) {
         options.child.stderr.emit('data', 'API_KEY=super-secret raw prompt and provider output');
         options.child.emit('exit', code, code === null ? 'SIGTERM' : null);
         assert.strictEqual(manager.lastHealthStatus, 'crashed');
+        assert.strictEqual(manager.lastErrorCode, 'service_crashed');
         assert.strictEqual(manager.owned, false);
         assert.strictEqual(crashes.length, 1);
         assert.ok(!manager.lastErrorMessage.includes('super-secret'));
@@ -199,8 +218,53 @@ async function runTests(vscode) {
       const spawn = options.spawn;
       options.spawn = (...args) => { const child = spawn(...args); queueMicrotask(() => child.emit('error', new Error('secret command'))); return child; };
       const manager = new ServiceLifecycleManager({ serviceMode: 'managed' });
-      await assert.rejects(manager.startManagedService(options), /exited unexpectedly/);
+      await assert.rejects(manager.startManagedService(options), error =>
+        error.code === 'environment_unavailable' && /Could not launch/.test(error.message));
+      assert.strictEqual(manager.lastErrorCode, 'environment_unavailable');
       assert.strictEqual(manager.owned, false);
+    });
+
+    await test('Failure codes distinguish configuration, environment, startup, health, crash, and reachability', async () => {
+      const invalid = new ServiceLifecycleManager({ serviceMode: 'managed', serviceCommand: 'python -c invalid' });
+      await assert.rejects(invalid.startManagedService(), error => error.code === 'configuration_invalid');
+      assert.strictEqual(invalid.lastErrorCode, 'configuration_invalid');
+
+      for (const mode of ['missing_executable', 'missing_working_directory']) {
+        const unavailable = new ServiceLifecycleManager({ serviceMode: 'managed' });
+        const error = Object.assign(new Error(mode), { code: 'ENOENT' });
+        await assert.rejects(unavailable.startManagedService({
+          client: { getHealth: async () => { throw new Error('offline'); } },
+          spawn: () => { throw error; },
+        }), failure => failure.code === 'environment_unavailable' && !failure.message.includes(mode));
+        assert.strictEqual(unavailable.lastErrorCode, 'environment_unavailable');
+      }
+
+      const failed = new ServiceLifecycleManager({ serviceMode: 'managed' });
+      const failedOptions = startup();
+      failedOptions.client.getHealth = async () => { throw new Error('offline'); };
+      failedOptions.spawn = (...args) => {
+        const child = startup().spawn(...args);
+        queueMicrotask(() => child.emit('exit', 2, null));
+        return child;
+      };
+      await assert.rejects(failed.startManagedService(failedOptions), error =>
+        error.code === 'service_start_failed' && /before becoming ready/.test(error.message));
+      assert.strictEqual(failed.lastErrorCode, 'service_start_failed');
+
+      const external = new ServiceLifecycleManager({ serviceUrl: 'http://127.0.0.1:8765' });
+      await assert.rejects(external.checkHealth({ getHealth: async () => { throw new Error('secret'); } }));
+      assert.strictEqual(external.lastErrorCode, 'service_unreachable');
+      await external.checkHealth({ getHealth: async () => health() });
+      assert.strictEqual(external.lastErrorCode, null, 'a healthy retry clears the reachability failure');
+
+      const retry = new ServiceLifecycleManager({ serviceMode: 'managed' });
+      const timeout = startup();
+      timeout.client.getHealth = async () => { throw new Error('offline'); };
+      await assert.rejects(retry.startManagedService(timeout), error => error.code === 'service_health_timeout');
+      const recovered = await retry.startManagedService(startup(childProcess(4321)));
+      assert.strictEqual(recovered.started, true);
+      assert.strictEqual(retry.lastErrorCode, null);
+      await retry.dispose();
     });
 
     await test('Captured process output is bounded and never retains secrets or prompts across chunks', async () => {
@@ -331,6 +395,23 @@ async function runTests(vscode) {
       fs.unlinkSync(filename);
     });
 
+    await test('Real Python port conflict fails before readiness with no ownership or orphan', async () => {
+      const occupied = http.createServer((req, res) => { res.writeHead(404); res.end('{}'); });
+      await new Promise(resolve => occupied.listen(0, '127.0.0.1', resolve));
+      const port = occupied.address().port;
+      const python = process.env.CODEATLAS_TEST_PYTHON || 'python';
+      const manager = new ServiceLifecycleManager({ serviceMode: 'managed', servicePort: port,
+        serviceCommand: `"${python}" -m codeatlas.cli serve` });
+      try {
+        await assert.rejects(manager.startManagedService({ timeoutMs: 3000 }), error =>
+          error.code === 'service_start_failed');
+        assert.strictEqual(manager.owned, false);
+      } finally {
+        await manager.dispose();
+        await new Promise(resolve => occupied.close(resolve));
+      }
+    });
+
     await test('Real Python localhost service startup, health identity, restart, and shutdown', async () => {
       const listener = net.createServer();
       await new Promise(resolve => listener.listen(0, '127.0.0.1', resolve));
@@ -343,6 +424,7 @@ async function runTests(vscode) {
         const result = await manager.startManagedService();
         assert.strictEqual(result.started, true);
         assert.strictEqual(result.health.pid, manager.managedPid);
+        assert.ok(result.health.pid > 0);
         assert.strictEqual(result.health.active_reviews, 0);
         assert.strictEqual(result.health.provider, 'deterministic');
         const pid = manager.managedPid;
@@ -351,6 +433,10 @@ async function runTests(vscode) {
         assert.strictEqual((await manager.checkHealth()).status, 'ok');
       } finally { await manager.dispose(); }
       assert.strictEqual(manager.owned, false);
+      const stoppedClient = new ext.CodeAtlasClient(`http://127.0.0.1:${port}`);
+      try {
+        await assert.rejects(stoppedClient.getHealth(250), /unreachable|timed out/);
+      } finally { stoppedClient.dispose(); }
     });
 
     await test('HTTP client bounds errors and never echoes credential-bearing responses', async () => {

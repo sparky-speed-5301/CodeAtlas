@@ -1293,7 +1293,9 @@ export function activate(context: vscode.ExtensionContext): ExtensionActivationR
             if (
               status.status === 'completed' ||
               status.status === 'failed' ||
-              status.status === 'cancelled'
+              status.status === 'cancelled' ||
+              status.status === 'recovery_failed' ||
+              status.status === 'expired'
             ) {
               clearInterval(pollInterval);
               reviewTimers.delete(pollInterval);

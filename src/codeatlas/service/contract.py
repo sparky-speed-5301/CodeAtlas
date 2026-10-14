@@ -39,7 +39,9 @@ ENDPOINTS = (
     Endpoint("GET", "/reviews", "listReviews", m.ReviewsListResponse, query=("limit", "offset")),
     Endpoint("POST", "/reviews", "startReview", m.ReviewStatusResponse, m.ReviewCreateRequest, 201),
     Endpoint("GET", "/reviews/{run_id}", "getReview", m.ReviewStatusResponse),
+    Endpoint("GET", "/reviews/{run_id}/events", "getReviewEvents", m.ReviewEventsResponse),
     Endpoint("POST", "/reviews/{run_id}/cancel", "cancelReview", m.CancelResponse),
+    Endpoint("POST", "/reviews/{run_id}/retry", "retryReview", m.ReviewStatusResponse, status=201),
     Endpoint("GET", "/reviews/{run_id}/findings", "listFindings", m.FindingsListResponse,
              query=("severity", "category", "status", "include_dismissed")),
     Endpoint("GET", FINDING, "getFinding", m.FindingDetailResponse),
@@ -116,7 +118,7 @@ def openapi_document() -> dict[str, Any]:
             "responses": {
                 str(item.status): {"description": "Success", "content": {
                     "application/json": {"schema": schema(item.response)}}},
-                **{str(code): error for code in (400, 404, 405, 409, 413, 500)},
+                **{str(code): error for code in (400, 404, 405, 409, 413, 429, 500)},
             },
         }
         if item.request:

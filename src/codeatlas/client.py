@@ -148,6 +148,9 @@ class CodeAtlasClient:
     def get_review(self, run_id: str) -> m.ReviewStatusResponse:
         return self._model(m.ReviewStatusResponse, "GET", f"/reviews/{identifier(run_id)}")
 
+    def get_review_events(self, run_id: str) -> m.ReviewEventsResponse:
+        return self._model(m.ReviewEventsResponse, "GET", f"/reviews/{identifier(run_id)}/events")
+
     def wait_for_review(self, run_id: str, *, timeout: float = 300.0,
                         poll_interval: float = 0.2) -> m.ReviewStatusResponse:
         if not all(math.isfinite(v) and v > 0 for v in (timeout, poll_interval)):
@@ -159,7 +162,7 @@ class CodeAtlasClient:
                 raise ClientError("wait_timeout", "Review is still running; poll its run_id to resume")
             status = self._model(m.ReviewStatusResponse, "GET", f"/reviews/{identifier(run_id)}",
                                  timeout=min(self.timeout, remaining))
-            if status.status in {"completed", "failed", "cancelled"}:
+            if status.status in {"completed", "failed", "cancelled", "recovery_failed", "expired"}:
                 return status
             time.sleep(min(poll_interval, max(0, deadline - time.monotonic())))
 
@@ -168,6 +171,9 @@ class CodeAtlasClient:
 
     def cancel_review(self, run_id: str) -> m.CancelResponse:
         return self._model(m.CancelResponse, "POST", f"/reviews/{identifier(run_id)}/cancel")
+
+    def retry_review(self, run_id: str) -> m.ReviewStatusResponse:
+        return self._model(m.ReviewStatusResponse, "POST", f"/reviews/{identifier(run_id)}/retry")
 
     def get_findings(self, run_id: str, *, severity: str | None = None, category: str | None = None,
                      status: str | None = None, include_dismissed: bool = False) -> m.FindingsListResponse:

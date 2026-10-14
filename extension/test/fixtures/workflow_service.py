@@ -99,7 +99,8 @@ class FixtureManager(ReviewStateManager):
             record.progress_text = f"Fixture: {record.status}"
             if record.scenario == "provider_failure" and record.status == "reviewing":
                 record.status = "failed"
-                record.errors = ["Deterministic provider failed; no findings produced."]
+                record.safe_error_code = "provider_failed"
+                record.errors = ["provider_failed"]
             if record.status == "findings_ready":
                 record.findings = [{
                     "id": f"finding-{run_id}", "file": "src/app.py", "line": 3,

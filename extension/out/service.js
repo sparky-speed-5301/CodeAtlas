@@ -33,7 +33,7 @@ var __importStar = (this && this.__importStar) || (function () {
     };
 })();
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.ServiceLifecycleManager = exports.SETUP_MESSAGE = void 0;
+exports.ServiceLifecycleManager = exports.ServiceLifecycleError = exports.SETUP_MESSAGE = void 0;
 exports.validateServiceUrl = validateServiceUrl;
 exports.managedUrl = managedUrl;
 exports.parseServiceCommand = parseServiceCommand;
@@ -44,6 +44,18 @@ const url_1 = require("url");
 const client_1 = require("./client");
 const profiles_1 = require("./profiles");
 exports.SETUP_MESSAGE = 'Configure codeatlas.serviceUrl or .codeatlas/service.json, or use CodeAtlas: Start Local Service. Managed auto-start requires serviceMode=managed and autoStartService=true.';
+class ServiceLifecycleError extends Error {
+    code;
+    constructor(code, message) {
+        super(message);
+        this.code = code;
+        this.name = 'ServiceLifecycleError';
+    }
+}
+exports.ServiceLifecycleError = ServiceLifecycleError;
+function failure(code, message) {
+    return new ServiceLifecycleError(code, message);
+}
 function validateServiceUrl(value) {
     // Exact authority syntax avoids URL parser normalization, credentials, paths, and queries.
     if (typeof value !== 'string' ||
@@ -97,6 +109,7 @@ function safeHealth(raw) {
         service: 'codeatlas-service',
         version: raw.version,
         pid: Number.isSafeInteger(raw.pid) && raw.pid > 0 ? raw.pid : null,
+        parent_pid: Number.isSafeInteger(raw.parent_pid) && raw.parent_pid > 0 ? raw.parent_pid : null,
         active_reviews: Number.isSafeInteger(raw.active_reviews) && raw.active_reviews >= 0
             ? raw.active_reviews
             : null,
@@ -106,6 +119,9 @@ function safeHealth(raw) {
     };
 }
 const delay = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
+function healthMatchesProcess(health, pid) {
+    return pid !== null && (health.pid === pid || health.parent_pid === pid);
+}
 async function bounded(promise, ms) {
     let timer;
     try {
@@ -140,6 +156,7 @@ class ServiceLifecycleManager {
     lastHealth;
     lastHealthStatus;
     lastHealthCheck;
+    lastErrorCode;
     lastErrorMessage;
     message;
     stdoutBuffer;
@@ -168,6 +185,7 @@ class ServiceLifecycleManager {
         this.lastHealth = null;
         this.lastHealthStatus = 'unknown';
         this.lastHealthCheck = null;
+        this.lastErrorCode = null;
         this.lastErrorMessage = null;
         this.message = exports.SETUP_MESSAGE;
         this.stdoutBuffer = '';
@@ -227,6 +245,8 @@ class ServiceLifecycleManager {
             return this.currentUrl;
         }
         catch (error) {
+            this.lastErrorCode =
+                error instanceof ServiceLifecycleError ? error.code : this.lastErrorCode || 'configuration_invalid';
             this.lastErrorMessage = error.message;
             if (this.lastHealthStatus !== 'crashed')
                 this.lastHealthStatus = 'error';
@@ -253,6 +273,7 @@ class ServiceLifecycleManager {
             this.lastHealth = null;
             this.lastHealthStatus = 'error';
             this.lastHealthCheck = new Date().toISOString();
+            this.lastErrorCode = 'configuration_invalid';
             this.lastErrorMessage = error.message;
             this.onChange();
             throw error;
@@ -267,12 +288,14 @@ class ServiceLifecycleManager {
             const health = safeHealth(await bounded(activeClient.getHealth(1000), 1000));
             if (this._disposed || epoch !== this._epoch)
                 return { status: 'stale' };
-            if (this.owned && health.pid !== this.managedPid)
+            if (this.owned && !healthMatchesProcess(health, this.managedPid)) {
                 throw new Error('Service identity changed.');
+            }
             this.currentUrl = target;
             this.lastHealth = health;
             this.lastHealthStatus = 'healthy';
             this.lastHealthCheck = new Date().toISOString();
+            this.lastErrorCode = null;
             this.lastErrorMessage = null;
             this.message = 'CodeAtlas service is ready.';
             this.onChange();
@@ -286,6 +309,7 @@ class ServiceLifecycleManager {
             // Preserve the crash diagnosis across subsequent unsuccessful probes.
             if (this.lastHealthStatus !== 'crashed') {
                 this.lastHealthStatus = 'unreachable';
+                this.lastErrorCode = 'service_unreachable';
                 this.lastErrorMessage =
                     'CodeAtlas /health failed. Check that the configured local service is running.';
             }
@@ -299,6 +323,8 @@ class ServiceLifecycleManager {
         this._starting = this._start(options)
             .catch((error) => {
             if (!this._disposed && !['stopped', 'disabled', 'crashed'].includes(this.lastHealthStatus)) {
+                this.lastErrorCode =
+                    error instanceof ServiceLifecycleError ? error.code : this.lastErrorCode || 'service_start_failed';
                 this.lastErrorMessage = error.message;
                 this.lastHealthStatus = 'error';
                 this.onChange();
@@ -313,11 +339,13 @@ class ServiceLifecycleManager {
     async _start(options) {
         const epoch = this._epoch;
         if (this._disposed)
-            throw new Error('CodeAtlas extension is shutting down.');
-        if (this.serviceMode === 'disabled')
-            throw new Error('CodeAtlas service mode is disabled in settings.');
-        if (!this.trusted)
-            throw new Error('Managed service startup requires a trusted workspace.');
+            throw failure('service_start_failed', 'CodeAtlas extension is shutting down.');
+        if (this.serviceMode === 'disabled') {
+            throw failure('configuration_invalid', 'CodeAtlas service mode is disabled in settings.');
+        }
+        if (!this.trusted) {
+            throw failure('configuration_invalid', 'Managed service startup requires a trusted workspace.');
+        }
         if (this._stopping)
             await this._stopping;
         if (epoch !== this._epoch || this._disposed)
@@ -326,12 +354,20 @@ class ServiceLifecycleManager {
             const health = (await this.checkHealth());
             return { started: false, alreadyRunning: true, pid: this.managedPid, url: this.currentUrl, health };
         }
-        const target = managedUrl(this.serviceHost, this.servicePort);
-        const resolved = this.resolveServiceUrl();
-        if (resolved && resolved !== target && resolved !== target.replace('127.0.0.1', 'localhost')) {
-            throw new Error('Discovered service URL differs from the managed host/port. Align the settings before starting a local service.');
+        let target;
+        let executable;
+        let args;
+        try {
+            target = managedUrl(this.serviceHost, this.servicePort);
+            const resolved = this.resolveServiceUrl();
+            if (resolved && resolved !== target && resolved !== target.replace('127.0.0.1', 'localhost')) {
+                throw new Error('Discovered service URL differs from the managed host/port. Align the settings before starting a local service.');
+            }
+            ({ executable, args } = parseServiceCommand(this.serviceCommand));
         }
-        const { executable, args } = parseServiceCommand(this.serviceCommand);
+        catch (error) {
+            throw failure('configuration_invalid', error.message);
+        }
         const client = options.client || this.clientFactory(target);
         // Reuse a pre-existing CodeAtlas service; it remains unowned and is never stopped.
         try {
@@ -343,6 +379,7 @@ class ServiceLifecycleManager {
             this.lastHealthStatus = 'healthy';
             this.lastHealthCheck = new Date().toISOString();
             this.message = 'Using existing local CodeAtlas service (external / unowned).';
+            this.lastErrorCode = null;
             this.lastErrorMessage = null;
             this.onChange();
             return { started: false, alreadyRunning: true, url: target, health };
@@ -357,6 +394,7 @@ class ServiceLifecycleManager {
         this.currentUrl = target;
         this.stdoutBuffer = this.stderrBuffer = '';
         this.lastHealth = null;
+        this.lastErrorCode = null;
         this.lastErrorMessage = null;
         this.lastHealthStatus = 'starting';
         this.message = 'Starting local CodeAtlas service; waiting for /health.';
@@ -373,10 +411,11 @@ class ServiceLifecycleManager {
         }
         catch (_) {
             this.lastHealthStatus = 'error';
+            this.lastErrorCode = 'environment_unavailable';
             this.lastErrorMessage =
-                'Could not launch CodeAtlas. Check serviceCommand and the installed Python environment.';
+                'Could not launch CodeAtlas. Check serviceCommand, working directory, and the installed Python environment.';
             this.onChange();
-            throw new Error(this.lastErrorMessage);
+            throw failure(this.lastErrorCode, this.lastErrorMessage);
         }
         this.managedProcess = child;
         this.managedPid = child.pid ?? null;
@@ -394,6 +433,8 @@ class ServiceLifecycleManager {
         }
         let exited = false;
         let intentional = false;
+        let ready = false;
+        let startupFailureCode = 'service_start_failed';
         let finishExit = () => { };
         const exitPromise = new Promise((resolve) => {
             finishExit = resolve;
@@ -415,16 +456,24 @@ class ServiceLifecycleManager {
             this.lastHealth = null;
             if (!intentional) {
                 this._epoch++;
-                this.lastHealthStatus = 'crashed';
-                this.lastErrorMessage = `CodeAtlas service exited unexpectedly${Number.isInteger(code) ? ` (code ${code})` : ''}. Use Start Local Service to retry.`;
-                this.onCrash(this.lastErrorMessage);
+                this.lastErrorCode = ready ? 'service_crashed' : startupFailureCode;
+                this.lastHealthStatus = ready ? 'crashed' : 'error';
+                this.lastErrorMessage = ready
+                    ? `CodeAtlas service exited unexpectedly${Number.isInteger(code) ? ` (code ${code})` : ''}. Use Start Local Service to retry.`
+                    : startupFailureCode === 'environment_unavailable'
+                        ? 'Could not launch CodeAtlas. Check serviceCommand, working directory, and the installed Python environment.'
+                        : `CodeAtlas service exited before becoming ready${Number.isInteger(code) ? ` (code ${code})` : ''}.`;
+                if (ready)
+                    this.onCrash(this.lastErrorMessage);
             }
             this.onChange();
         };
         child.once('exit', onExit);
         child.on('error', () => {
-            if (!child.pid)
+            if (!child.pid) {
+                startupFailureCode = 'environment_unavailable';
                 onExit(null); // Spawn failure: no process was created.
+            }
             else if (this.managedProcess === child) {
                 // A failed kill can also emit 'error'; retain ownership until actual exit.
                 this.lastErrorMessage = 'Owned CodeAtlas process reported an operating-system error.';
@@ -436,17 +485,20 @@ class ServiceLifecycleManager {
                 this.lastHealthCheck = new Date().toISOString();
                 const remaining = Math.max(1, deadline - Date.now());
                 const health = safeHealth(await bounded(client.getHealth(Math.min(500, remaining)), remaining));
-                if (health.pid === child.pid &&
+                if (healthMatchesProcess(health, child.pid ?? null) &&
                     !exited &&
                     epoch === this._epoch &&
                     !this._disposed &&
                     Date.now() < deadline) {
+                    ready = true;
+                    this.managedPid = health.pid;
                     this.lastHealth = health;
                     this.lastHealthStatus = 'healthy';
                     this.lastHealthCheck = new Date().toISOString();
                     this.message = 'Managed CodeAtlas service is ready.';
+                    this.lastErrorCode = null;
                     this.onChange();
-                    return { started: true, pid: child.pid, url: target, health };
+                    return { started: true, pid: health.pid, url: target, health };
                 }
             }
             catch (_) {
@@ -454,16 +506,19 @@ class ServiceLifecycleManager {
             }
             await delay(Math.min(100, Math.max(0, deadline - Date.now())));
         }
-        if (exited)
-            throw new Error(this.lastErrorMessage || 'Service crashed during startup.');
-        if (epoch !== this._epoch || this._disposed)
-            throw new Error('Service startup cancelled.');
+        if (exited && this.lastErrorCode) {
+            throw failure(this.lastErrorCode, this.lastErrorMessage || 'Service failed during startup.');
+        }
+        if (epoch !== this._epoch || this._disposed || exited) {
+            throw failure('service_start_failed', 'Service startup cancelled.');
+        }
         await this.stopManagedService();
         this.lastHealthStatus = 'error';
+        this.lastErrorCode = 'service_health_timeout';
         this.lastErrorMessage =
             'Managed service startup timed out waiting for a matching CodeAtlas /health response.';
         this.onChange();
-        throw new Error(this.lastErrorMessage);
+        throw failure(this.lastErrorCode, this.lastErrorMessage);
     }
     async stopManagedService() {
         this._epoch++;
@@ -496,6 +551,7 @@ class ServiceLifecycleManager {
             }
             this.lastHealth = null;
             this.lastHealthStatus = 'stopped';
+            this.lastErrorCode = null;
             this.lastErrorMessage = null;
             this.message = 'Managed CodeAtlas service stopped.';
             this.onChange();

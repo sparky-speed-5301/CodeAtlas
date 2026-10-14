@@ -40,6 +40,7 @@ from codeatlas.service.state import (
     ServicePathError,
     ServiceStateError,
 )
+from codeatlas.service.persistence import default_database_path
 
 logger = logging.getLogger("codeatlas.service")
 
@@ -59,6 +60,7 @@ FIX_CONFLICT_REASONS = frozenset({
     "resulting_diff_mismatch",
     "revert_not_available",
     "revert_state_changed",
+    "recovered_operation_unavailable",
 })
 
 
@@ -196,7 +198,10 @@ class ReviewHttpHandler(BaseHTTPRequestHandler):
                     )
                     for item in language_capability_reports()
                 ]
-                self._send_json(HTTPStatus.OK, CapabilitiesResponse(language_capabilities=reports).model_dump())
+                self._send_json(HTTPStatus.OK, CapabilitiesResponse(
+                    state_lifetime="persistent" if self.state_manager.persistent else "process",
+                    language_capabilities=reports,
+                ).model_dump())
                 return
             if path == "/reviews":
                 try:
@@ -245,8 +250,8 @@ class ReviewHttpHandler(BaseHTTPRequestHandler):
                     self._send_error_json(HTTPStatus.NOT_FOUND, str(err), "not_found")
                 except ServiceStateError as err:
                     self._send_error_json(HTTPStatus.CONFLICT, err.explanation, err.reason)
-                except Exception as err:
-                    self._send_error_json(HTTPStatus.BAD_REQUEST, f"Cannot evaluate fix eligibility: {err}", "bad_request")
+                except Exception:
+                    self._send_error_json(HTTPStatus.BAD_REQUEST, "Cannot evaluate fix eligibility", "bad_request")
                 return
 
             # 2c. GET /reviews/{run_id}/findings/{finding_id}/fix-proposal (latest)
@@ -260,8 +265,8 @@ class ReviewHttpHandler(BaseHTTPRequestHandler):
                     self._send_error_json(HTTPStatus.NOT_FOUND, str(err), "not_found")
                 except ServiceStateError as err:
                     self._send_error_json(HTTPStatus.NOT_FOUND, err.explanation, err.reason)
-                except Exception as err:
-                    self._send_error_json(HTTPStatus.BAD_REQUEST, f"Cannot retrieve fix proposal: {err}", "bad_request")
+                except Exception:
+                    self._send_error_json(HTTPStatus.BAD_REQUEST, "Cannot retrieve fix proposal", "bad_request")
                 return
 
             # 2d. GET /fix-proposals/{proposal_id}?run_id=&finding_id= (scope-checked retrieval)
@@ -285,8 +290,8 @@ class ReviewHttpHandler(BaseHTTPRequestHandler):
                 except ServiceStateError as err:
                     status = HTTPStatus.CONFLICT if err.reason == "scope_mismatch" else HTTPStatus.NOT_FOUND
                     self._send_error_json(status, err.explanation, err.reason)
-                except Exception as err:
-                    self._send_error_json(HTTPStatus.BAD_REQUEST, f"Cannot retrieve fix proposal: {err}", "bad_request")
+                except Exception:
+                    self._send_error_json(HTTPStatus.BAD_REQUEST, "Cannot retrieve fix proposal", "bad_request")
                 return
 
             # 2e. GET .../fix-proposal/apply-history (latest proposal, or by ID below)
@@ -301,8 +306,8 @@ class ReviewHttpHandler(BaseHTTPRequestHandler):
                 except ServiceStateError as err:
                     status = HTTPStatus.CONFLICT if err.reason == "scope_mismatch" else HTTPStatus.NOT_FOUND
                     self._send_error_json(status, err.explanation, err.reason)
-                except Exception as err:
-                    self._send_error_json(HTTPStatus.BAD_REQUEST, f"Cannot retrieve apply history: {err}", "bad_request")
+                except Exception:
+                    self._send_error_json(HTTPStatus.BAD_REQUEST, "Cannot retrieve apply history", "bad_request")
                 return
 
             # 2f. GET /fix-proposals/{proposal_id}/apply-history?run_id=&finding_id=
@@ -326,8 +331,8 @@ class ReviewHttpHandler(BaseHTTPRequestHandler):
                 except ServiceStateError as err:
                     status = HTTPStatus.CONFLICT if err.reason == "scope_mismatch" else HTTPStatus.NOT_FOUND
                     self._send_error_json(status, err.explanation, err.reason)
-                except Exception as err:
-                    self._send_error_json(HTTPStatus.BAD_REQUEST, f"Cannot retrieve apply history: {err}", "bad_request")
+                except Exception:
+                    self._send_error_json(HTTPStatus.BAD_REQUEST, "Cannot retrieve apply history", "bad_request")
                 return
 
             # 3. GET /reviews/{run_id}/findings
@@ -363,6 +368,13 @@ class ReviewHttpHandler(BaseHTTPRequestHandler):
                 return
 
             # 4. GET /reviews/{run_id}
+            events_match = re.fullmatch(r"/reviews/([^/]+)/events", path)
+            if events_match:
+                try:
+                    self._send_json(HTTPStatus.OK, self.state_manager.get_review_events(events_match.group(1)).model_dump())
+                except KeyError:
+                    self._send_error_json(HTTPStatus.NOT_FOUND, "Review not found", "not_found")
+                return
             m_run = re.match(r"^/reviews/([^/]+)$", path)
             if m_run:
                 run_id = m_run.group(1)
@@ -374,9 +386,9 @@ class ReviewHttpHandler(BaseHTTPRequestHandler):
                 return
 
             self._send_error_json(HTTPStatus.NOT_FOUND, f"Endpoint '{path}' not found", "not_found")
-        except Exception as err:
+        except Exception:
             logger.exception("Internal error in GET: %s", err)
-            self._send_error_json(HTTPStatus.INTERNAL_SERVER_ERROR, f"Internal server error: {err}", "internal_error")
+            self._send_error_json(HTTPStatus.INTERNAL_SERVER_ERROR, "Internal server error", "internal_error")
 
     def do_POST(self) -> None:
         """Route POST endpoints."""
@@ -404,11 +416,25 @@ class ReviewHttpHandler(BaseHTTPRequestHandler):
                     self._send_json(HTTPStatus.CREATED, status.model_dump())
                 except ServicePathError as err:
                     self._send_error_json(HTTPStatus.BAD_REQUEST, str(err), "invalid_path")
-                except Exception as err:
-                    self._send_error_json(HTTPStatus.BAD_REQUEST, f"Invalid review request: {err}", "bad_request")
+                except ServiceStateError as err:
+                    status_code = HTTPStatus.TOO_MANY_REQUESTS if err.reason == "review_queue_full" else HTTPStatus.CONFLICT
+                    self._send_error_json(status_code, err.explanation, err.reason)
+                except Exception:
+                    self._send_error_json(HTTPStatus.BAD_REQUEST, "Invalid review request", "bad_request")
                 return
 
             # 2. POST /reviews/{run_id}/cancel
+            retry = re.fullmatch(r"/reviews/([^/]+)/retry", path)
+            if retry:
+                try:
+                    result = self.state_manager.retry_review(retry.group(1))
+                    self._send_json(HTTPStatus.CREATED, result.model_dump())
+                except KeyError:
+                    self._send_error_json(HTTPStatus.NOT_FOUND, "Review not found", "not_found")
+                except ServiceStateError as error:
+                    code = HTTPStatus.TOO_MANY_REQUESTS if error.reason == "review_queue_full" else HTTPStatus.CONFLICT
+                    self._send_error_json(code, error.explanation, error.reason)
+                return
             m_cancel = re.match(r"^/reviews/([^/]+)/cancel$", path)
             if m_cancel:
                 run_id = m_cancel.group(1)
@@ -433,8 +459,8 @@ class ReviewHttpHandler(BaseHTTPRequestHandler):
                     self._send_json(HTTPStatus.OK, explanation)
                 except KeyError as err:
                     self._send_error_json(HTTPStatus.NOT_FOUND, str(err), "not_found")
-                except Exception as err:
-                    self._send_error_json(HTTPStatus.BAD_REQUEST, f"Cannot explain finding: {err}", "bad_request")
+                except Exception:
+                    self._send_error_json(HTTPStatus.BAD_REQUEST, "Cannot explain finding", "bad_request")
                 return
 
             # 4. POST /findings/{finding_id}/patch-proposal
@@ -447,8 +473,8 @@ class ReviewHttpHandler(BaseHTTPRequestHandler):
                     self._send_json(HTTPStatus.CREATED, proposal_resp.model_dump())
                 except KeyError as err:
                     self._send_error_json(HTTPStatus.NOT_FOUND, str(err), "not_found")
-                except Exception as err:
-                    self._send_error_json(HTTPStatus.BAD_REQUEST, f"Cannot propose fix: {err}", "bad_request")
+                except Exception:
+                    self._send_error_json(HTTPStatus.BAD_REQUEST, "Cannot propose fix", "bad_request")
                 return
 
             # 5. POST /proposals/{proposal_id}/validate
@@ -466,8 +492,8 @@ class ReviewHttpHandler(BaseHTTPRequestHandler):
                     self._send_json(HTTPStatus.OK, val_resp.model_dump())
                 except KeyError as err:
                     self._send_error_json(HTTPStatus.NOT_FOUND, str(err), "not_found")
-                except Exception as err:
-                    self._send_error_json(HTTPStatus.BAD_REQUEST, f"Validation failed: {err}", "bad_request")
+                except Exception:
+                    self._send_error_json(HTTPStatus.BAD_REQUEST, "Validation failed", "bad_request")
                 return
 
             # 6. POST /reviews/{run_id}/findings/{finding_id}/dismiss
@@ -496,8 +522,8 @@ class ReviewHttpHandler(BaseHTTPRequestHandler):
                     self._send_json(HTTPStatus.OK, result.model_dump())
                 except KeyError as err:
                     self._send_error_json(HTTPStatus.NOT_FOUND, str(err), "not_found")
-                except Exception as err:
-                    self._send_error_json(HTTPStatus.BAD_REQUEST, f"Invalid finding feedback: {err}", "bad_request")
+                except Exception:
+                    self._send_error_json(HTTPStatus.BAD_REQUEST, "Invalid finding feedback", "bad_request")
                 return
 
             # 7b. POST .../fix-proposal/apply — explicit apply of a validated proposal
@@ -575,7 +601,7 @@ class ReviewHttpHandler(BaseHTTPRequestHandler):
                 except KeyError as err:
                     self._send_error_json(HTTPStatus.NOT_FOUND, str(err), "not_found")
                 except ServiceStateError as err:
-                    status = HTTPStatus.CONFLICT if err.reason in {"scope_mismatch", "validation_not_available"} else HTTPStatus.BAD_REQUEST
+                    status = HTTPStatus.CONFLICT if err.reason in {"scope_mismatch", "validation_not_available", "recovered_operation_unavailable"} else HTTPStatus.BAD_REQUEST
                     self._send_error_json(status, err.explanation, err.reason)
                 except Exception:
                     self._send_error_json(HTTPStatus.BAD_REQUEST, "Invalid FixProposal approval request", "bad_request")
@@ -599,7 +625,7 @@ class ReviewHttpHandler(BaseHTTPRequestHandler):
                 except KeyError as err:
                     self._send_error_json(HTTPStatus.NOT_FOUND, str(err), "not_found")
                 except ServiceStateError as err:
-                    status = HTTPStatus.CONFLICT if err.reason in {"scope_mismatch", "validation_not_approved", "validation_not_available"} else HTTPStatus.BAD_REQUEST
+                    status = HTTPStatus.CONFLICT if err.reason in {"scope_mismatch", "validation_not_approved", "validation_not_available", "recovered_operation_unavailable"} else HTTPStatus.BAD_REQUEST
                     self._send_error_json(status, err.explanation, err.reason)
                 except Exception:
                     self._send_error_json(HTTPStatus.BAD_REQUEST, "Invalid FixProposal validation request", "bad_request")
@@ -627,7 +653,7 @@ class ReviewHttpHandler(BaseHTTPRequestHandler):
                 except KeyError as err:
                     self._send_error_json(HTTPStatus.NOT_FOUND, str(err), "not_found")
                 except ServiceStateError as err:
-                    status = HTTPStatus.CONFLICT if err.reason in {"scope_mismatch", "validation_not_available"} else HTTPStatus.BAD_REQUEST
+                    status = HTTPStatus.CONFLICT if err.reason in {"scope_mismatch", "validation_not_available", "recovered_operation_unavailable"} else HTTPStatus.BAD_REQUEST
                     self._send_error_json(status, err.explanation, err.reason)
                 except Exception:
                     self._send_error_json(HTTPStatus.BAD_REQUEST, "Invalid FixProposal approval request", "bad_request")
@@ -657,7 +683,7 @@ class ReviewHttpHandler(BaseHTTPRequestHandler):
                 except KeyError as err:
                     self._send_error_json(HTTPStatus.NOT_FOUND, str(err), "not_found")
                 except ServiceStateError as err:
-                    status = HTTPStatus.CONFLICT if err.reason in {"scope_mismatch", "validation_not_approved", "validation_not_available"} else HTTPStatus.BAD_REQUEST
+                    status = HTTPStatus.CONFLICT if err.reason in {"scope_mismatch", "validation_not_approved", "validation_not_available", "recovered_operation_unavailable"} else HTTPStatus.BAD_REQUEST
                     self._send_error_json(status, err.explanation, err.reason)
                 except Exception:
                     self._send_error_json(HTTPStatus.BAD_REQUEST, "Invalid FixProposal validation request", "bad_request")
@@ -681,8 +707,8 @@ class ReviewHttpHandler(BaseHTTPRequestHandler):
                     self._send_error_json(HTTPStatus.NOT_FOUND, str(err), "not_found")
                 except ServiceStateError as err:
                     self._send_error_json(HTTPStatus.CONFLICT, err.explanation, err.reason)
-                except Exception as err:
-                    self._send_error_json(HTTPStatus.BAD_REQUEST, f"Cannot generate fix proposal: {err}", "bad_request")
+                except Exception:
+                    self._send_error_json(HTTPStatus.BAD_REQUEST, "Cannot generate fix proposal", "bad_request")
                 return
 
             # 9. POST /reviews/{run_id}/findings/{finding_id}/fix-proposal/reject
@@ -705,8 +731,8 @@ class ReviewHttpHandler(BaseHTTPRequestHandler):
                 except ServiceStateError as err:
                     status = HTTPStatus.CONFLICT if err.reason == "scope_mismatch" else HTTPStatus.BAD_REQUEST
                     self._send_error_json(status, err.explanation, err.reason)
-                except Exception as err:
-                    self._send_error_json(HTTPStatus.BAD_REQUEST, f"Cannot reject fix proposal: {err}", "bad_request")
+                except Exception:
+                    self._send_error_json(HTTPStatus.BAD_REQUEST, "Cannot reject fix proposal", "bad_request")
                 return
 
             # 10. POST /reviews/{run_id}/findings/{finding_id}/fix-proposal/regenerate
@@ -728,14 +754,14 @@ class ReviewHttpHandler(BaseHTTPRequestHandler):
                     self._send_error_json(HTTPStatus.NOT_FOUND, str(err), "not_found")
                 except ServiceStateError as err:
                     self._send_error_json(HTTPStatus.CONFLICT, err.explanation, err.reason)
-                except Exception as err:
-                    self._send_error_json(HTTPStatus.BAD_REQUEST, f"Cannot regenerate fix proposal: {err}", "bad_request")
+                except Exception:
+                    self._send_error_json(HTTPStatus.BAD_REQUEST, "Cannot regenerate fix proposal", "bad_request")
                 return
 
             self._send_error_json(HTTPStatus.NOT_FOUND, f"Endpoint '{path}' not found", "not_found")
         except Exception as err:
             logger.exception("Internal error in POST: %s", err)
-            self._send_error_json(HTTPStatus.INTERNAL_SERVER_ERROR, f"Internal server error: {err}", "internal_error")
+            self._send_error_json(HTTPStatus.INTERNAL_SERVER_ERROR, "Internal server error", "internal_error")
 
 
 class CodeAtlasServer(ThreadingHTTPServer):
@@ -747,8 +773,11 @@ class CodeAtlasServer(ThreadingHTTPServer):
         self,
         server_address: tuple[str, int],
         state_manager: ReviewStateManager | None = None,
+        database_path: str | Path | None = None,
     ) -> None:
-        self.state_manager = state_manager or ReviewStateManager()
+        if state_manager is not None and database_path is not None:
+            raise ValueError("Choose state_manager or database_path, not both")
+        self.state_manager = state_manager or ReviewStateManager(persistence_path=database_path)
 
         # Each server owns its handler state; two embedded services must not share runs.
         handler = type("BoundReviewHttpHandler", (ReviewHttpHandler,), {"state_manager": self.state_manager})
@@ -756,15 +785,32 @@ class CodeAtlasServer(ThreadingHTTPServer):
             self.address_family = socket.AF_INET6
         super().__init__(server_address, handler)
 
+    def server_close(self) -> None:
+        try:
+            super().server_close()
+        finally:
+            self.state_manager.close()
 
-def create_server(host: str = "127.0.0.1", port: int = 8765, state_manager: ReviewStateManager | None = None) -> CodeAtlasServer:
+
+def create_server(
+    host: str = "127.0.0.1",
+    port: int = 8765,
+    state_manager: ReviewStateManager | None = None,
+    database_path: str | Path | None = None,
+) -> CodeAtlasServer:
     """Create and configure a local CodeAtlas HTTP server."""
     if host not in {"127.0.0.1", "localhost", "::1"}:
         logger.warning("CodeAtlas service is binding to non-localhost address '%s'", host)
-    return CodeAtlasServer((host, port), state_manager=state_manager)
+    return CodeAtlasServer((host, port), state_manager=state_manager, database_path=database_path)
 
 
-def run_service(host: str = "127.0.0.1", port: int = 8765, *, repair_config: str | Path | None = None) -> None:
+def run_service(
+    host: str = "127.0.0.1",
+    port: int = 8765,
+    *,
+    repair_config: str | Path | None = None,
+    database_path: str | Path | None = None,
+) -> None:
     """Start and run the CodeAtlas service indefinitely."""
     manager = None
     if repair_config is not None:
@@ -774,7 +820,14 @@ def run_service(host: str = "127.0.0.1", port: int = 8765, *, repair_config: str
             config = load_repair_provider_config(repair_config)
         except Exception:
             raise ProviderConfigError("Invalid repair provider configuration") from None
-        manager = ReviewStateManager(repair_provider=LiveRepairProvider(config))
+        manager = ReviewStateManager(
+            repair_provider=LiveRepairProvider(config),
+            persistence_path=database_path or default_database_path(),
+        )
+    elif database_path is not None:
+        manager = ReviewStateManager(persistence_path=database_path)
+    else:
+        manager = ReviewStateManager(persistence_path=default_database_path())
     server = create_server(host, port, state_manager=manager)
     display_host = f"[{host}]" if ":" in host else host
     print(f"CodeAtlas service listening on http://{display_host}:{port}{API_PREFIX} (press Ctrl+C to stop)")

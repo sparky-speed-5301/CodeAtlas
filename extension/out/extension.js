@@ -1145,7 +1145,9 @@ function activate(context) {
                     statusProvider.refresh(status);
                     if (status.status === 'completed' ||
                         status.status === 'failed' ||
-                        status.status === 'cancelled') {
+                        status.status === 'cancelled' ||
+                        status.status === 'recovery_failed' ||
+                        status.status === 'expired') {
                         clearInterval(pollInterval);
                         reviewTimers.delete(pollInterval);
                         const findingsResp = await client.getFindings(runId, {

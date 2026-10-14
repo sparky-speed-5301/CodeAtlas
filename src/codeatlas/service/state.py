@@ -5,14 +5,17 @@ from __future__ import annotations
 import dataclasses
 import hashlib
 import json
+import copy
 import tempfile
 import threading
+from concurrent.futures import ThreadPoolExecutor
+from functools import wraps
 from datetime import UTC, datetime
 from fnmatch import fnmatchcase
 from pathlib import Path
 from typing import Any
 
-from codeatlas.adapters import select_language_adapter
+from codeatlas.adapters import language_capability_reports, select_language_adapter
 from codeatlas.findings.models import Finding
 from codeatlas.git.executable import run_git
 from codeatlas.git.refs import resolve_ref
@@ -27,6 +30,7 @@ from codeatlas.orchestrator.repair_models import (
     repair_payload_is_safe,
 )
 from codeatlas.orchestrator.review import ReviewResult, run_review
+from codeatlas.orchestrator.manifest import RunManifest
 from codeatlas.orchestrator.validation import build_validation_review
 from codeatlas.patching.apply import (
     apply_patch_to_worktree,
@@ -46,6 +50,14 @@ from codeatlas.patching.validator import validate_patch_proposal
 from codeatlas.providers.repair_config import RepairProviderConfig
 from codeatlas.review.mock import MockRepairReviewer
 from codeatlas.review.packet import ReviewPacket
+from codeatlas.git.models import Diff
+from codeatlas.service.persistence import (
+    PersistenceConfig,
+    PersistenceError,
+    SQLitePersistence,
+    repository_id,
+)
+from codeatlas.service.persistence_codec import make_snapshot
 from codeatlas.service.models import (
     FIX_PROPOSAL_SCHEMA_VERSION,
     FeedbackLabel,
@@ -64,6 +76,8 @@ from codeatlas.service.models import (
     LifecycleState,
     PatchProposalResponse,
     ReviewCreateRequest,
+    ReviewEventsResponse,
+    ReviewLifecycleEvent,
     ReviewsListResponse,
     ReviewStatusResponse,
     ValidateProposalResponse,
@@ -152,6 +166,10 @@ FIX_REJECTION_EXPLANATIONS: dict[str, str] = {
     "revert_confirmation_invalid": "The revert confirmation does not match the applied FixProposal patch hash.",
     "revert_state_changed": "The target files changed after the fix was applied; revert is unavailable.",
     "revert_failed": "The revert could not be completed; the applied files were left unchanged.",
+    "review_queue_full": "The review queue is full; retry after an existing review finishes.",
+    "persistence_failed": "The operation could not be durably recorded; no new work was started.",
+    "recovered_operation_unavailable": "Recovered operations are historical; start a new review before executing a fix.",
+    "review_not_retryable": "Only a failed, cancelled, or interrupted review can be retried explicitly.",
 }
 
 # Reasons that fail closed before any provider/patch work: nothing was wrong
@@ -211,10 +229,59 @@ class FixProposalRecord:
         # scoped to this service session.
         self.apply_state: dict[str, Any] | None = None
         self.apply_events: list[FixApplyEvent] = []
+        self.recovery_state: str = "not_required"
 
 
 class ServicePathError(ValueError):
     """Raised when a repository path is invalid, inaccessible, or unsafe."""
+
+
+def durable_operation(name: str):
+    """Journal identity before work and clear it only after its outcome is known."""
+    def decorate(function):
+        @wraps(function)
+        def wrapped(self, run_id, finding_id, *args, **kwargs):
+            if not self.persistent:
+                return function(self, run_id, finding_id, *args, **kwargs)
+            record, _ = self._fix_finding_and_record(run_id, finding_id)
+            if record.recovery_state != "not_required":
+                raise ServiceStateError("recovered_operation_unavailable")
+            with record.operation_lock:
+                proposal_id = args[0] if args else record.fix_states.get(finding_id, {}).get("proposal_id", "")
+                record.pending_operation = {"name": name, "finding_id": finding_id, "proposal_id": proposal_id or ""}
+                try:
+                    self._checkpoint(record, name + "_started", required=True)
+                    return function(self, run_id, finding_id, *args, **kwargs)
+                except ServiceStateError as error:
+                    record.safe_error_code = error.reason
+                    raise
+                except Exception:
+                    record.safe_error_code = "operation_failed"
+                    raise
+                finally:
+                    record.pending_operation = None
+                    self._checkpoint(record, name + "_finished")
+        return wrapped
+    return decorate
+
+
+_SAFE_STATUS_ERROR_CODES = frozenset(FIX_REJECTION_EXPLANATIONS) | {
+    "operation_failed", "review_failed", "validation_failed", "operation_interrupted",
+    "persisted_identity_invalid",
+}
+
+
+def _safe_status_errors(record: Any) -> list[str]:
+    """Return fixed error codes only; diagnostics never cross the service API."""
+    safe_code = getattr(record, "safe_error_code", None)
+    if type(safe_code) is str and safe_code in _SAFE_STATUS_ERROR_CODES:
+        return [safe_code]
+    errors = getattr(record, "errors", [])
+    if isinstance(errors, list):
+        safe = [item for item in errors if type(item) is str and item in _SAFE_STATUS_ERROR_CODES]
+        if safe:
+            return list(dict.fromkeys(safe[:10]))
+    return ["review_failed"] if errors else []
 
 
 def validate_service_repo_path(raw_path: str | Path) -> Path:
@@ -288,6 +355,16 @@ class ReviewRunRecord:
         self.temp_packet_file: Path | None = None
         # Phase 11C-B: latest fix-proposal state per finding id.
         self.fix_states: dict[str, dict[str, Any]] = {}
+        self.recovery_state: str = "not_required"
+        self.persisted_provider: dict[str, Any] = {}
+        self.capability_snapshot: list[dict[str, Any]] = []
+        self.pending_operation: dict[str, Any] | None = None
+        self.safe_error_code: str | None = None
+        self.persisted_base_commit: str | None = None
+        self.persisted_head_commit: str | None = None
+        self.operation_lock = threading.RLock()
+        self.retry_of: str | None = None
+        self.events: list[dict[str, Any]] = []
 
 
 class ReviewStateManager:
@@ -298,17 +375,277 @@ class ReviewStateManager:
         *,
         repair_provider: Any = None,
         repair_limits: RepairLimits | None = None,
+        persistence_path: str | Path | None = None,
+        persistence_config: PersistenceConfig | None = None,
+        persistence: SQLitePersistence | None = None,
+        max_concurrent_reviews: int = 2,
+        max_queued_reviews: int = 16,
     ) -> None:
-        self._lock = threading.Lock()
+        if (type(max_concurrent_reviews) is not int or type(max_queued_reviews) is not int
+                or not 1 <= max_concurrent_reviews <= 16 or not 0 <= max_queued_reviews <= 128):
+            raise ValueError("Review concurrency bounds are outside the supported range")
+        self._lock = threading.RLock()
         self._reviews: dict[str, ReviewRunRecord] = {}
         self._proposals: dict[str, tuple[PatchProposal, Path]] = {}
+        # Keep the historical proposal-only index for compatibility with the
+        # legacy service surface, but use the scoped index for all FixProposal
+        # authorization decisions. Proposal IDs are deterministic and may
+        # repeat across review runs.
         self._validations: dict[str, PatchValidationResult] = {}
+        self._scoped_validations: dict[tuple[str, str], PatchValidationResult] = {}
         self._fix_proposals: dict[str, FixProposalRecord] = {}
+        self._historical_fixes: dict[tuple[str, str, str], FixProposalRecord] = {}
+        self._legacy_proposals: dict[tuple[str, str], PatchProposal] = {}
+        self._legacy_validations: dict[tuple[str, str], PatchValidationResult] = {}
         # The legacy reviewer boundary remains deterministic by default. A
         # structured provider implementing ``generate`` is routed through the
         # bounded repair verification loop instead of the legacy adapter.
         self.repair_provider = repair_provider or MockRepairReviewer()
         self.repair_limits = repair_limits or RepairLimits()
+        self.max_concurrent_reviews = max_concurrent_reviews
+        self.max_queued_reviews = max_queued_reviews
+        self._review_capacity = threading.BoundedSemaphore(max_concurrent_reviews + max_queued_reviews)
+        self._review_executor = ThreadPoolExecutor(
+            max_workers=max_concurrent_reviews,
+            thread_name_prefix="codeatlas-review-job",
+        )
+        self._closed = False
+        if sum(option is not None for option in (persistence, persistence_path, persistence_config)) > 1:
+            raise ValueError("Choose one persistence backend configuration")
+        self.persistence = persistence
+        if self.persistence is None and persistence_config is not None:
+            self.persistence = SQLitePersistence(persistence_config)
+        elif self.persistence is None and persistence_path is not None:
+            self.persistence = SQLitePersistence(PersistenceConfig(Path(persistence_path).expanduser()))
+        self._persistence_errors: list[str] = []
+        self._restore_persisted_state()
+
+    @property
+    def persistent(self) -> bool:
+        return self.persistence is not None
+
+    @property
+    def persistence_path(self) -> Path | None:
+        return self.persistence.path if self.persistence is not None else None
+
+    def close(self) -> None:
+        with self._lock:
+            if self._closed:
+                return
+            self._closed = True
+            for record in self._reviews.values():
+                if record.status not in {"completed", "failed", "cancelled", "recovery_failed", "expired"}:
+                    record.cancel_requested.set()
+        self._review_executor.shutdown(wait=True, cancel_futures=False)
+        if self.persistence is not None:
+            self.persistence.close()
+
+    def _checkpoint(self, record: ReviewRunRecord, event: str, *, required: bool = False) -> None:
+        """Persist only a safe snapshot; live operations continue in memory on I/O failure."""
+        record.events = (record.events + [{"event": event, "status": record.status,
+                                           "at": datetime.now(UTC).isoformat(),
+                                           "operation": dict(record.pending_operation) if record.pending_operation else None}])[-50:]
+        if self.persistence is None:
+            return
+        try:
+            with self._lock:
+                self.persistence.save(make_snapshot(self, record), event=event)
+        except PersistenceError as error:
+            self._persistence_errors.append(error.code)
+            if len(self._persistence_errors) > 20:
+                self._persistence_errors = self._persistence_errors[-20:]
+            if required:
+                raise ServiceStateError("persistence_failed") from None
+
+    def _all_fix_records(self) -> list[FixProposalRecord]:
+        values = list(self._historical_fixes.values()) + list(self._fix_proposals.values())
+        return list({(v.response.run_id, v.response.finding_id, v.response.proposal_id): v for v in values}.values())
+
+    def _lookup_fix(self, run_id: str, finding_id: str, proposal_id: str) -> FixProposalRecord | None:
+        current = self._fix_proposals.get(proposal_id)
+        if current is not None and current.response.run_id == run_id and current.response.finding_id == finding_id:
+            return current
+        return self._historical_fixes.get((run_id, finding_id, proposal_id)) or current
+
+    def _get_scoped_validation(self, record: ReviewRunRecord, proposal_id: str) -> PatchValidationResult | None:
+        """Resolve validation evidence without crossing duplicate proposal IDs."""
+        legacy = self._validations.get(proposal_id)
+        if legacy is None:
+            # The compatibility index is intentionally authoritative for the
+            # in-memory legacy mutation surface; a removed entry is missing.
+            return None
+        if legacy.approval_scope == record.run_id:
+            return legacy
+        return self._scoped_validations.get((record.run_id, proposal_id))
+
+    def _restore_persisted_state(self) -> None:
+        if self.persistence is None:
+            return
+        # Mark all old work as pending before decoding it. If the process died
+        # during review/validation/apply, it is never presented as successful.
+        try:
+            self.persistence.recovery_index()
+            rows = self.persistence.load_reviews()
+        except PersistenceError as error:
+            self._persistence_errors.append(error.code)
+            return
+        for row in rows:
+            run_id = str(row["run_id"])
+            rid = str(row["repository_id"])
+            try:
+                snapshot = self.persistence.load(rid, run_id)
+                if snapshot is None:
+                    continue
+                self._restore_snapshot(snapshot)
+                restored = self._reviews.get(run_id)
+                if restored is not None and restored.recovery_state != "expired":
+                    self._checkpoint(
+                        restored,
+                        "recovery_completed" if restored.recovery_state == "recovered" else "recovery_failed",
+                    )
+            except (PersistenceError, ValueError, KeyError, TypeError):
+                self.persistence.quarantine(rid, run_id)
+                self._persistence_errors.append("recovery_failed")
+                record = ReviewRunRecord(run_id, ReviewCreateRequest(repo=row["canonical_path"]), Path(row["canonical_path"]))
+                record.created_at = row["created_at"]
+                record.status = "recovery_failed"
+                record.recovery_state = "recovery_failed"
+                record.errors = ["persisted_identity_invalid"]
+                record.safe_error_code = "persisted_identity_invalid"
+                self._reviews[run_id] = record
+                self._checkpoint(record, "recovery_failed")
+
+    def _restore_snapshot(self, snapshot: dict[str, Any]) -> None:
+        from codeatlas.service.models import ReviewCreateRequest
+
+        review = snapshot["review"]
+        status = ReviewStatusResponse.model_validate(review["status"])
+        request = ReviewCreateRequest.model_validate(review["request"])
+        repo_path = Path(snapshot["repository_path"])
+        record = ReviewRunRecord(snapshot["run_id"], request, repo_path)
+        record.status = status.status
+        if status.status == "expired":
+            record.recovery_state = "expired"
+        else:
+            record.recovery_state = "recovered" if status.status in {"completed", "failed", "cancelled"} else "recovery_failed"
+        if record.recovery_state == "recovery_failed":
+            record.status = "recovery_failed"
+            record.progress_text = "The previous operation ended before completion and was not resumed"
+            record.errors = ["Operation interrupted before completion; start a new operation"]
+        record.progress_text = status.progress_text if record.recovery_state == "recovered" else record.progress_text
+        record.policy_decision = status.policy_decision
+        record.persisted_base_commit = status.base_commit
+        record.persisted_head_commit = status.head_commit
+        record.created_at = status.created_at
+        record.retry_of = status.retry_of
+        record.completed_at = status.completed_at
+        record.test_status = status.test_status or "not_run"
+        record.full_suite_status = status.full_suite_status or "not_run"
+        record.patch_validation_status = status.patch_validation_status
+        record.truncated = status.truncated
+        record.limitations = list(status.limitations)
+        record.errors = list(status.errors) or record.errors
+        record.findings = [item["payload"] for item in snapshot["entities"] if item["kind"] == "findings"]
+        record.events = sorted([item["payload"] for item in snapshot["entities"] if item["kind"] == "lifecycle_events"], key=lambda e: e["at"])[-50:]
+        for item in snapshot["entities"]:
+            if item["kind"] == "finding_feedback":
+                payload = item["payload"]
+                if payload.get("dismissed"):
+                    record.dismissed_finding_ids.add(item["finding_id"])
+                if payload.get("label") is not None:
+                    record.feedback[item["finding_id"]] = str(payload["label"])
+            elif item["kind"] == "capability_snapshots":
+                record.capability_snapshot.append(dict(item["payload"]))
+            elif item["kind"] == "provider_metadata":
+                record.persisted_provider = dict(item["payload"])
+        manifest_data = snapshot.get("artifacts", {}).get("manifest")
+        # Only identity metadata is restored, never source context/configuration.
+        if manifest_data is not None:
+            try:
+                manifest = RunManifest.model_validate(manifest_data)
+                record.result = ReviewResult(manifest=manifest, diff=Diff(manifest.base_ref, manifest.head_ref), evidence_path=Path(""))
+            except Exception:
+                record.result = None
+        self._reviews[record.run_id] = record
+        for item in snapshot["entities"]:
+            if item["kind"] != "fix_proposals":
+                continue
+            response = FixProposalResponse.model_validate(item["payload"])
+            recovery_state = "recovery_failed" if response.recovery_state == "recovery_failed" else record.recovery_state
+            response = response.model_copy(update={"recovery_state": recovery_state})
+            if response.validation_status == "approved_for_validation":
+                response = response.model_copy(update={"validation_status": "approval_required"})
+            fix_record = FixProposalRecord(response, None)
+            fix_record.recovery_state = record.recovery_state
+            persisted_apply_state = item["payload"].get("apply_state")
+            if isinstance(persisted_apply_state, dict):
+                # Recovery intentionally omits original_contents: a revert can
+                # only use bytes captured by the current service session.
+                fix_record.apply_state = dict(persisted_apply_state)
+            events = [FixApplyEvent.model_validate(child["payload"]) for child in snapshot["entities"]
+                      if child["proposal_id"] == response.proposal_id and child["kind"] in {"apply_events", "revert_events"}]
+            fix_record.apply_events = events[-self._MAX_APPLY_EVENTS:]
+            fix_record.apply_events.sort(key=lambda entry: entry.at)
+            operation = review.get("operation")
+            operation_name = operation.get("name") if isinstance(operation, dict) else None
+            interrupted_validation = response.validation_status in {
+                "validating", "tests_running", "applied_in_isolated_worktree",
+            }
+            interrupted_operation = bool(
+                operation and operation.get("proposal_id") == response.proposal_id
+            )
+            if interrupted_validation or (interrupted_operation and operation_name == "validation"):
+                response = response.model_copy(update={
+                    "validation_status": "validation_failed",
+                    "recovery_state": "recovery_failed",
+                    "validation_result": {"proposal_id": response.proposal_id, "base_commit": response.head_commit,
+                                          "patch_hash": response.patch_hash, "valid": False,
+                                          "errors": ["operation_interrupted"]},
+                })
+                fix_record.response = response
+                fix_record.recovery_state = "recovery_failed"
+            elif interrupted_operation:
+                # Apply, revert, and generation are not validation attempts.
+                # Preserve their last known proposal/validation outcome while
+                # making the historical operation unavailable after restart.
+                response = response.model_copy(update={"recovery_state": "recovery_failed"})
+                fix_record.response = response
+                fix_record.recovery_state = "recovery_failed"
+            self._historical_fixes[(record.run_id, response.finding_id, response.proposal_id)] = fix_record
+            if review["latest"].get(response.finding_id) == response.proposal_id:
+                record.fix_states[response.finding_id] = {
+                    "state": response.generation_status, "proposal_id": response.proposal_id,
+                    "response": response, "rejection_reason": response.rejection_reason,
+                    "updated_at": response.created_at,
+                }
+        if review.get("operation"):
+            record.safe_error_code = "operation_interrupted"
+            if review["operation"].get("name") == "validation":
+                record.patch_validation_status = "recovery_failed"
+            record.limitations = (record.limitations + ["An interrupted fix operation was not resumed."])[-20:]
+        for item in snapshot["entities"]:
+            if item["kind"] == "patch_proposals":
+                self._legacy_proposals[(record.run_id, item["proposal_id"])] = PatchProposal.model_validate(item["payload"])
+            elif item["kind"] == "validation_evidence" and (record.run_id, item["proposal_id"]) in self._legacy_proposals:
+                self._legacy_validations[(record.run_id, item["proposal_id"])] = PatchValidationResult.model_validate(item["payload"])
+
+    def persistence_health(self) -> dict[str, Any]:
+        return {"enabled": self.persistent, "path": str(self.persistence_path) if self.persistence_path else None,
+                "schema_version": self.persistence.schema_version if self.persistence else None,
+                "errors": list(self._persistence_errors[-5:])}
+
+    def get_review_events(self, run_id: str) -> ReviewEventsResponse:
+        record = self.get_review(run_id)
+        if record is None:
+            raise KeyError(run_id)
+        rid = repository_id(record.repo_path)
+        events = record.events
+        if self.persistence is not None:
+            snapshot = self.persistence.load(rid, run_id)
+            if snapshot is not None:
+                events = [item["payload"] for item in snapshot["entities"] if item["kind"] == "lifecycle_events"]
+        return ReviewEventsResponse(run_id=run_id, repository_id=rid,
+                                    events=[ReviewLifecycleEvent.model_validate(e) for e in sorted(events, key=lambda e: e["at"])[-50:]])
 
     def get_review(self, run_id: str) -> ReviewRunRecord | None:
         with self._lock:
@@ -329,7 +666,7 @@ class ReviewStateManager:
         """Return only bounded service metadata, never repository or provider content."""
         with self._lock:
             active = [record for record in self._reviews.values()
-                      if not record.completed_at and record.status not in {"completed", "failed", "cancelled"}]
+                      if not record.completed_at and record.status not in {"completed", "failed", "cancelled", "recovery_failed", "expired"}]
             providers = {record.request.review_provider or "deterministic" for record in active}
             if not providers and self._reviews:
                 latest = next(reversed(self._reviews.values()))
@@ -339,31 +676,66 @@ class ReviewStateManager:
 
     def get_proposal(self, proposal_id: str) -> tuple[PatchProposal, Path] | None:
         with self._lock:
-            return self._proposals.get(proposal_id)
+            if proposal_id in self._proposals:
+                return self._proposals[proposal_id]
+            matches = [(patch, self._reviews[run].repo_path) for (run, pid), patch in self._legacy_proposals.items() if pid == proposal_id]
+            return matches[0] if len(matches) == 1 else None
 
-    def start_review(self, request: ReviewCreateRequest) -> ReviewStatusResponse:
+    def start_review(self, request: ReviewCreateRequest, *, retry_of: str | None = None) -> ReviewStatusResponse:
         repo_path = validate_service_repo_path(request.repo)
+
+        if self._closed:
+            raise ServiceStateError("persistence_failed")
+
+        if not self._review_capacity.acquire(blocking=False):
+            raise ServiceStateError("review_queue_full")
 
         import uuid
         run_id = f"rev-{uuid.uuid4().hex[:12]}"
 
         record = ReviewRunRecord(run_id, request, repo_path)
+        record.retry_of = retry_of
+        record.capability_snapshot = [dataclasses.asdict(item) for item in language_capability_reports()]
         record.status = "preparing"
         record.progress_text = "Preparing repository snapshot"
 
         with self._lock:
             self._reviews[run_id] = record
+        try:
+            self._checkpoint(record, "review_started", required=True)
+        except ServiceStateError:
+            with self._lock:
+                self._reviews.pop(run_id, None)
+            self._review_capacity.release()
+            raise
 
         # Run review in background worker thread
-        thread = threading.Thread(
-            target=self._execute_review_run,
-            args=(record,),
-            name=f"codeatlas-review-{run_id}",
-            daemon=True,
+        self._review_executor.submit(
+            self._execute_review_job,
+            record,
         )
-        thread.start()
 
         return self.get_review_status(run_id)
+
+    def retry_review(self, run_id: str) -> ReviewStatusResponse:
+        """An explicit retry creates a new identity and never replays a fix."""
+        record = self.get_review(run_id)
+        if record is None:
+            raise KeyError(run_id)
+        if record.status not in {"failed", "cancelled", "recovery_failed"}:
+            raise ServiceStateError("review_not_retryable")
+        status = self.get_review_status(run_id)
+        request = record.request.model_copy(update={
+            "base": status.base_commit or record.request.base,
+            "head": status.head_commit or record.request.head,
+        })
+        return self.start_review(request, retry_of=run_id)
+
+    def _execute_review_job(self, record: ReviewRunRecord) -> None:
+        try:
+            self._execute_review_run(record)
+        finally:
+            self._review_capacity.release()
 
     def _execute_review_run(self, record: ReviewRunRecord) -> None:
         temp_dir = tempfile.TemporaryDirectory(prefix=f"codeatlas-srv-{record.run_id}-")
@@ -375,6 +747,7 @@ class ReviewStateManager:
                 record.status = "cancelled"
                 record.progress_text = "Review cancelled by operator"
                 record.completed_at = datetime.now(UTC).isoformat()
+                self._checkpoint(record, "review_cancelled")
                 return
 
             record.status = "indexing"
@@ -403,6 +776,7 @@ class ReviewStateManager:
                 record.status = "cancelled"
                 record.progress_text = "Review cancelled by operator"
                 record.completed_at = datetime.now(UTC).isoformat()
+                self._checkpoint(record, "review_cancelled")
                 return
 
             record.result = res
@@ -424,24 +798,36 @@ class ReviewStateManager:
                 try:
                     data = json.loads(packet_path.read_text(encoding="utf-8"))
                     record.packet = ReviewPacket.model_validate(data)
-                except Exception as err:
-                    record.errors.append(f"Failed to load review packet: {err}")
+                except Exception:
+                    record.safe_error_code = "review_failed"
+                    record.errors = ["review_failed"]
 
             raw_findings = list(manifest.findings)
             record.findings = raw_findings
 
-            record.status = "findings_ready"
-            record.progress_text = f"Review ready with {len(raw_findings)} findings"
+            with self._lock:
+                if record.cancel_requested.is_set():
+                    record.status = "cancelled"
+                    record.progress_text = "Review cancelled by operator"
+                else:
+                    record.status = "completed" if not record.errors else "failed"
+                    record.progress_text = f"Review ready with {len(raw_findings)} findings"
+                record.completed_at = datetime.now(UTC).isoformat()
+                self._checkpoint(record, "review_" + record.status)
 
-            # Transition to completed if no errors or completed with warnings
-            record.status = "completed" if not manifest.errors else "failed"
+        except Exception:
+            if record.cancel_requested.is_set():
+                record.status = "cancelled"
+                record.progress_text = "Review cancelled by operator"
+                record.safe_error_code = "operation_interrupted"
+                record.errors = ["operation_interrupted"]
+            else:
+                record.status = "failed"
+                record.progress_text = "Review failed"
+                record.safe_error_code = "review_failed"
+                record.errors = ["review_failed"]
             record.completed_at = datetime.now(UTC).isoformat()
-
-        except Exception as err:
-            record.status = "failed"
-            record.progress_text = f"Review failed: {err}"
-            record.errors.append(str(err))
-            record.completed_at = datetime.now(UTC).isoformat()
+            self._checkpoint(record, "review_" + record.status)
         finally:
             try:
                 temp_dir.cleanup()
@@ -452,11 +838,13 @@ class ReviewStateManager:
         record = self.get_review(run_id)
         if record is None:
             return False
-        record.cancel_requested.set()
-        if record.status not in {"completed", "failed"}:
-            record.status = "cancelled"
-            record.progress_text = "Review cancelled by operator"
-            record.completed_at = datetime.now(UTC).isoformat()
+        with self._lock:
+            record.cancel_requested.set()
+            if record.status not in {"completed", "failed", "cancelled", "recovery_failed", "expired"}:
+                record.status = "cancelled"
+                record.progress_text = "Review cancelled by operator"
+                record.completed_at = datetime.now(UTC).isoformat()
+            self._checkpoint(record, "cancellation_requested")
         return True
 
     def get_review_status(self, run_id: str) -> ReviewStatusResponse:
@@ -490,12 +878,12 @@ class ReviewStateManager:
             base_commit=(
                 record.result.manifest.base_commit
                 if record.result is not None and record.result.manifest.base_commit
-                else None
+                else record.persisted_base_commit
             ),
             head_commit=(
                 record.result.manifest.head_commit
                 if record.result is not None and record.result.manifest.head_commit
-                else None
+                else record.persisted_head_commit
             ),
             policy_decision=record.policy_decision,
             finding_counts=finding_counts,
@@ -504,9 +892,11 @@ class ReviewStateManager:
             patch_validation_status=record.patch_validation_status,
             truncated=record.truncated or len(record.findings) > record.request.max_findings,
             limitations=record.limitations[:20],
-            errors=record.errors[:10],
+            errors=_safe_status_errors(record),
             created_at=record.created_at,
             completed_at=record.completed_at,
+            recovery_state=record.recovery_state,  # type: ignore[arg-type]
+            retry_of=record.retry_of,
         )
 
     def get_findings(
@@ -568,12 +958,16 @@ class ReviewStateManager:
         record = self.get_review(run_id)
         if record is None:
             raise KeyError(f"Review run '{run_id}' not found")
+        if not any(str(f.get("id")) == finding_id for f in record.findings):
+            raise KeyError("Finding not found in review run")
 
         with self._lock:
             if finding_id in record.dismissed_finding_ids:
                 record.dismissed_finding_ids.remove(finding_id)
+                self._checkpoint(record, "finding_dismissal_toggled")
                 return False
             record.dismissed_finding_ids.add(finding_id)
+            self._checkpoint(record, "finding_dismissal_toggled")
             return True
 
     def get_finding_detail(self, run_id: str, finding_id: str) -> FindingDetailResponse:
@@ -712,6 +1106,7 @@ class ReviewStateManager:
             if str(item.get("id")) == finding_id:
                 item["feedback"] = feedback
                 break
+        self._checkpoint(record, "finding_feedback_updated")
         fb: FeedbackLabel | None = feedback if feedback in ("useful", "not_useful", "false_positive", "accepted", "dismissed", "needs_more_context") else None
         prev_fb: FeedbackLabel | None = previous if previous in ("useful", "not_useful", "false_positive", "accepted", "dismissed", "needs_more_context") else None
         return FindingFeedbackResponse(
@@ -728,13 +1123,13 @@ class ReviewStateManager:
         record = None
         if run_id:
             record = self.get_review(run_id)
+            if record is None:
+                raise KeyError("Review run not found")
         if record is None:
             # Fall back to searching any active review
             with self._lock:
-                for r in self._reviews.values():
-                    if any(str(f.get("id")) == finding_id for f in r.findings):
-                        record = r
-                        break
+                matches = [r for r in self._reviews.values() if any(str(f.get("id")) == finding_id for f in r.findings)]
+                record = matches[0] if len(matches) == 1 else None
 
         if record is None:
             raise KeyError(f"Finding '{finding_id}' not found")
@@ -784,12 +1179,12 @@ class ReviewStateManager:
         record = None
         if run_id:
             record = self.get_review(run_id)
+            if record is None:
+                raise KeyError("Review run not found")
         if record is None:
             with self._lock:
-                for r in self._reviews.values():
-                    if any(str(f.get("id")) == finding_id for f in r.findings):
-                        record = r
-                        break
+                matches = [r for r in self._reviews.values() if any(str(f.get("id")) == finding_id for f in r.findings)]
+                record = matches[0] if len(matches) == 1 else None
 
         if record is None:
             raise KeyError(f"Finding '{finding_id}' not found")
@@ -830,8 +1225,11 @@ class ReviewStateManager:
 
         with self._lock:
             self._proposals[proposal.proposal_id] = (proposal, record.repo_path)
+            self._legacy_proposals[(record.run_id, proposal.proposal_id)] = proposal
             record.status = "patch_proposed"
             record.patch_validation_status = "proposed"
+
+        self._checkpoint(record, "legacy_patch_proposal_created")
 
         return PatchProposalResponse(
             proposal_id=proposal.proposal_id,
@@ -877,6 +1275,9 @@ class ReviewStateManager:
             raise KeyError(f"Patch proposal '{proposal_id}' not found")
 
         proposal, repo_path = item
+        owners = [self._reviews[run] for (run, pid) in self._legacy_proposals if pid == proposal_id]
+        if len(owners) != 1 or owners[0].recovery_state != "not_required":
+            raise ServiceStateError("recovered_operation_unavailable")
 
         # Validate proposal using existing isolated sandbox validator
         val_result = validate_patch_proposal(
@@ -890,6 +1291,8 @@ class ReviewStateManager:
 
         with self._lock:
             self._validations[proposal_id] = val_result
+            self._legacy_validations[(owners[0].run_id, proposal_id)] = val_result
+        self._checkpoint(owners[0], "legacy_validation_completed")
 
         status_str = "validated" if val_result.valid else "rejected"
         return ValidateProposalResponse(
@@ -923,6 +1326,8 @@ class ReviewStateManager:
     def _fix_blockers(self, record: ReviewRunRecord, finding: dict[str, Any]) -> list[str]:
         """Cheap mirror of the orchestrator's fail-closed gates; plan() stays authoritative."""
         blockers: list[str] = []
+        if record.recovery_state != "not_required":
+            blockers.append("recovered_operation_unavailable")
         manifest = record.result.manifest if record.result is not None else None
         if manifest is None:
             blockers.append("run_not_ready")
@@ -1028,6 +1433,7 @@ class ReviewStateManager:
                 "rejection_reason": reason,
                 "updated_at": datetime.now(UTC).isoformat(),
             }
+        self._checkpoint(record, "fix_state_updated")
 
     def _draft_fix_response(
         self,
@@ -1079,6 +1485,7 @@ class ReviewStateManager:
             validation_history=["draft_ready", "approval_required"],
         )
 
+    @durable_operation("generation")
     def request_fix_proposal(self, run_id: str, finding_id: str, *, regenerate: bool = False) -> FixProposalResponse:
         """Generate one bounded fix proposal for one finding via RepairOrchestrator.
 
@@ -1098,13 +1505,13 @@ class ReviewStateManager:
         }:
             raise ServiceStateError("not_regenerable")
         if regenerate and current.get("proposal_id"):
-            previous = self._fix_proposals.get(str(current["proposal_id"]))
+            previous = self._lookup_fix(run_id, finding_id, str(current["proposal_id"]))
             if previous is not None and previous.response.validation_status in {
                 "approved_for_validation", "validating", "applied_in_isolated_worktree", "tests_running",
             }:
                 raise ServiceStateError("not_regenerable")
         if not regenerate and current.get("proposal_id"):
-            existing = self._fix_proposals.get(str(current.get("proposal_id")))
+            existing = self._lookup_fix(run_id, finding_id, str(current.get("proposal_id")))
             if existing is not None:
                 return existing.response
 
@@ -1189,6 +1596,10 @@ class ReviewStateManager:
                 record.result = dataclasses.replace(
                     record.result, manifest=record_repair_result(record.result.manifest, result)
                 )
+                previous_record = self._fix_proposals.get(response.proposal_id)
+                if previous_record is not None:
+                    prior = previous_record.response
+                    self._historical_fixes[(prior.run_id, prior.finding_id, prior.proposal_id)] = previous_record
                 self._fix_proposals[response.proposal_id] = FixProposalRecord(response, result.proposal)
                 # Keep the existing approval-gated validate flow available for this proposal.
                 self._proposals[response.proposal_id] = (result.proposal, record.repo_path)
@@ -1220,7 +1631,7 @@ class ReviewStateManager:
                 proposal_id = stored.get("proposal_id")
                 if not proposal_id:
                     raise ServiceStateError("proposal_not_found")
-            fix_record = self._fix_proposals.get(proposal_id)
+            fix_record = self._lookup_fix(run_id, finding_id, proposal_id)
         if fix_record is None:
             raise ServiceStateError("proposal_not_found")
         if fix_record.response.run_id != run_id or fix_record.response.finding_id != finding_id:
@@ -1241,8 +1652,10 @@ class ReviewStateManager:
     ) -> tuple[ReviewRunRecord, FixProposalRecord, str, str, str]:
         """Resolve and independently verify trusted FixProposal scope metadata."""
         record, _ = self._fix_finding_and_record(run_id, finding_id)
+        if record.recovery_state != "not_required":
+            raise ServiceStateError("recovered_operation_unavailable")
         with self._lock:
-            fix_record = self._fix_proposals.get(proposal_id)
+            fix_record = self._lookup_fix(run_id, finding_id, proposal_id)
         if fix_record is None:
             raise ServiceStateError("proposal_not_found")
         response = fix_record.response
@@ -1337,6 +1750,7 @@ class ReviewStateManager:
             fix_record.response = updated
             record.fix_states[response.finding_id]["response"] = updated
             record.patch_validation_status = state
+        self._checkpoint(record, f"fix_validation_{state}")
 
     def _update_fix_validation_artifacts(
         self,
@@ -1474,6 +1888,7 @@ class ReviewStateManager:
             review_packet=packet_data,
             human_approval_manifest=manifest_data,
             validation_history=list(fix_record.response.validation_history),
+            recovery_state=fix_record.recovery_state,  # type: ignore[arg-type]
         )
 
     def approve_fix_proposal_for_validation(
@@ -1531,6 +1946,7 @@ class ReviewStateManager:
             run_id, finding_id, proposal_id, approval_token=approval_token,
         )
 
+    @durable_operation("validation")
     def validate_fix_proposal(
         self,
         run_id: str,
@@ -1628,6 +2044,8 @@ class ReviewStateManager:
             record.fix_states[finding_id]["response"] = updated
             record.patch_validation_status = validation_status
             self._validations[proposal_id] = result
+            self._scoped_validations[(record.run_id, proposal_id)] = result
+        self._checkpoint(record, "fix_validation_completed")
         return self._fix_validation_response(
             record=record,
             fix_record=fix_record,
@@ -1658,7 +2076,7 @@ class ReviewStateManager:
                 proposal_id = record.fix_states.get(finding_id, {}).get("proposal_id")
                 if not proposal_id:
                     raise ServiceStateError("proposal_not_found")
-            fix_record = self._fix_proposals.get(str(proposal_id))
+            fix_record = self._lookup_fix(run_id, finding_id, str(proposal_id))
         if fix_record is None:
             raise ServiceStateError("proposal_not_found")
         if fix_record.response.run_id != run_id or fix_record.response.finding_id != finding_id:
@@ -1670,8 +2088,10 @@ class ReviewStateManager:
     ) -> tuple[ReviewRunRecord, FixProposalRecord, PatchProposal]:
         """Resolve the proposal and independently re-verify its apply scope."""
         record, _ = self._fix_finding_and_record(run_id, finding_id)
+        if record.recovery_state != "not_required":
+            raise ServiceStateError("recovered_operation_unavailable")
         with self._lock:
-            fix_record = self._fix_proposals.get(proposal_id)
+            fix_record = self._lookup_fix(run_id, finding_id, proposal_id)
         if fix_record is None:
             raise ServiceStateError("proposal_not_found")
         response = fix_record.response
@@ -1730,7 +2150,7 @@ class ReviewStateManager:
             raise ServiceStateError("apply_scope_invalid")
         # Validation evidence must exist and identity-match this exact proposal.
         with self._lock:
-            validation = self._validations.get(response.proposal_id)
+            validation = self._get_scoped_validation(record, response.proposal_id)
         if validation is None:
             raise ServiceStateError("apply_evidence_missing")
         if not validation.valid:
@@ -1794,6 +2214,7 @@ class ReviewStateManager:
         fix_record.apply_events = (fix_record.apply_events + [entry])[-self._MAX_APPLY_EVENTS:]
         return entry
 
+    @durable_operation("apply")
     def apply_fix_proposal(
         self,
         run_id: str,
@@ -1835,12 +2256,18 @@ class ReviewStateManager:
                 )
             head, branch = self._check_fix_apply_workspace(record, fix_record)
             with self._lock:
-                validation = self._validations.get(proposal_id)
+                validation = self._get_scoped_validation(record, proposal_id)
             if validation is None or not validation.resulting_diff_hash:
                 raise ServiceStateError("apply_evidence_missing")
             patch = fix_record.patch_proposal
             if patch is None:  # pragma: no cover - guarded above
                 raise ServiceStateError("apply_not_available")
+            previous_response = fix_record.response
+            previous_apply_state = copy.deepcopy(fix_record.apply_state)
+            previous_apply_events = list(fix_record.apply_events)
+            previous_fix_state = dict(record.fix_states.get(finding_id, {}))
+            previous_patch_validation_status = record.patch_validation_status
+            previous_events = list(record.events)
             apply_result = apply_patch_to_worktree(
                 patch,
                 record.repo_path,
@@ -1891,6 +2318,22 @@ class ReviewStateManager:
                 files=list(apply_result.changed_files),
                 resulting_diff_hash=apply_result.resulting_diff_hash,
             )
+            try:
+                # Once the workspace has changed, the outcome must be durable
+                # before this operation can report success. If the checkpoint
+                # fails, restore the exact pre-apply bytes and local state.
+                self._checkpoint(record, "fix_applied", required=True)
+            except ServiceStateError:
+                restore_worktree_files(record.repo_path, apply_result.original_contents)
+                patch.status = PatchStatus.VALIDATED
+                fix_record.response = previous_response
+                fix_record.apply_state = previous_apply_state
+                fix_record.apply_events = previous_apply_events
+                with self._lock:
+                    record.fix_states[finding_id] = previous_fix_state
+                    record.patch_validation_status = previous_patch_validation_status
+                    record.events = previous_events
+                raise
         return FixApplyResponse(
             proposal_id=proposal_id,
             finding_id=finding_id,
@@ -1907,6 +2350,7 @@ class ReviewStateManager:
             apply_history=list(fix_record.apply_events),
         )
 
+    @durable_operation("revert")
     def revert_fix_apply(
         self,
         run_id: str,
@@ -1925,7 +2369,7 @@ class ReviewStateManager:
         with fix_record.operation_lock:
             response = fix_record.response
             apply_state = fix_record.apply_state
-            if not apply_state or apply_state.get("status") != "applied":
+            if not apply_state or apply_state.get("status") != "applied" or "original_contents" not in apply_state:
                 raise ServiceStateError("revert_not_available")
             if confirmed_patch_hash != response.patch_hash:
                 raise ServiceStateError("revert_confirmation_invalid")
@@ -1947,6 +2391,12 @@ class ReviewStateManager:
                     )
                     raise ServiceStateError("revert_state_changed")
             original_contents = apply_state.get("original_contents") or {}
+            previous_apply_state = copy.deepcopy(apply_state)
+            previous_response = fix_record.response
+            previous_apply_events = list(fix_record.apply_events)
+            previous_patch_validation_status = record.patch_validation_status
+            previous_patch_status = fix_record.patch_proposal.status if fix_record.patch_proposal is not None else None
+            previous_events = list(record.events)
             if not restore_worktree_files(record.repo_path, original_contents):
                 self._append_apply_event(
                     fix_record, "revert_failed",
@@ -1989,6 +2439,19 @@ class ReviewStateManager:
                 files=target_files,
                 resulting_diff_hash=None,
             )
+            try:
+                self._checkpoint(record, "fix_reverted", required=True)
+            except ServiceStateError:
+                restore_worktree_files(record.repo_path, current)
+                fix_record.apply_state = previous_apply_state
+                fix_record.response = previous_response
+                fix_record.apply_events = previous_apply_events
+                if fix_record.patch_proposal is not None and previous_patch_status is not None:
+                    fix_record.patch_proposal.status = previous_patch_status
+                with self._lock:
+                    record.patch_validation_status = previous_patch_validation_status
+                    record.events = previous_events
+                raise
         return FixApplyResponse(
             proposal_id=proposal_id,
             finding_id=finding_id,
@@ -2018,19 +2481,25 @@ class ReviewStateManager:
             finding_id=finding_id,
             run_id=run_id,
             apply_status=status,  # type: ignore[arg-type]
-            revert_available=status == "applied",
+            # Original bytes are intentionally never persisted. After a
+            # restart history remains visible, but revert is unavailable until
+            # a new explicitly validated/apply operation captures fresh bytes.
+            revert_available=status == "applied" and bool(apply_state.get("original_contents")),
             head_commit_at_apply=str(apply_state.get("head_commit", "")),
             branch_ref_at_apply=str(apply_state.get("branch_ref", "")),
             patch_hash=fix_record.response.patch_hash,
             resulting_diff_hash=apply_state.get("resulting_diff_hash"),
             files_changed=list(apply_state.get("files_changed") or []),
             events=list(fix_record.apply_events),
+            recovery_state=fix_record.recovery_state,  # type: ignore[arg-type]
         )
 
     def reject_fix_proposal(self, run_id: str, finding_id: str, proposal_id: str) -> FixProposalResponse:
         record, _ = self._fix_finding_and_record(run_id, finding_id)
+        if record.recovery_state != "not_required":
+            raise ServiceStateError("recovered_operation_unavailable")
         with self._lock:
-            fix_record = self._fix_proposals.get(proposal_id)
+            fix_record = self._lookup_fix(run_id, finding_id, proposal_id)
         if fix_record is None:
             raise ServiceStateError("proposal_not_found")
         if fix_record.response.run_id != run_id or fix_record.response.finding_id != finding_id:
@@ -2053,9 +2522,11 @@ class ReviewStateManager:
 
     def regenerate_fix_proposal(self, run_id: str, finding_id: str) -> FixProposalResponse:
         record, _ = self._fix_finding_and_record(run_id, finding_id)
+        if record.recovery_state != "not_required":
+            raise ServiceStateError("recovered_operation_unavailable")
         with self._lock:
             stored = dict(record.fix_states.get(finding_id, {}))
-            previous = self._fix_proposals.get(str(stored.get("proposal_id")))
+            previous = self._lookup_fix(run_id, finding_id, str(stored.get("proposal_id"))) if stored.get("proposal_id") else None
             if previous is not None and previous.response.validation_status in {
                 "approved_for_validation", "validating", "applied_in_isolated_worktree", "tests_running",
             }:

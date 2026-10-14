@@ -1,0 +1,59 @@
+name: CodeAtlas pull-request review
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened]
+
+# This workflow is intentionally read-only. It can inspect the PR and publish
+# nothing: no comments, checks, approvals, commits, merges, or pushes.
+permissions:
+  contents: read
+  pull-requests: read
+
+concurrency:
+  group: codeatlas-review-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+
+jobs:
+  review:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Check out trusted CodeAtlas tooling
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.base.sha }}
+          path: codeatlas-tooling
+          persist-credentials: false
+
+      - name: Check out review data
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+          path: reviewed-repository
+          fetch-depth: 0
+          persist-credentials: false
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Install CodeAtlas
+        run: python -m pip install --disable-pip-version-check ./codeatlas-tooling
+
+      - name: Run read-only CodeAtlas review
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: >-
+          python -m codeatlas github review
+          --repo "${{ github.repository }}"
+          --pr "${{ github.event.pull_request.number }}"
+          --local-repo reviewed-repository
+          --dry-run
+          --json-output codeatlas-review.json
+
+      - name: Validate bounded review report
+        run: >-
+          python -c
+          "import json; p=json.load(open('codeatlas-review.json', encoding='utf-8')); assert isinstance(p, dict); assert p.get('mode') == 'dry_run'; assert p.get('write_calls') == 0; assert p.get('comments_posted') == 0; assert p.get('posted_comment_ids') == []; assert p.get('partial_write') is False"

@@ -42,7 +42,7 @@ const FULL_SHA_PATTERN = /^(?:[0-9a-f]{40}|[0-9a-f]{64})$/i;
 const SHA_DISPLAY_CHARS = 12;
 const COMPARISON_CONTEXT_VALUE = 'codeatlas.comparisonRange';
 function resolvedShasFrom(status) {
-    if (status?.status === 'cancelled')
+    if (['cancelled', 'pending_recovery', 'recovery_failed', 'expired'].includes(status?.status ?? ''))
         return null;
     const base = status?.base_commit;
     const head = status?.head_commit;

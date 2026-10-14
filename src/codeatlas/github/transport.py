@@ -9,6 +9,7 @@ existing configuration; this module never reads, stores, or logs tokens.
 from __future__ import annotations
 
 import json
+import re
 import shutil
 import subprocess
 from typing import Any, Protocol
@@ -22,6 +23,12 @@ from .errors import (
 from .models import CheckStatus, GitHubComment, PRFile, PRMetadata
 
 _GH_TIMEOUT_SECONDS = 60
+_SECRET_LIKE = re.compile(r"(?i)(?:gh[pousr]_\w{8,}|github_pat_[A-Za-z0-9_]+|sk-[A-Za-z0-9_-]{8,}|CAT-APP-[A-Za-z0-9_-]{8,})")
+
+
+def _safe_cli_detail(value: str, *, limit: int = 300) -> str:
+    """Bound subprocess diagnostics without reflecting credential-like values."""
+    return _SECRET_LIKE.sub("[REDACTED]", value[:limit])
 
 
 class GitHubTransport(Protocol):
@@ -194,8 +201,10 @@ class GhCliTransport:
         if proc.returncode != 0:
             message = (proc.stderr or proc.stdout or "").strip()
             if "rate limit" in message.lower() or "API rate limit" in message:
-                raise GitHubRateLimitError(f"GitHub rate limit reached: {message[:200]}")
-            raise GitHubNetworkError(f"gh command failed (exit {proc.returncode}): {message[:300]}")
+                raise GitHubRateLimitError(f"GitHub rate limit reached: {_safe_cli_detail(message, limit=200)}")
+            raise GitHubNetworkError(
+                f"gh command failed (exit {proc.returncode}): {_safe_cli_detail(message)}"
+            )
         return proc.stdout
 
     def get_pr_metadata(self, repo: str, pr: int) -> PRMetadata:

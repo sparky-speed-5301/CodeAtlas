@@ -34,7 +34,8 @@
     "validation_result",
     "review_packet",
     "human_approval_manifest",
-    "validation_history"
+    "validation_history",
+    "recovery_state"
   ],
   "additionalProperties": false,
   "properties": {
@@ -168,6 +169,10 @@
       "type": "array",
       "maxItems": 16,
       "items": { "type": "string", "maxLength": 64 }
+    },
+    "recovery_state": {
+      "type": "string",
+      "enum": ["not_required", "pending_recovery", "recovered", "recovery_failed", "expired"]
     }
   }
 }

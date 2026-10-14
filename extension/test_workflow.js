@@ -192,9 +192,13 @@ async function runTests() {
       child = children[0];
       assert.ok(child, 'Start Local Service must spawn the fixture');
       assert.strictEqual(session.serviceManager.owned, true, host.messages.at(-1)?.text);
-      assert.strictEqual(session.serviceManager.managedPid, child.pid);
+      assert.strictEqual(session.serviceManager.managedPid, session.serviceManager.lastHealth.pid);
+      assert.ok(
+        session.serviceManager.lastHealth.pid === child.pid ||
+        session.serviceManager.lastHealth.parent_pid === child.pid
+      );
       await host.command('checkServiceHealth');
-      assert.strictEqual(session.serviceManager.lastHealth.pid, child.pid);
+      assert.strictEqual(session.serviceManager.lastHealth.pid, session.serviceManager.managedPid);
       assert.ok(host.labels('status').includes('Service Health: healthy'));
       assert.strictEqual((await inspect()).audit.filter(a => a.path === '/reviews').length, 0);
     });
@@ -397,9 +401,9 @@ async function runTests() {
       await review('provider_failure');
       assert.strictEqual(status.status.status, 'failed');
       assert.deepStrictEqual(findings.findings, []);
-      assert.match(status.status.errors[0], /Deterministic provider failed/);
+      assert.strictEqual(status.status.errors[0], 'provider_failed');
       assert.ok(status.status.limitations.length);
-      assert.ok(host.messages.some(m => /Review failed: Deterministic provider failed/.test(m.text)));
+      assert.ok(host.messages.some(m => /Review failed: provider_failed/.test(m.text)));
     });
 
     await test('approved test failure rejects validation and cleans the sandbox', async () => {
@@ -455,7 +459,10 @@ async function runTests() {
       const externalPort = await freePort();
       const external = childFixture(externalPort); children.push(external);
       const externalClient = new ext.CodeAtlasClient(`http://127.0.0.1:${externalPort}`);
-      await eventually(async () => { try { return (await externalClient.getHealth()).pid === external.pid; } catch { return false; } }, 'External fixture startup');
+      await eventually(async () => { try {
+        const health = await externalClient.getHealth();
+        return health.pid === external.pid || health.parent_pid === external.pid;
+      } catch { return false; } }, 'External fixture startup');
       const manager = new ext.ServiceLifecycleManager({ serviceMode: 'managed', servicePort: externalPort });
       try {
         assert.strictEqual((await manager.startManagedService()).started, false);
@@ -467,7 +474,8 @@ async function runTests() {
         assert.deepStrictEqual(child.signals, ['SIGTERM']);
         assert.strictEqual(session.serviceManager.owned, false);
         assert.strictEqual(session.serviceManager.lastHealthStatus, 'stopped');
-        assert.strictEqual((await externalClient.getHealth()).pid, external.pid);
+        const externalHealth = await externalClient.getHealth();
+        assert.ok(externalHealth.pid === external.pid || externalHealth.parent_pid === external.pid);
         assert.deepStrictEqual(external.signals, []);
         await host.command('checkServiceHealth');
         assert.match(host.messages.at(-1).text, /Service Unreachable/);

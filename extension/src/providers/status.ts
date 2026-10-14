@@ -16,7 +16,7 @@ export interface ResolvedShas {
 }
 
 function resolvedShasFrom(status: ReviewStatus | null): ResolvedShas | null {
-  if (status?.status === 'cancelled') return null;
+  if (['cancelled', 'pending_recovery', 'recovery_failed', 'expired'].includes(status?.status ?? '')) return null;
   const base = status?.base_commit;
   const head = status?.head_commit;
   if (

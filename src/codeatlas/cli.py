@@ -671,18 +671,23 @@ def serve(
     host: str = typer.Option("127.0.0.1", "--host", help="Host address to bind (defaults to localhost)."),
     port: int = typer.Option(8765, "--port", min=1, max=65535, help="Port to listen on."),
     repair_config: Optional[str] = typer.Option(None, "--repair-config", help="Structured repair provider configuration (JSON/YAML; credentials via environment)."),
+    database: Optional[str] = typer.Option(None, "--database", help="SQLite service database (defaults to ~/.codeatlas/service.sqlite3)."),
 ) -> None:
     """Start the versioned local API for CLI, CI, and IDE clients."""
     from codeatlas.service import run_service
     from codeatlas.providers import ProviderConfigError
+    from codeatlas.service.persistence import PersistenceError
 
     if host not in {"127.0.0.1", "localhost", "::1"}:
         typer.echo(f"Warning: binding to non-localhost address '{host}'. Do not expose publicly.", err=True)
 
     try:
-        run_service(host=host, port=port, repair_config=repair_config)
+        run_service(host=host, port=port, repair_config=repair_config, database_path=database)
     except ProviderConfigError:
         typer.echo("Invalid repair provider configuration. Check the configured mode, provider, and limits.", err=True)
+        raise typer.Exit(code=1)
+    except PersistenceError as err:
+        typer.echo(f"Service database unavailable [{err.code}]", err=True)
         raise typer.Exit(code=1)
     except OSError as err:
         typer.echo(f"Failed to start service on {host}:{port}: {err}", err=True)

@@ -136,7 +136,10 @@ async function runTests() {
       await host.command('startLocalService');
       child = children[0];
       assert.ok(child, 'Start Local Service must spawn the fixture');
-      assert.strictEqual(session.serviceManager.lastHealth.pid, child.pid);
+      assert.ok(
+        session.serviceManager.lastHealth.pid === child.pid ||
+        session.serviceManager.lastHealth.parent_pid === child.pid
+      );
     });
 
     await test('inverted finding range renders decorations without crashing', async () => {
