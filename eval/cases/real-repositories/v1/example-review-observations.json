@@ -1,0 +1,317 @@
+[
+  {
+    "abstained": false,
+    "abstention_reason": null,
+    "case_id": "clean-change",
+    "cost": null,
+    "findings": [],
+    "input_tokens": null,
+    "mode": "deterministic",
+    "output_tokens": null,
+    "provider_attempts": 0,
+    "provider_failures": 0,
+    "retries": 0,
+    "time_to_first_finding_ms": null,
+    "total_review_duration_ms": 0.0
+  },
+  {
+    "abstained": false,
+    "abstention_reason": null,
+    "case_id": "real-bug",
+    "cost": null,
+    "findings": [
+      {
+        "category": "CORRECTNESS",
+        "duplicate_of": null,
+        "end_line": 2,
+        "evidence": [
+          "Sanitized expected observation."
+        ],
+        "file": "bugs/page.py",
+        "finding_id": "CA-BENCH-1",
+        "quality_decision": "report",
+        "rank": 1,
+        "severity": "high",
+        "start_line": 2
+      }
+    ],
+    "input_tokens": null,
+    "mode": "deterministic",
+    "output_tokens": null,
+    "provider_attempts": 0,
+    "provider_failures": 0,
+    "retries": 0,
+    "time_to_first_finding_ms": 0.0,
+    "total_review_duration_ms": 0.0
+  },
+  {
+    "abstained": false,
+    "abstention_reason": null,
+    "case_id": "security-issue",
+    "cost": null,
+    "findings": [
+      {
+        "category": "PATH_TRAVERSAL",
+        "duplicate_of": null,
+        "end_line": 4,
+        "evidence": [
+          "Sanitized expected observation."
+        ],
+        "file": "security/path.py",
+        "finding_id": "CA-BENCH-1",
+        "quality_decision": "report",
+        "rank": 1,
+        "severity": "high",
+        "start_line": 4
+      }
+    ],
+    "input_tokens": null,
+    "mode": "deterministic",
+    "output_tokens": null,
+    "provider_attempts": 0,
+    "provider_failures": 0,
+    "retries": 0,
+    "time_to_first_finding_ms": 0.0,
+    "total_review_duration_ms": 0.0
+  },
+  {
+    "abstained": false,
+    "abstention_reason": null,
+    "case_id": "sensitive-data",
+    "cost": null,
+    "findings": [
+      {
+        "category": "SENSITIVE_DATA_EXPOSURE",
+        "duplicate_of": null,
+        "end_line": 2,
+        "evidence": [
+          "Sanitized expected observation."
+        ],
+        "file": "sensitive/log.py",
+        "finding_id": "CA-BENCH-1",
+        "quality_decision": "report",
+        "rank": 1,
+        "severity": "high",
+        "start_line": 2
+      }
+    ],
+    "input_tokens": null,
+    "mode": "deterministic",
+    "output_tokens": null,
+    "provider_attempts": 0,
+    "provider_failures": 0,
+    "retries": 0,
+    "time_to_first_finding_ms": 0.0,
+    "total_review_duration_ms": 0.0
+  },
+  {
+    "abstained": false,
+    "abstention_reason": null,
+    "case_id": "authorization",
+    "cost": null,
+    "findings": [
+      {
+        "category": "AUTHORIZATION",
+        "duplicate_of": null,
+        "end_line": 2,
+        "evidence": [
+          "Sanitized expected observation."
+        ],
+        "file": "auth/guard.py",
+        "finding_id": "CA-BENCH-1",
+        "quality_decision": "report",
+        "rank": 1,
+        "severity": "blocker",
+        "start_line": 2
+      }
+    ],
+    "input_tokens": null,
+    "mode": "deterministic",
+    "output_tokens": null,
+    "provider_attempts": 0,
+    "provider_failures": 0,
+    "retries": 0,
+    "time_to_first_finding_ms": 0.0,
+    "total_review_duration_ms": 0.0
+  },
+  {
+    "abstained": false,
+    "abstention_reason": null,
+    "case_id": "nullability",
+    "cost": null,
+    "findings": [
+      {
+        "category": "NULLABILITY",
+        "duplicate_of": null,
+        "end_line": 2,
+        "evidence": [
+          "Sanitized expected observation."
+        ],
+        "file": "types/name.py",
+        "finding_id": "CA-BENCH-1",
+        "quality_decision": "report",
+        "rank": 1,
+        "severity": "medium",
+        "start_line": 2
+      }
+    ],
+    "input_tokens": null,
+    "mode": "deterministic",
+    "output_tokens": null,
+    "provider_attempts": 0,
+    "provider_failures": 0,
+    "retries": 0,
+    "time_to_first_finding_ms": 0.0,
+    "total_review_duration_ms": 0.0
+  },
+  {
+    "abstained": false,
+    "abstention_reason": null,
+    "case_id": "test-regression",
+    "cost": null,
+    "findings": [
+      {
+        "category": "TEST_REGRESSION",
+        "duplicate_of": null,
+        "end_line": 2,
+        "evidence": [
+          "Sanitized expected observation."
+        ],
+        "file": "tests/math.py",
+        "finding_id": "CA-BENCH-1",
+        "quality_decision": "report",
+        "rank": 1,
+        "severity": "high",
+        "start_line": 2
+      }
+    ],
+    "input_tokens": null,
+    "mode": "deterministic",
+    "output_tokens": null,
+    "provider_attempts": 0,
+    "provider_failures": 0,
+    "retries": 0,
+    "time_to_first_finding_ms": 0.0,
+    "total_review_duration_ms": 0.0
+  },
+  {
+    "abstained": false,
+    "abstention_reason": null,
+    "case_id": "performance",
+    "cost": null,
+    "findings": [
+      {
+        "category": "PERFORMANCE",
+        "duplicate_of": null,
+        "end_line": 2,
+        "evidence": [
+          "Sanitized expected observation."
+        ],
+        "file": "performance/search.py",
+        "finding_id": "CA-BENCH-1",
+        "quality_decision": "report",
+        "rank": 1,
+        "severity": "medium",
+        "start_line": 2
+      }
+    ],
+    "input_tokens": null,
+    "mode": "deterministic",
+    "output_tokens": null,
+    "provider_attempts": 0,
+    "provider_failures": 0,
+    "retries": 0,
+    "time_to_first_finding_ms": 0.0,
+    "total_review_duration_ms": 0.0
+  },
+  {
+    "abstained": false,
+    "abstention_reason": null,
+    "case_id": "ambiguous",
+    "cost": null,
+    "findings": [],
+    "input_tokens": null,
+    "mode": "deterministic",
+    "output_tokens": null,
+    "provider_attempts": 0,
+    "provider_failures": 0,
+    "retries": 0,
+    "time_to_first_finding_ms": null,
+    "total_review_duration_ms": 0.0
+  },
+  {
+    "abstained": true,
+    "abstention_reason": "Repository evidence does not establish intent.",
+    "case_id": "correct-abstention",
+    "cost": null,
+    "findings": [],
+    "input_tokens": null,
+    "mode": "deterministic",
+    "output_tokens": null,
+    "provider_attempts": 0,
+    "provider_failures": 0,
+    "retries": 0,
+    "time_to_first_finding_ms": null,
+    "total_review_duration_ms": 0.0
+  },
+  {
+    "abstained": false,
+    "abstention_reason": null,
+    "case_id": "ai-defect",
+    "cost": null,
+    "findings": [
+      {
+        "category": "CORRECTNESS",
+        "duplicate_of": null,
+        "end_line": 2,
+        "evidence": [
+          "Sanitized expected observation."
+        ],
+        "file": "ai/generated.py",
+        "finding_id": "CA-BENCH-1",
+        "quality_decision": "report",
+        "rank": 1,
+        "severity": "high",
+        "start_line": 2
+      }
+    ],
+    "input_tokens": null,
+    "mode": "deterministic",
+    "output_tokens": null,
+    "provider_attempts": 0,
+    "provider_failures": 0,
+    "retries": 0,
+    "time_to_first_finding_ms": 0.0,
+    "total_review_duration_ms": 0.0
+  },
+  {
+    "abstained": false,
+    "abstention_reason": null,
+    "case_id": "multi-language",
+    "cost": null,
+    "findings": [
+      {
+        "category": "CONTRACT_MISMATCH",
+        "duplicate_of": null,
+        "end_line": 2,
+        "evidence": [
+          "Sanitized expected observation."
+        ],
+        "file": "multi/service.py",
+        "finding_id": "CA-BENCH-1",
+        "quality_decision": "report",
+        "rank": 1,
+        "severity": "high",
+        "start_line": 2
+      }
+    ],
+    "input_tokens": null,
+    "mode": "deterministic",
+    "output_tokens": null,
+    "provider_attempts": 0,
+    "provider_failures": 0,
+    "retries": 0,
+    "time_to_first_finding_ms": 0.0,
+    "total_review_duration_ms": 0.0
+  }
+]

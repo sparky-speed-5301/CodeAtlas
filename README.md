@@ -84,6 +84,9 @@ python eval/run_eval.py --real-analyzer --cases eval/cases/sensitive-flow-aligne
 python eval/eval_repo_intel.py --cases eval/cases/repo-intel --output eval/results/repo-intel.jsonl
 python eval/eval_review_packets.py --cases eval/cases/review-packets --output eval/results/review-packets.jsonl
 python eval/eval_patching.py --cases eval/cases/patching --output eval/results/patching.jsonl
+codeatlas benchmark --suite eval/cases/real-repositories/v1/suite.json \
+  --review-observations eval/cases/real-repositories/v1/example-review-observations.json \
+  --repair-observations eval/cases/real-repositories/v1/example-repair-observations.json
 python eval/eval_github.py --cases eval/cases/github
 python eval/eval_github_inline.py --cases eval/cases/github-inline
 python eval/eval_github_9cd.py --cases eval/cases/github-summary
@@ -109,7 +112,7 @@ The review command runs only deterministic, diff-scoped analyzers, static reposi
 intelligence, and bounded packet assembly; it never executes files in the target repository, calls a remote LLM, or fabricates
 findings. Use `--no-analyzers` to collect metadata and symbols only. Use `--no-index-repository`
 to disable index construction. The evaluation runner is static and never executes files in a case.
-See `docs/` for scope, architecture, non-goals, threats, limitations, and metrics.
+See `docs/` for scope, architecture, non-goals, threats, limitations, and metrics. Controlled provider modes are documented in [Provider comparison](docs/provider-comparison.md).
 
 ## Phase 9C & 9D: GitHub Pull-Request Integration
 

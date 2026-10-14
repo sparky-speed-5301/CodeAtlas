@@ -1,0 +1,668 @@
+{
+  "benchmark_version": "real-repositories-v1",
+  "cases": [
+    {
+      "case_id": "clean-change",
+      "repository_url": null,
+      "fixture_ref": "fixtures/sanitized-offline-mirror",
+      "repository_identity": "codeatlas/sanitized-offline-benchmark-fixture",
+      "base_sha": "ac7f2b801ef220e36d0cc65b97cdb6d7abb5e93f",
+      "head_sha": "91d20fee394aba554aedbb7d801fef7aefd159d5",
+      "language": [
+        "python"
+      ],
+      "changed_files": [
+        "clean/readme.py"
+      ],
+      "benchmark_category": "clean_changes",
+      "population": "negative",
+      "expected_finding_categories": [],
+      "expected_finding_anchors": [],
+      "expected_severity": [],
+      "expected_abstention": "forbidden",
+      "expected_fixability": "not_fixable",
+      "expected_proposal_eligible": false,
+      "expected_patch_scope": {
+        "allowed_files": [
+          "clean/readme.py"
+        ],
+        "forbidden_files": [],
+        "changed_line_only": true,
+        "max_files": 1,
+        "max_changed_lines": 150
+      },
+      "expected_test_command_policy": {
+        "policy": "targeted_only",
+        "allowed_commands": [
+          "pytest -q"
+        ],
+        "network_allowed": false,
+        "dependency_install_allowed": false
+      },
+      "known_limitations": [
+        "Sanitized contract fixture; it is not evidence of live-provider quality."
+      ],
+      "benchmark_version": "real-repositories-v1"
+    },
+    {
+      "case_id": "real-bug",
+      "repository_url": null,
+      "fixture_ref": "fixtures/sanitized-offline-mirror",
+      "repository_identity": "codeatlas/sanitized-offline-benchmark-fixture",
+      "base_sha": "ac7f2b801ef220e36d0cc65b97cdb6d7abb5e93f",
+      "head_sha": "91d20fee394aba554aedbb7d801fef7aefd159d5",
+      "language": [
+        "python"
+      ],
+      "changed_files": [
+        "bugs/page.py"
+      ],
+      "benchmark_category": "real_bugs",
+      "population": "positive",
+      "expected_finding_categories": [
+        "CORRECTNESS"
+      ],
+      "expected_finding_anchors": [
+        {
+          "anchor_id": "real-bug-1",
+          "file": "bugs/page.py",
+          "start_line": 2,
+          "end_line": 2,
+          "category": "CORRECTNESS",
+          "severity": "high",
+          "quality_decision": "report",
+          "fixability": "fixable",
+          "evidence_required": true
+        }
+      ],
+      "expected_severity": [
+        "high"
+      ],
+      "expected_abstention": "forbidden",
+      "expected_fixability": "fixable",
+      "expected_proposal_eligible": true,
+      "expected_patch_scope": {
+        "allowed_files": [
+          "bugs/page.py"
+        ],
+        "forbidden_files": [],
+        "changed_line_only": true,
+        "max_files": 1,
+        "max_changed_lines": 150
+      },
+      "expected_test_command_policy": {
+        "policy": "targeted_only",
+        "allowed_commands": [
+          "pytest -q"
+        ],
+        "network_allowed": false,
+        "dependency_install_allowed": false
+      },
+      "known_limitations": [
+        "Sanitized contract fixture; it is not evidence of live-provider quality."
+      ],
+      "benchmark_version": "real-repositories-v1"
+    },
+    {
+      "case_id": "security-issue",
+      "repository_url": null,
+      "fixture_ref": "fixtures/sanitized-offline-mirror",
+      "repository_identity": "codeatlas/sanitized-offline-benchmark-fixture",
+      "base_sha": "ac7f2b801ef220e36d0cc65b97cdb6d7abb5e93f",
+      "head_sha": "91d20fee394aba554aedbb7d801fef7aefd159d5",
+      "language": [
+        "python"
+      ],
+      "changed_files": [
+        "security/path.py"
+      ],
+      "benchmark_category": "security_issues",
+      "population": "positive",
+      "expected_finding_categories": [
+        "PATH_TRAVERSAL"
+      ],
+      "expected_finding_anchors": [
+        {
+          "anchor_id": "security-issue-1",
+          "file": "security/path.py",
+          "start_line": 4,
+          "end_line": 4,
+          "category": "PATH_TRAVERSAL",
+          "severity": "high",
+          "quality_decision": "report",
+          "fixability": "fixable",
+          "evidence_required": true
+        }
+      ],
+      "expected_severity": [
+        "high"
+      ],
+      "expected_abstention": "forbidden",
+      "expected_fixability": "fixable",
+      "expected_proposal_eligible": true,
+      "expected_patch_scope": {
+        "allowed_files": [
+          "security/path.py"
+        ],
+        "forbidden_files": [],
+        "changed_line_only": true,
+        "max_files": 1,
+        "max_changed_lines": 150
+      },
+      "expected_test_command_policy": {
+        "policy": "targeted_only",
+        "allowed_commands": [
+          "pytest -q"
+        ],
+        "network_allowed": false,
+        "dependency_install_allowed": false
+      },
+      "known_limitations": [
+        "Sanitized contract fixture; it is not evidence of live-provider quality."
+      ],
+      "benchmark_version": "real-repositories-v1"
+    },
+    {
+      "case_id": "sensitive-data",
+      "repository_url": null,
+      "fixture_ref": "fixtures/sanitized-offline-mirror",
+      "repository_identity": "codeatlas/sanitized-offline-benchmark-fixture",
+      "base_sha": "ac7f2b801ef220e36d0cc65b97cdb6d7abb5e93f",
+      "head_sha": "91d20fee394aba554aedbb7d801fef7aefd159d5",
+      "language": [
+        "python"
+      ],
+      "changed_files": [
+        "sensitive/log.py"
+      ],
+      "benchmark_category": "sensitive_data_exposure",
+      "population": "positive",
+      "expected_finding_categories": [
+        "SENSITIVE_DATA_EXPOSURE"
+      ],
+      "expected_finding_anchors": [
+        {
+          "anchor_id": "sensitive-data-1",
+          "file": "sensitive/log.py",
+          "start_line": 2,
+          "end_line": 2,
+          "category": "SENSITIVE_DATA_EXPOSURE",
+          "severity": "high",
+          "quality_decision": "report",
+          "fixability": "fixable",
+          "evidence_required": true
+        }
+      ],
+      "expected_severity": [
+        "high"
+      ],
+      "expected_abstention": "forbidden",
+      "expected_fixability": "fixable",
+      "expected_proposal_eligible": true,
+      "expected_patch_scope": {
+        "allowed_files": [
+          "sensitive/log.py"
+        ],
+        "forbidden_files": [],
+        "changed_line_only": true,
+        "max_files": 1,
+        "max_changed_lines": 150
+      },
+      "expected_test_command_policy": {
+        "policy": "targeted_only",
+        "allowed_commands": [
+          "pytest -q"
+        ],
+        "network_allowed": false,
+        "dependency_install_allowed": false
+      },
+      "known_limitations": [
+        "Sanitized contract fixture; it is not evidence of live-provider quality."
+      ],
+      "benchmark_version": "real-repositories-v1"
+    },
+    {
+      "case_id": "authorization",
+      "repository_url": null,
+      "fixture_ref": "fixtures/sanitized-offline-mirror",
+      "repository_identity": "codeatlas/sanitized-offline-benchmark-fixture",
+      "base_sha": "ac7f2b801ef220e36d0cc65b97cdb6d7abb5e93f",
+      "head_sha": "91d20fee394aba554aedbb7d801fef7aefd159d5",
+      "language": [
+        "python"
+      ],
+      "changed_files": [
+        "auth/guard.py"
+      ],
+      "benchmark_category": "authorization_authentication",
+      "population": "positive",
+      "expected_finding_categories": [
+        "AUTHORIZATION"
+      ],
+      "expected_finding_anchors": [
+        {
+          "anchor_id": "authorization-1",
+          "file": "auth/guard.py",
+          "start_line": 2,
+          "end_line": 2,
+          "category": "AUTHORIZATION",
+          "severity": "blocker",
+          "quality_decision": "report",
+          "fixability": "fixable",
+          "evidence_required": true
+        }
+      ],
+      "expected_severity": [
+        "blocker"
+      ],
+      "expected_abstention": "forbidden",
+      "expected_fixability": "fixable",
+      "expected_proposal_eligible": true,
+      "expected_patch_scope": {
+        "allowed_files": [
+          "auth/guard.py"
+        ],
+        "forbidden_files": [],
+        "changed_line_only": true,
+        "max_files": 1,
+        "max_changed_lines": 150
+      },
+      "expected_test_command_policy": {
+        "policy": "targeted_only",
+        "allowed_commands": [
+          "pytest -q"
+        ],
+        "network_allowed": false,
+        "dependency_install_allowed": false
+      },
+      "known_limitations": [
+        "Sanitized contract fixture; it is not evidence of live-provider quality."
+      ],
+      "benchmark_version": "real-repositories-v1"
+    },
+    {
+      "case_id": "nullability",
+      "repository_url": null,
+      "fixture_ref": "fixtures/sanitized-offline-mirror",
+      "repository_identity": "codeatlas/sanitized-offline-benchmark-fixture",
+      "base_sha": "ac7f2b801ef220e36d0cc65b97cdb6d7abb5e93f",
+      "head_sha": "91d20fee394aba554aedbb7d801fef7aefd159d5",
+      "language": [
+        "python"
+      ],
+      "changed_files": [
+        "types/name.py"
+      ],
+      "benchmark_category": "type_nullability",
+      "population": "positive",
+      "expected_finding_categories": [
+        "NULLABILITY"
+      ],
+      "expected_finding_anchors": [
+        {
+          "anchor_id": "nullability-1",
+          "file": "types/name.py",
+          "start_line": 2,
+          "end_line": 2,
+          "category": "NULLABILITY",
+          "severity": "medium",
+          "quality_decision": "report",
+          "fixability": "fixable",
+          "evidence_required": true
+        }
+      ],
+      "expected_severity": [
+        "medium"
+      ],
+      "expected_abstention": "forbidden",
+      "expected_fixability": "fixable",
+      "expected_proposal_eligible": true,
+      "expected_patch_scope": {
+        "allowed_files": [
+          "types/name.py"
+        ],
+        "forbidden_files": [],
+        "changed_line_only": true,
+        "max_files": 1,
+        "max_changed_lines": 150
+      },
+      "expected_test_command_policy": {
+        "policy": "targeted_only",
+        "allowed_commands": [
+          "pytest -q"
+        ],
+        "network_allowed": false,
+        "dependency_install_allowed": false
+      },
+      "known_limitations": [
+        "Sanitized contract fixture; it is not evidence of live-provider quality."
+      ],
+      "benchmark_version": "real-repositories-v1"
+    },
+    {
+      "case_id": "test-regression",
+      "repository_url": null,
+      "fixture_ref": "fixtures/sanitized-offline-mirror",
+      "repository_identity": "codeatlas/sanitized-offline-benchmark-fixture",
+      "base_sha": "ac7f2b801ef220e36d0cc65b97cdb6d7abb5e93f",
+      "head_sha": "91d20fee394aba554aedbb7d801fef7aefd159d5",
+      "language": [
+        "python"
+      ],
+      "changed_files": [
+        "tests/math.py"
+      ],
+      "benchmark_category": "test_regressions",
+      "population": "positive",
+      "expected_finding_categories": [
+        "TEST_REGRESSION"
+      ],
+      "expected_finding_anchors": [
+        {
+          "anchor_id": "test-regression-1",
+          "file": "tests/math.py",
+          "start_line": 2,
+          "end_line": 2,
+          "category": "TEST_REGRESSION",
+          "severity": "high",
+          "quality_decision": "report",
+          "fixability": "fixable",
+          "evidence_required": true
+        }
+      ],
+      "expected_severity": [
+        "high"
+      ],
+      "expected_abstention": "forbidden",
+      "expected_fixability": "fixable",
+      "expected_proposal_eligible": true,
+      "expected_patch_scope": {
+        "allowed_files": [
+          "tests/math.py"
+        ],
+        "forbidden_files": [],
+        "changed_line_only": true,
+        "max_files": 1,
+        "max_changed_lines": 150
+      },
+      "expected_test_command_policy": {
+        "policy": "targeted_only",
+        "allowed_commands": [
+          "pytest -q"
+        ],
+        "network_allowed": false,
+        "dependency_install_allowed": false
+      },
+      "known_limitations": [
+        "Sanitized contract fixture; it is not evidence of live-provider quality."
+      ],
+      "benchmark_version": "real-repositories-v1"
+    },
+    {
+      "case_id": "performance",
+      "repository_url": null,
+      "fixture_ref": "fixtures/sanitized-offline-mirror",
+      "repository_identity": "codeatlas/sanitized-offline-benchmark-fixture",
+      "base_sha": "ac7f2b801ef220e36d0cc65b97cdb6d7abb5e93f",
+      "head_sha": "91d20fee394aba554aedbb7d801fef7aefd159d5",
+      "language": [
+        "python"
+      ],
+      "changed_files": [
+        "performance/search.py"
+      ],
+      "benchmark_category": "performance_regressions",
+      "population": "positive",
+      "expected_finding_categories": [
+        "PERFORMANCE"
+      ],
+      "expected_finding_anchors": [
+        {
+          "anchor_id": "performance-1",
+          "file": "performance/search.py",
+          "start_line": 2,
+          "end_line": 2,
+          "category": "PERFORMANCE",
+          "severity": "medium",
+          "quality_decision": "report",
+          "fixability": "fixable",
+          "evidence_required": true
+        }
+      ],
+      "expected_severity": [
+        "medium"
+      ],
+      "expected_abstention": "forbidden",
+      "expected_fixability": "fixable",
+      "expected_proposal_eligible": true,
+      "expected_patch_scope": {
+        "allowed_files": [
+          "performance/search.py"
+        ],
+        "forbidden_files": [],
+        "changed_line_only": true,
+        "max_files": 1,
+        "max_changed_lines": 150
+      },
+      "expected_test_command_policy": {
+        "policy": "targeted_only",
+        "allowed_commands": [
+          "pytest -q"
+        ],
+        "network_allowed": false,
+        "dependency_install_allowed": false
+      },
+      "known_limitations": [
+        "Sanitized contract fixture; it is not evidence of live-provider quality."
+      ],
+      "benchmark_version": "real-repositories-v1"
+    },
+    {
+      "case_id": "ambiguous",
+      "repository_url": null,
+      "fixture_ref": "fixtures/sanitized-offline-mirror",
+      "repository_identity": "codeatlas/sanitized-offline-benchmark-fixture",
+      "base_sha": "ac7f2b801ef220e36d0cc65b97cdb6d7abb5e93f",
+      "head_sha": "91d20fee394aba554aedbb7d801fef7aefd159d5",
+      "language": [
+        "python"
+      ],
+      "changed_files": [
+        "ambiguous/policy.py"
+      ],
+      "benchmark_category": "ambiguous_changes",
+      "population": "ambiguous",
+      "expected_finding_categories": [],
+      "expected_finding_anchors": [],
+      "expected_severity": [],
+      "expected_abstention": "allowed",
+      "expected_fixability": "ambiguous",
+      "expected_proposal_eligible": false,
+      "expected_patch_scope": {
+        "allowed_files": [
+          "ambiguous/policy.py"
+        ],
+        "forbidden_files": [],
+        "changed_line_only": true,
+        "max_files": 1,
+        "max_changed_lines": 150
+      },
+      "expected_test_command_policy": {
+        "policy": "targeted_only",
+        "allowed_commands": [
+          "pytest -q"
+        ],
+        "network_allowed": false,
+        "dependency_install_allowed": false
+      },
+      "known_limitations": [
+        "Sanitized contract fixture; it is not evidence of live-provider quality."
+      ],
+      "benchmark_version": "real-repositories-v1"
+    },
+    {
+      "case_id": "correct-abstention",
+      "repository_url": null,
+      "fixture_ref": "fixtures/sanitized-offline-mirror",
+      "repository_identity": "codeatlas/sanitized-offline-benchmark-fixture",
+      "base_sha": "ac7f2b801ef220e36d0cc65b97cdb6d7abb5e93f",
+      "head_sha": "91d20fee394aba554aedbb7d801fef7aefd159d5",
+      "language": [
+        "python"
+      ],
+      "changed_files": [
+        "abstain/intent.py"
+      ],
+      "benchmark_category": "correct_abstention",
+      "population": "ambiguous",
+      "expected_finding_categories": [],
+      "expected_finding_anchors": [],
+      "expected_severity": [],
+      "expected_abstention": "required",
+      "expected_fixability": "ambiguous",
+      "expected_proposal_eligible": false,
+      "expected_patch_scope": {
+        "allowed_files": [
+          "abstain/intent.py"
+        ],
+        "forbidden_files": [],
+        "changed_line_only": true,
+        "max_files": 1,
+        "max_changed_lines": 150
+      },
+      "expected_test_command_policy": {
+        "policy": "targeted_only",
+        "allowed_commands": [
+          "pytest -q"
+        ],
+        "network_allowed": false,
+        "dependency_install_allowed": false
+      },
+      "known_limitations": [
+        "Sanitized contract fixture; it is not evidence of live-provider quality."
+      ],
+      "benchmark_version": "real-repositories-v1"
+    },
+    {
+      "case_id": "ai-defect",
+      "repository_url": null,
+      "fixture_ref": "fixtures/sanitized-offline-mirror",
+      "repository_identity": "codeatlas/sanitized-offline-benchmark-fixture",
+      "base_sha": "ac7f2b801ef220e36d0cc65b97cdb6d7abb5e93f",
+      "head_sha": "91d20fee394aba554aedbb7d801fef7aefd159d5",
+      "language": [
+        "python"
+      ],
+      "changed_files": [
+        "ai/generated.py"
+      ],
+      "benchmark_category": "ai_generated_defects",
+      "population": "positive",
+      "expected_finding_categories": [
+        "CORRECTNESS"
+      ],
+      "expected_finding_anchors": [
+        {
+          "anchor_id": "ai-defect-1",
+          "file": "ai/generated.py",
+          "start_line": 2,
+          "end_line": 2,
+          "category": "CORRECTNESS",
+          "severity": "high",
+          "quality_decision": "report",
+          "fixability": "fixable",
+          "evidence_required": true
+        }
+      ],
+      "expected_severity": [
+        "high"
+      ],
+      "expected_abstention": "forbidden",
+      "expected_fixability": "fixable",
+      "expected_proposal_eligible": true,
+      "expected_patch_scope": {
+        "allowed_files": [
+          "ai/generated.py"
+        ],
+        "forbidden_files": [],
+        "changed_line_only": true,
+        "max_files": 1,
+        "max_changed_lines": 150
+      },
+      "expected_test_command_policy": {
+        "policy": "targeted_only",
+        "allowed_commands": [
+          "pytest -q"
+        ],
+        "network_allowed": false,
+        "dependency_install_allowed": false
+      },
+      "known_limitations": [
+        "Sanitized contract fixture; it is not evidence of live-provider quality."
+      ],
+      "benchmark_version": "real-repositories-v1"
+    },
+    {
+      "case_id": "multi-language",
+      "repository_url": null,
+      "fixture_ref": "fixtures/sanitized-offline-mirror",
+      "repository_identity": "codeatlas/sanitized-offline-benchmark-fixture",
+      "base_sha": "ac7f2b801ef220e36d0cc65b97cdb6d7abb5e93f",
+      "head_sha": "91d20fee394aba554aedbb7d801fef7aefd159d5",
+      "language": [
+        "python",
+        "typescript"
+      ],
+      "changed_files": [
+        "multi/service.py",
+        "multi/client.ts"
+      ],
+      "benchmark_category": "multi_language_changes",
+      "population": "positive",
+      "expected_finding_categories": [
+        "CONTRACT_MISMATCH"
+      ],
+      "expected_finding_anchors": [
+        {
+          "anchor_id": "multi-language-1",
+          "file": "multi/service.py",
+          "start_line": 2,
+          "end_line": 2,
+          "category": "CONTRACT_MISMATCH",
+          "severity": "high",
+          "quality_decision": "report",
+          "fixability": "review_required",
+          "evidence_required": true
+        }
+      ],
+      "expected_severity": [
+        "high"
+      ],
+      "expected_abstention": "forbidden",
+      "expected_fixability": "review_required",
+      "expected_proposal_eligible": true,
+      "expected_patch_scope": {
+        "allowed_files": [
+          "multi/service.py",
+          "multi/client.ts"
+        ],
+        "forbidden_files": [],
+        "changed_line_only": true,
+        "max_files": 2,
+        "max_changed_lines": 150
+      },
+      "expected_test_command_policy": {
+        "policy": "targeted_only",
+        "allowed_commands": [
+          "pytest -q"
+        ],
+        "network_allowed": false,
+        "dependency_install_allowed": false
+      },
+      "known_limitations": [
+        "Sanitized contract fixture; it is not evidence of live-provider quality."
+      ],
+      "benchmark_version": "real-repositories-v1"
+    }
+  ]
+}

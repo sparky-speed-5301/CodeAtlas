@@ -51,6 +51,20 @@ that severity or higher; abstained and suppressed findings do not trigger it.
 | 2 | CLI usage error, including missing required confirmation arguments |
 | 3 | Standalone review completed and findings met `--fail-on` |
 
+### Offline repository benchmark
+
+`codeatlas benchmark` scores versioned review and repair observation files without cloning, contacting a provider, executing repository code, installing dependencies, or applying a patch:
+
+```bash
+codeatlas benchmark \
+  --suite eval/cases/real-repositories/v1/suite.json \
+  --review-observations eval/cases/real-repositories/v1/example-review-observations.json \
+  --repair-observations eval/cases/real-repositories/v1/example-repair-observations.json \
+  --output eval/results/real-repositories-contract.json
+```
+
+At least one observation or provider-comparison file is required. `--provider-comparisons FILE` scores controlled `offline`, `live`, `fallback`, and `dry_run` metadata without contacting a provider; see [Controlled provider comparison](provider-comparison.md). Invalid labels or observations exit 2. Without `--output`, one sorted JSON report is written to stdout. Deterministic and live-provider metrics are always separate. See [Real repository benchmarks](real-repository-benchmarks.md) for populations, denominators, confidence intervals, lifecycle statuses, and fixture safety.
+
 ### Service-managed reviews
 
 Start a service in one terminal, then use any client from another:

@@ -1,5 +1,7 @@
 # Evaluation
 
+The production-readiness benchmark for public repositories, explicit review-quality metrics, and repair outcomes is documented in [Real repository benchmarks](real-repository-benchmarks.md). It keeps deterministic analyzer observations separate from live-provider observations and does not report a combined accuracy number.
+
 Evaluation is built before an LLM reviewer. Cases are small, deterministic
 fixtures under `eval/cases/<case-id>/` with `metadata.json`, a `before/`
 snapshot, and `visible_tests/`. Metadata records language, category, severity,

@@ -1,0 +1,317 @@
+{
+  "benchmark_version": "real-repositories-v1",
+  "provider_comparison_report": {
+    "benchmark_version": "real-repositories-v1",
+    "comparison_count": 1,
+    "comparisons": [
+      {
+        "case_id": "real-bug",
+        "comparison_id": "real-bug-provider-matrix",
+        "control_hash": "2523591f23a0699702dba7942585047f216475501541be2c9b4640806f91db01",
+        "missing_modes": [],
+        "modes_present": [
+          "offline",
+          "live",
+          "fallback",
+          "dry_run"
+        ],
+        "runs": [
+          {
+            "case_id": "real-bug",
+            "comparison_id": "real-bug-provider-matrix",
+            "control": {
+              "base_sha": "ac7f2b801ef220e36d0cc65b97cdb6d7abb5e93f",
+              "context_hash": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+              "finding_anchor_id": "real-bug-1",
+              "head_sha": "91d20fee394aba554aedbb7d801fef7aefd159d5",
+              "language": [
+                "python"
+              ],
+              "patch_limits": {
+                "max_patch_bytes": 64000,
+                "max_patch_lines": 150,
+                "max_target_files": 1
+              },
+              "policy_version": "11C-A.1",
+              "repository_identity": "codeatlas/sanitized-offline-benchmark-fixture",
+              "request_hash": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+              "target_files": [
+                "bugs/page.py"
+              ],
+              "test_command_policy": "targeted_only",
+              "validation_policy": "static-only-v1"
+            },
+            "cost_amount": null,
+            "cost_basis": null,
+            "cost_currency": null,
+            "duration_ms": 20.0,
+            "failure_code": null,
+            "fallback_trigger_code": null,
+            "fallback_used": false,
+            "formatter": "not_run",
+            "full_suite": "not_run",
+            "input_tokens": null,
+            "linter": "not_run",
+            "model_name": null,
+            "outcome": "completed",
+            "output_tokens": null,
+            "patch_hash": "cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+            "provider_contacted": false,
+            "provider_mode": "offline",
+            "provider_name": "offline",
+            "request_size_basis": "structured_request",
+            "request_size_bytes": 1000,
+            "response_size_basis": "accepted_structured_output",
+            "response_size_bytes": 500,
+            "retry_count": 0,
+            "run_mode": "offline",
+            "syntax": "passed",
+            "targeted_tests": "not_run",
+            "type_check": "not_run",
+            "validation_status": "static_validation_passed"
+          },
+          {
+            "case_id": "real-bug",
+            "comparison_id": "real-bug-provider-matrix",
+            "control": {
+              "base_sha": "ac7f2b801ef220e36d0cc65b97cdb6d7abb5e93f",
+              "context_hash": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+              "finding_anchor_id": "real-bug-1",
+              "head_sha": "91d20fee394aba554aedbb7d801fef7aefd159d5",
+              "language": [
+                "python"
+              ],
+              "patch_limits": {
+                "max_patch_bytes": 64000,
+                "max_patch_lines": 150,
+                "max_target_files": 1
+              },
+              "policy_version": "11C-A.1",
+              "repository_identity": "codeatlas/sanitized-offline-benchmark-fixture",
+              "request_hash": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+              "target_files": [
+                "bugs/page.py"
+              ],
+              "test_command_policy": "targeted_only",
+              "validation_policy": "static-only-v1"
+            },
+            "cost_amount": null,
+            "cost_basis": null,
+            "cost_currency": null,
+            "duration_ms": 20.0,
+            "failure_code": null,
+            "fallback_trigger_code": null,
+            "fallback_used": false,
+            "formatter": "not_run",
+            "full_suite": "not_run",
+            "input_tokens": null,
+            "linter": "not_run",
+            "model_name": "safe-model-v1",
+            "outcome": "completed",
+            "output_tokens": null,
+            "patch_hash": "cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+            "provider_contacted": true,
+            "provider_mode": "online",
+            "provider_name": "openai_compatible",
+            "request_size_basis": "structured_request",
+            "request_size_bytes": 1000,
+            "response_size_basis": "accepted_structured_output",
+            "response_size_bytes": 500,
+            "retry_count": 0,
+            "run_mode": "live",
+            "syntax": "passed",
+            "targeted_tests": "not_run",
+            "type_check": "not_run",
+            "validation_status": "static_validation_passed"
+          },
+          {
+            "case_id": "real-bug",
+            "comparison_id": "real-bug-provider-matrix",
+            "control": {
+              "base_sha": "ac7f2b801ef220e36d0cc65b97cdb6d7abb5e93f",
+              "context_hash": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+              "finding_anchor_id": "real-bug-1",
+              "head_sha": "91d20fee394aba554aedbb7d801fef7aefd159d5",
+              "language": [
+                "python"
+              ],
+              "patch_limits": {
+                "max_patch_bytes": 64000,
+                "max_patch_lines": 150,
+                "max_target_files": 1
+              },
+              "policy_version": "11C-A.1",
+              "repository_identity": "codeatlas/sanitized-offline-benchmark-fixture",
+              "request_hash": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+              "target_files": [
+                "bugs/page.py"
+              ],
+              "test_command_policy": "targeted_only",
+              "validation_policy": "static-only-v1"
+            },
+            "cost_amount": null,
+            "cost_basis": null,
+            "cost_currency": null,
+            "duration_ms": 20.0,
+            "failure_code": null,
+            "fallback_trigger_code": "timeout",
+            "fallback_used": true,
+            "formatter": "not_run",
+            "full_suite": "not_run",
+            "input_tokens": null,
+            "linter": "not_run",
+            "model_name": null,
+            "outcome": "completed",
+            "output_tokens": null,
+            "patch_hash": "cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+            "provider_contacted": true,
+            "provider_mode": "offline",
+            "provider_name": "offline",
+            "request_size_basis": "structured_request",
+            "request_size_bytes": 1000,
+            "response_size_basis": "accepted_structured_output",
+            "response_size_bytes": 500,
+            "retry_count": 0,
+            "run_mode": "fallback",
+            "syntax": "passed",
+            "targeted_tests": "not_run",
+            "type_check": "not_run",
+            "validation_status": "static_validation_passed"
+          },
+          {
+            "case_id": "real-bug",
+            "comparison_id": "real-bug-provider-matrix",
+            "control": {
+              "base_sha": "ac7f2b801ef220e36d0cc65b97cdb6d7abb5e93f",
+              "context_hash": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+              "finding_anchor_id": "real-bug-1",
+              "head_sha": "91d20fee394aba554aedbb7d801fef7aefd159d5",
+              "language": [
+                "python"
+              ],
+              "patch_limits": {
+                "max_patch_bytes": 64000,
+                "max_patch_lines": 150,
+                "max_target_files": 1
+              },
+              "policy_version": "11C-A.1",
+              "repository_identity": "codeatlas/sanitized-offline-benchmark-fixture",
+              "request_hash": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+              "target_files": [
+                "bugs/page.py"
+              ],
+              "test_command_policy": "targeted_only",
+              "validation_policy": "static-only-v1"
+            },
+            "cost_amount": null,
+            "cost_basis": null,
+            "cost_currency": null,
+            "duration_ms": 0.0,
+            "failure_code": null,
+            "fallback_trigger_code": null,
+            "fallback_used": false,
+            "formatter": "not_run",
+            "full_suite": "not_run",
+            "input_tokens": null,
+            "linter": "not_run",
+            "model_name": "safe-model-v1",
+            "outcome": "not_run",
+            "output_tokens": null,
+            "patch_hash": null,
+            "provider_contacted": false,
+            "provider_mode": "online",
+            "provider_name": "openai_compatible",
+            "request_size_basis": "structured_request",
+            "request_size_bytes": 0,
+            "response_size_basis": "accepted_structured_output",
+            "response_size_bytes": 0,
+            "retry_count": 0,
+            "run_mode": "dry_run",
+            "syntax": "not_run",
+            "targeted_tests": "not_run",
+            "type_check": "not_run",
+            "validation_status": "not_run"
+          }
+        ]
+      }
+    ],
+    "mode_summaries": [
+      {
+        "abstained": 0,
+        "completed": 1,
+        "failed": 0,
+        "fallback_uses": 0,
+        "mean_cost": null,
+        "mean_duration_ms": 20.0,
+        "mean_input_tokens": null,
+        "mean_output_tokens": null,
+        "mean_request_size_bytes": 1000.0,
+        "mean_response_size_bytes": 500.0,
+        "patches_generated": 1,
+        "provider_contacts": 0,
+        "retries": 0,
+        "run_mode": "offline",
+        "runs": 1,
+        "validations_passed": 1
+      },
+      {
+        "abstained": 0,
+        "completed": 1,
+        "failed": 0,
+        "fallback_uses": 0,
+        "mean_cost": null,
+        "mean_duration_ms": 20.0,
+        "mean_input_tokens": null,
+        "mean_output_tokens": null,
+        "mean_request_size_bytes": 1000.0,
+        "mean_response_size_bytes": 500.0,
+        "patches_generated": 1,
+        "provider_contacts": 1,
+        "retries": 0,
+        "run_mode": "live",
+        "runs": 1,
+        "validations_passed": 1
+      },
+      {
+        "abstained": 0,
+        "completed": 1,
+        "failed": 0,
+        "fallback_uses": 1,
+        "mean_cost": null,
+        "mean_duration_ms": 20.0,
+        "mean_input_tokens": null,
+        "mean_output_tokens": null,
+        "mean_request_size_bytes": 1000.0,
+        "mean_response_size_bytes": 500.0,
+        "patches_generated": 1,
+        "provider_contacts": 1,
+        "retries": 0,
+        "run_mode": "fallback",
+        "runs": 1,
+        "validations_passed": 1
+      },
+      {
+        "abstained": 0,
+        "completed": 0,
+        "failed": 0,
+        "fallback_uses": 0,
+        "mean_cost": null,
+        "mean_duration_ms": 0.0,
+        "mean_input_tokens": null,
+        "mean_output_tokens": null,
+        "mean_request_size_bytes": 0.0,
+        "mean_response_size_bytes": 0.0,
+        "patches_generated": 0,
+        "provider_contacts": 0,
+        "retries": 0,
+        "run_mode": "dry_run",
+        "runs": 1,
+        "validations_passed": 0
+      }
+    ],
+    "run_count": 4
+  },
+  "repair_reports": [],
+  "review_reports": [],
+  "suite_case_count": 12
+}

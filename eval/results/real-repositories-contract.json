@@ -1,0 +1,695 @@
+{
+  "benchmark_version": "real-repositories-v1",
+  "repair_reports": [
+    {
+      "benchmark_version": "real-repositories-v1",
+      "metrics": [
+        {
+          "ambiguous_population": "2 ambiguous cases",
+          "benchmark_version": "real-repositories-v1",
+          "confidence_interval": {
+            "high": 1.0,
+            "low": 0.7575059933447592,
+            "method": "wilson_95"
+          },
+          "denominator": 12.0,
+          "exclusions": [],
+          "name": "proposal_eligibility_correctness",
+          "negative_population": "3 cases not labelled fixable",
+          "numerator": 12.0,
+          "positive_population": "9 cases labelled fixable",
+          "unit": "rate",
+          "value": 1.0
+        },
+        {
+          "ambiguous_population": "2 ambiguous cases",
+          "benchmark_version": "real-repositories-v1",
+          "confidence_interval": null,
+          "denominator": 0.0,
+          "exclusions": [
+            "no proposal generated"
+          ],
+          "name": "structured_output_acceptance",
+          "negative_population": "3 cases not labelled fixable",
+          "numerator": 0.0,
+          "positive_population": "9 cases labelled fixable",
+          "unit": "rate",
+          "value": null
+        },
+        {
+          "ambiguous_population": "2 ambiguous cases",
+          "benchmark_version": "real-repositories-v1",
+          "confidence_interval": null,
+          "denominator": 0.0,
+          "exclusions": [
+            "no proposal generated"
+          ],
+          "name": "patch_parse_success",
+          "negative_population": "3 cases not labelled fixable",
+          "numerator": 0.0,
+          "positive_population": "9 cases labelled fixable",
+          "unit": "rate",
+          "value": null
+        },
+        {
+          "ambiguous_population": "2 ambiguous cases",
+          "benchmark_version": "real-repositories-v1",
+          "confidence_interval": null,
+          "denominator": 0.0,
+          "exclusions": [
+            "patch did not parse"
+          ],
+          "name": "target_file_scope_accuracy",
+          "negative_population": "3 cases not labelled fixable",
+          "numerator": 0.0,
+          "positive_population": "9 cases labelled fixable",
+          "unit": "rate",
+          "value": null
+        },
+        {
+          "ambiguous_population": "2 ambiguous cases",
+          "benchmark_version": "real-repositories-v1",
+          "confidence_interval": null,
+          "denominator": 0.0,
+          "exclusions": [
+            "patch did not parse or changed no lines"
+          ],
+          "name": "changed_line_scope",
+          "negative_population": "3 cases not labelled fixable",
+          "numerator": 0.0,
+          "positive_population": "9 cases labelled fixable",
+          "unit": "rate",
+          "value": null
+        },
+        {
+          "ambiguous_population": "2 ambiguous cases",
+          "benchmark_version": "real-repositories-v1",
+          "confidence_interval": null,
+          "denominator": 0.0,
+          "exclusions": [
+            "no proposal generated"
+          ],
+          "name": "secret_safety",
+          "negative_population": "3 cases not labelled fixable",
+          "numerator": 0.0,
+          "positive_population": "9 cases labelled fixable",
+          "unit": "rate",
+          "value": null
+        },
+        {
+          "ambiguous_population": "2 ambiguous cases",
+          "benchmark_version": "real-repositories-v1",
+          "confidence_interval": null,
+          "denominator": 0.0,
+          "exclusions": [
+            "no proposal generated"
+          ],
+          "name": "policy_safety",
+          "negative_population": "3 cases not labelled fixable",
+          "numerator": 0.0,
+          "positive_population": "9 cases labelled fixable",
+          "unit": "rate",
+          "value": null
+        },
+        {
+          "ambiguous_population": "2 ambiguous cases",
+          "benchmark_version": "real-repositories-v1",
+          "confidence_interval": null,
+          "denominator": 0.0,
+          "exclusions": [
+            "syntax not_run or unavailable"
+          ],
+          "name": "syntax_pass_rate",
+          "negative_population": "3 cases not labelled fixable",
+          "numerator": 0.0,
+          "positive_population": "9 cases labelled fixable",
+          "unit": "rate",
+          "value": null
+        },
+        {
+          "ambiguous_population": "2 ambiguous cases",
+          "benchmark_version": "real-repositories-v1",
+          "confidence_interval": null,
+          "denominator": 0.0,
+          "exclusions": [
+            "formatter not_run or unavailable"
+          ],
+          "name": "formatter_pass_rate",
+          "negative_population": "3 cases not labelled fixable",
+          "numerator": 0.0,
+          "positive_population": "9 cases labelled fixable",
+          "unit": "rate",
+          "value": null
+        },
+        {
+          "ambiguous_population": "2 ambiguous cases",
+          "benchmark_version": "real-repositories-v1",
+          "confidence_interval": null,
+          "denominator": 0.0,
+          "exclusions": [
+            "linter not_run or unavailable"
+          ],
+          "name": "linter_pass_rate",
+          "negative_population": "3 cases not labelled fixable",
+          "numerator": 0.0,
+          "positive_population": "9 cases labelled fixable",
+          "unit": "rate",
+          "value": null
+        },
+        {
+          "ambiguous_population": "2 ambiguous cases",
+          "benchmark_version": "real-repositories-v1",
+          "confidence_interval": null,
+          "denominator": 0.0,
+          "exclusions": [
+            "type_check not_run or unavailable"
+          ],
+          "name": "type_check_pass_rate",
+          "negative_population": "3 cases not labelled fixable",
+          "numerator": 0.0,
+          "positive_population": "9 cases labelled fixable",
+          "unit": "rate",
+          "value": null
+        },
+        {
+          "ambiguous_population": "2 ambiguous cases",
+          "benchmark_version": "real-repositories-v1",
+          "confidence_interval": null,
+          "denominator": 0.0,
+          "exclusions": [
+            "targeted_tests not_run or unavailable"
+          ],
+          "name": "targeted_test_pass_rate",
+          "negative_population": "3 cases not labelled fixable",
+          "numerator": 0.0,
+          "positive_population": "9 cases labelled fixable",
+          "unit": "rate",
+          "value": null
+        },
+        {
+          "ambiguous_population": "2 ambiguous cases",
+          "benchmark_version": "real-repositories-v1",
+          "confidence_interval": null,
+          "denominator": 0.0,
+          "exclusions": [
+            "full_suite not_run or unavailable"
+          ],
+          "name": "full_suite_pass_rate",
+          "negative_population": "3 cases not labelled fixable",
+          "numerator": 0.0,
+          "positive_population": "9 cases labelled fixable",
+          "unit": "rate",
+          "value": null
+        },
+        {
+          "ambiguous_population": "2 ambiguous cases",
+          "benchmark_version": "real-repositories-v1",
+          "confidence_interval": null,
+          "denominator": 0.0,
+          "exclusions": [
+            "regression outcome unavailable"
+          ],
+          "name": "regression_rate",
+          "negative_population": "3 cases not labelled fixable",
+          "numerator": 0.0,
+          "positive_population": "9 cases labelled fixable",
+          "unit": "rate",
+          "value": null
+        },
+        {
+          "ambiguous_population": "2 ambiguous cases",
+          "benchmark_version": "real-repositories-v1",
+          "confidence_interval": {
+            "high": 0.24249400665524085,
+            "low": 2.7755575615628914e-17,
+            "method": "wilson_95"
+          },
+          "denominator": 12.0,
+          "exclusions": [],
+          "name": "accepted_patch_rate",
+          "negative_population": "3 cases not labelled fixable",
+          "numerator": 0.0,
+          "positive_population": "9 cases labelled fixable",
+          "unit": "rate",
+          "value": 0.0
+        },
+        {
+          "ambiguous_population": "2 ambiguous cases",
+          "benchmark_version": "real-repositories-v1",
+          "confidence_interval": {
+            "high": 0.24249400665524085,
+            "low": 2.7755575615628914e-17,
+            "method": "wilson_95"
+          },
+          "denominator": 12.0,
+          "exclusions": [],
+          "name": "rejected_patch_rate",
+          "negative_population": "3 cases not labelled fixable",
+          "numerator": 0.0,
+          "positive_population": "9 cases labelled fixable",
+          "unit": "rate",
+          "value": 0.0
+        },
+        {
+          "ambiguous_population": "2 ambiguous cases",
+          "benchmark_version": "real-repositories-v1",
+          "confidence_interval": null,
+          "denominator": 0.0,
+          "exclusions": [
+            "patch was not applied"
+          ],
+          "name": "revert_rate",
+          "negative_population": "3 cases not labelled fixable",
+          "numerator": 0.0,
+          "positive_population": "9 cases labelled fixable",
+          "unit": "rate",
+          "value": null
+        },
+        {
+          "ambiguous_population": "2 ambiguous cases",
+          "benchmark_version": "real-repositories-v1",
+          "confidence_interval": null,
+          "denominator": 0.0,
+          "exclusions": [
+            "apply was not attempted"
+          ],
+          "name": "apply_conflict_rate",
+          "negative_population": "3 cases not labelled fixable",
+          "numerator": 0.0,
+          "positive_population": "9 cases labelled fixable",
+          "unit": "rate",
+          "value": null
+        },
+        {
+          "ambiguous_population": "2 ambiguous cases",
+          "benchmark_version": "real-repositories-v1",
+          "confidence_interval": null,
+          "denominator": 12.0,
+          "exclusions": [],
+          "name": "average_repair_attempts",
+          "negative_population": "3 cases not labelled fixable",
+          "numerator": 0.0,
+          "positive_population": "9 cases labelled fixable",
+          "unit": "count",
+          "value": 0.0
+        },
+        {
+          "ambiguous_population": "2 ambiguous cases",
+          "benchmark_version": "real-repositories-v1",
+          "confidence_interval": null,
+          "denominator": 12.0,
+          "exclusions": [],
+          "name": "repair_latency",
+          "negative_population": "3 cases not labelled fixable",
+          "numerator": 0.0,
+          "positive_population": "9 cases labelled fixable",
+          "unit": "milliseconds",
+          "value": 0.0
+        },
+        {
+          "ambiguous_population": "2 ambiguous cases",
+          "benchmark_version": "real-repositories-v1",
+          "confidence_interval": null,
+          "denominator": 0.0,
+          "exclusions": [
+            "cost unavailable or no proposal generated"
+          ],
+          "name": "cost_per_proposal",
+          "negative_population": "3 cases not labelled fixable",
+          "numerator": null,
+          "positive_population": "9 cases labelled fixable",
+          "unit": "cost",
+          "value": null
+        }
+      ],
+      "mode": "deterministic",
+      "observation_count": 12
+    }
+  ],
+  "review_reports": [
+    {
+      "benchmark_version": "real-repositories-v1",
+      "case_count": 12,
+      "category_case_counts": {
+        "ai_generated_defects": 1,
+        "ambiguous_changes": 1,
+        "authorization_authentication": 1,
+        "clean_changes": 1,
+        "correct_abstention": 1,
+        "multi_language_changes": 1,
+        "performance_regressions": 1,
+        "real_bugs": 1,
+        "security_issues": 1,
+        "sensitive_data_exposure": 1,
+        "test_regressions": 1,
+        "type_nullability": 1
+      },
+      "metrics": [
+        {
+          "ambiguous_population": "2 ambiguous cases",
+          "benchmark_version": "real-repositories-v1",
+          "confidence_interval": {
+            "high": 1.0,
+            "low": 0.7008549515804559,
+            "method": "wilson_95"
+          },
+          "denominator": 9.0,
+          "exclusions": [
+            "ambiguous expected labels"
+          ],
+          "name": "precision",
+          "negative_population": "1 clean negative cases",
+          "numerator": 9.0,
+          "positive_population": "9 positive cases containing 9 expected anchors",
+          "unit": "rate",
+          "value": 1.0
+        },
+        {
+          "ambiguous_population": "2 ambiguous cases",
+          "benchmark_version": "real-repositories-v1",
+          "confidence_interval": {
+            "high": 1.0,
+            "low": 0.7008549515804559,
+            "method": "wilson_95"
+          },
+          "denominator": 9.0,
+          "exclusions": [
+            "negative and ambiguous cases"
+          ],
+          "name": "recall",
+          "negative_population": "1 clean negative cases",
+          "numerator": 9.0,
+          "positive_population": "9 positive cases containing 9 expected anchors",
+          "unit": "rate",
+          "value": 1.0
+        },
+        {
+          "ambiguous_population": "2 ambiguous cases",
+          "benchmark_version": "real-repositories-v1",
+          "confidence_interval": {
+            "high": 0.7934506856227626,
+            "low": 0.0,
+            "method": "wilson_95"
+          },
+          "denominator": 1.0,
+          "exclusions": [
+            "positive and ambiguous cases"
+          ],
+          "name": "false_positive_rate",
+          "negative_population": "1 clean negative cases",
+          "numerator": 0.0,
+          "positive_population": "9 positive cases containing 9 expected anchors",
+          "unit": "rate",
+          "value": 0.0
+        },
+        {
+          "ambiguous_population": "2 ambiguous cases",
+          "benchmark_version": "real-repositories-v1",
+          "confidence_interval": {
+            "high": 0.2991450484195441,
+            "low": 0.0,
+            "method": "wilson_95"
+          },
+          "denominator": 9.0,
+          "exclusions": [
+            "negative and ambiguous cases"
+          ],
+          "name": "false_negative_rate",
+          "negative_population": "1 clean negative cases",
+          "numerator": 0.0,
+          "positive_population": "9 positive cases containing 9 expected anchors",
+          "unit": "rate",
+          "value": 0.0
+        },
+        {
+          "ambiguous_population": "2 ambiguous cases",
+          "benchmark_version": "real-repositories-v1",
+          "confidence_interval": {
+            "high": 0.35387991114111694,
+            "low": 0.014865094404917095,
+            "method": "wilson_95"
+          },
+          "denominator": 12.0,
+          "exclusions": [],
+          "name": "abstention_rate",
+          "negative_population": "1 clean negative cases",
+          "numerator": 1.0,
+          "positive_population": "9 positive cases containing 9 expected anchors",
+          "unit": "rate",
+          "value": 0.08333333333333333
+        },
+        {
+          "ambiguous_population": "2 ambiguous cases",
+          "benchmark_version": "real-repositories-v1",
+          "confidence_interval": {
+            "high": 0.9851349055950829,
+            "low": 0.646120088858883,
+            "method": "wilson_95"
+          },
+          "denominator": 12.0,
+          "exclusions": [],
+          "name": "coverage",
+          "negative_population": "1 clean negative cases",
+          "numerator": 11.0,
+          "positive_population": "9 positive cases containing 9 expected anchors",
+          "unit": "rate",
+          "value": 0.9166666666666666
+        },
+        {
+          "ambiguous_population": "2 ambiguous cases",
+          "benchmark_version": "real-repositories-v1",
+          "confidence_interval": {
+            "high": 0.2991450484195441,
+            "low": 0.0,
+            "method": "wilson_95"
+          },
+          "denominator": 9.0,
+          "exclusions": [
+            "observations with no findings"
+          ],
+          "name": "duplicate_rate",
+          "negative_population": "1 clean negative cases",
+          "numerator": 0.0,
+          "positive_population": "9 positive cases containing 9 expected anchors",
+          "unit": "rate",
+          "value": 0.0
+        },
+        {
+          "ambiguous_population": "2 ambiguous cases",
+          "benchmark_version": "real-repositories-v1",
+          "confidence_interval": {
+            "high": 1.0,
+            "low": 0.7008549515804559,
+            "method": "wilson_95"
+          },
+          "denominator": 9.0,
+          "exclusions": [
+            "unmatched findings and missed expected anchors"
+          ],
+          "name": "finding_anchor_accuracy",
+          "negative_population": "1 clean negative cases",
+          "numerator": 9.0,
+          "positive_population": "9 positive cases containing 9 expected anchors",
+          "unit": "rate",
+          "value": 1.0
+        },
+        {
+          "ambiguous_population": "2 ambiguous cases",
+          "benchmark_version": "real-repositories-v1",
+          "confidence_interval": {
+            "high": 1.0,
+            "low": 0.7008549515804559,
+            "method": "wilson_95"
+          },
+          "denominator": 9.0,
+          "exclusions": [
+            "unmatched findings and missed expected anchors"
+          ],
+          "name": "severity_accuracy",
+          "negative_population": "1 clean negative cases",
+          "numerator": 9.0,
+          "positive_population": "9 positive cases containing 9 expected anchors",
+          "unit": "rate",
+          "value": 1.0
+        },
+        {
+          "ambiguous_population": "2 ambiguous cases",
+          "benchmark_version": "real-repositories-v1",
+          "confidence_interval": {
+            "high": 1.0,
+            "low": 0.8388748419471806,
+            "method": "wilson_95"
+          },
+          "denominator": 20.0,
+          "exclusions": [
+            "unmatched findings, missed expected anchors, and allowed abstentions"
+          ],
+          "name": "quality_decision_accuracy",
+          "negative_population": "1 clean negative cases",
+          "numerator": 20.0,
+          "positive_population": "9 positive cases containing 9 expected anchors",
+          "unit": "rate",
+          "value": 1.0
+        },
+        {
+          "ambiguous_population": "2 ambiguous cases",
+          "benchmark_version": "real-repositories-v1",
+          "confidence_interval": {
+            "high": 1.0,
+            "low": 0.7411670330319684,
+            "method": "wilson_95"
+          },
+          "denominator": 11.0,
+          "exclusions": [
+            "cases where abstention is allowed"
+          ],
+          "name": "abstention_behavior_accuracy",
+          "negative_population": "1 clean negative cases",
+          "numerator": 11.0,
+          "positive_population": "9 positive cases containing 9 expected anchors",
+          "unit": "rate",
+          "value": 1.0
+        },
+        {
+          "ambiguous_population": "2 ambiguous cases",
+          "benchmark_version": "real-repositories-v1",
+          "confidence_interval": {
+            "high": 1.0,
+            "low": 0.7008549515804559,
+            "method": "wilson_95"
+          },
+          "denominator": 9.0,
+          "exclusions": [
+            "unmatched findings and missed expected anchors"
+          ],
+          "name": "evidence_completeness",
+          "negative_population": "1 clean negative cases",
+          "numerator": 9.0,
+          "positive_population": "9 positive cases containing 9 expected anchors",
+          "unit": "rate",
+          "value": 1.0
+        },
+        {
+          "ambiguous_population": "2 ambiguous cases",
+          "benchmark_version": "real-repositories-v1",
+          "confidence_interval": null,
+          "denominator": 9.0,
+          "exclusions": [
+            "cases without expected findings"
+          ],
+          "name": "ranking_quality",
+          "negative_population": "1 clean negative cases",
+          "numerator": 9.0,
+          "positive_population": "9 positive cases containing 9 expected anchors",
+          "unit": "rate",
+          "value": 1.0
+        },
+        {
+          "ambiguous_population": "2 ambiguous cases",
+          "benchmark_version": "real-repositories-v1",
+          "confidence_interval": null,
+          "denominator": 9.0,
+          "exclusions": [
+            "cases without a first-finding timestamp"
+          ],
+          "name": "time_to_first_finding",
+          "negative_population": "1 clean negative cases",
+          "numerator": 0.0,
+          "positive_population": "9 positive cases containing 9 expected anchors",
+          "unit": "milliseconds",
+          "value": 0.0
+        },
+        {
+          "ambiguous_population": "2 ambiguous cases",
+          "benchmark_version": "real-repositories-v1",
+          "confidence_interval": null,
+          "denominator": 12.0,
+          "exclusions": [],
+          "name": "total_review_duration",
+          "negative_population": "1 clean negative cases",
+          "numerator": 0.0,
+          "positive_population": "9 positive cases containing 9 expected anchors",
+          "unit": "milliseconds",
+          "value": 0.0
+        },
+        {
+          "ambiguous_population": "2 ambiguous cases",
+          "benchmark_version": "real-repositories-v1",
+          "confidence_interval": null,
+          "denominator": 0.0,
+          "exclusions": [
+            "not applicable to deterministic runs"
+          ],
+          "name": "provider_failure_rate",
+          "negative_population": "1 clean negative cases",
+          "numerator": 0.0,
+          "positive_population": "9 positive cases containing 9 expected anchors",
+          "unit": "rate",
+          "value": null
+        },
+        {
+          "ambiguous_population": "2 ambiguous cases",
+          "benchmark_version": "real-repositories-v1",
+          "confidence_interval": null,
+          "denominator": 0.0,
+          "exclusions": [
+            "not applicable to deterministic runs"
+          ],
+          "name": "retry_rate",
+          "negative_population": "1 clean negative cases",
+          "numerator": 0.0,
+          "positive_population": "9 positive cases containing 9 expected anchors",
+          "unit": "rate",
+          "value": null
+        },
+        {
+          "ambiguous_population": "2 ambiguous cases",
+          "benchmark_version": "real-repositories-v1",
+          "confidence_interval": null,
+          "denominator": 0.0,
+          "exclusions": [
+            "provider did not report token usage"
+          ],
+          "name": "input_token_usage",
+          "negative_population": "1 clean negative cases",
+          "numerator": null,
+          "positive_population": "9 positive cases containing 9 expected anchors",
+          "unit": "tokens",
+          "value": null
+        },
+        {
+          "ambiguous_population": "2 ambiguous cases",
+          "benchmark_version": "real-repositories-v1",
+          "confidence_interval": null,
+          "denominator": 0.0,
+          "exclusions": [
+            "provider did not report token usage"
+          ],
+          "name": "output_token_usage",
+          "negative_population": "1 clean negative cases",
+          "numerator": null,
+          "positive_population": "9 positive cases containing 9 expected anchors",
+          "unit": "tokens",
+          "value": null
+        },
+        {
+          "ambiguous_population": "2 ambiguous cases",
+          "benchmark_version": "real-repositories-v1",
+          "confidence_interval": null,
+          "denominator": 0.0,
+          "exclusions": [
+            "provider did not report cost"
+          ],
+          "name": "provider_cost",
+          "negative_population": "1 clean negative cases",
+          "numerator": null,
+          "positive_population": "9 positive cases containing 9 expected anchors",
+          "unit": "cost",
+          "value": null
+        }
+      ],
+      "mode": "deterministic"
+    }
+  ],
+  "suite_case_count": 12
+}

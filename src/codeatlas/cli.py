@@ -98,6 +98,41 @@ def review(
 
 
 @app.command()
+def benchmark(
+    suite: str = typer.Option(..., "--suite", help="Versioned repository benchmark suite JSON."),
+    review_observations: Optional[str] = typer.Option(None, "--review-observations", help="Review observations JSON."),
+    repair_observations: Optional[str] = typer.Option(None, "--repair-observations", help="Repair observations JSON."),
+    provider_comparisons: Optional[str] = typer.Option(None, "--provider-comparisons", help="Controlled provider-comparison metadata JSON."),
+    fixture_root: Optional[str] = typer.Option(None, "--fixture-root", help="Root used to resolve local fixture references."),
+    output: Optional[str] = typer.Option(None, "--output", help="Write the JSON report to this path."),
+) -> None:
+    """Score offline review and repair observations without cloning or execution."""
+    from codeatlas.benchmark.runner import run_benchmark_files, write_benchmark_report
+
+    try:
+        result = run_benchmark_files(
+            suite,
+            review_observations_path=review_observations,
+            repair_observations_path=repair_observations,
+            provider_comparisons_path=provider_comparisons,
+            fixture_root=fixture_root,
+        )
+    except (OSError, TypeError, ValueError, json.JSONDecodeError) as error:
+        typer.echo(f"Error: {error}", err=True)
+        raise typer.Exit(code=2) from error
+    serialized = json.dumps(result, indent=2, sort_keys=True) + "\n"
+    if output:
+        inputs = tuple(path for path in (suite, review_observations, repair_observations, provider_comparisons) if path is not None)
+        try:
+            write_benchmark_report(result, output, protected_inputs=inputs)
+        except (OSError, ValueError) as error:
+            typer.echo(f"Error: {error}", err=True)
+            raise typer.Exit(code=2) from error
+    else:
+        typer.echo(serialized, nl=False)
+
+
+@app.command()
 def eval(suite: str = "eval/cases", output: str = "eval/results/run-001.jsonl") -> None:
     """Run the deterministic Phase 1 evaluation baseline."""
     runner_path = Path(__file__).resolve().parents[2] / "eval" / "run_eval.py"

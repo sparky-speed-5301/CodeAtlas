@@ -61,6 +61,8 @@ there is no automatic apply path.
 
 ## Measuring quality
 
+The versioned public-repository benchmark and its proposal, patch, validation, test, regression, acceptance, revert, latency, and cost metrics are documented in [Real repository benchmarks](real-repository-benchmarks.md). These metrics preserve `not_run` and `unavailable` outcomes and never infer a fix from generation, application, syntax, one test, or provider confidence.
+
 Run the deterministic benchmark:
 
 ```bash
