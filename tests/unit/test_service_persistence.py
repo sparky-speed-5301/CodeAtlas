@@ -152,6 +152,35 @@ def test_interrupted_review_never_recovers_as_success(tmp_path: Path):
     restored.close()
 
 
+@pytest.mark.parametrize("stage", ["review", "generation", "validation", "revert"])
+def test_interruption_reason_survives_repeated_restarts(tmp_path: Path, stage: str):
+    database = tmp_path / "state.sqlite3"
+    manager = ReviewStateManager(persistence_path=database)
+    record = _record(tmp_path, "rev-repeated", status="reviewing" if stage == "review" else "completed")
+    if stage != "review":
+        record.pending_operation = {"name": stage, "finding_id": "CA-PERSIST", "proposal_id": ""}
+    manager._reviews[record.run_id] = record
+    manager._checkpoint(record, "operation_started", required=True)
+    manager.close()
+
+    for _ in range(3):
+        restored = ReviewStateManager(persistence_path=database)
+        try:
+            recovered = restored.get_review(record.run_id)
+            assert recovered is not None
+            assert recovered.safe_error_code == "operation_interrupted"
+            assert restored.get_review_status(record.run_id).errors == ["operation_interrupted"]
+            assert recovered.pending_operation is None
+            assert recovered.recovery_state != "not_required"
+            assert len(restored.get_review_events(record.run_id).events) <= 50
+            if stage == "validation":
+                assert recovered.limitations.count(
+                    "Interrupted validation sandbox cleanup is unverified; recovery does not delete workspaces."
+                ) == 1
+        finally:
+            restored.close()
+
+
 def test_persistence_rejects_unbounded_or_cross_scope_snapshots(tmp_path: Path):
     path = tmp_path / "state.sqlite3"
     store = SQLitePersistence(PersistenceConfig(path=path, max_payload_bytes=16_384))

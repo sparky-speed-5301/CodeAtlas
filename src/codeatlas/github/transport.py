@@ -190,7 +190,11 @@ class GhCliTransport:
             )
         try:
             proc = subprocess.run(
-                [gh, *args], capture_output=True, text=True, timeout=_GH_TIMEOUT_SECONDS
+                [gh, *args],
+                capture_output=True,
+                text=True,
+                timeout=_GH_TIMEOUT_SECONDS,
+                check=False,
             )
         except subprocess.TimeoutExpired as err:
             raise GitHubNetworkError(f"gh command timed out after {_GH_TIMEOUT_SECONDS}s") from err
@@ -415,16 +419,21 @@ class FakeGitHubTransport:
         self.check_run_error = check_run_error
         self.calls: list[tuple[str, tuple[Any, ...]]] = []
         self._metadata_fetches = 0
-        self._next_comment_id = 1000
         self.posted_bodies: list[str] = []
         self.posted_inline: list[dict[str, Any]] = []
         self._issue_comments = self._comments
         self.check_runs: list[dict[str, Any]] = list(check_runs or [])
-        self._next_check_id = 5000
+        self._next_check_id = max(
+            [5000] + [int(c["id"]) for c in self.check_runs if str(c.get("id", "")).isdigit()]
+        )
         self._updated_comment_bodies: dict[Any, str] = {}
         self._inline_comments = [
             c if isinstance(c, GitHubComment) else GitHubComment(**c) for c in (inline_comments or [])
         ]
+        self._next_comment_id = max(
+            [1000] + [int(c.comment_id) + 1 for c in self._comments + self._inline_comments
+                      if str(c.comment_id).isdigit()]
+        )
 
     @property
     def write_calls(self) -> int:
@@ -513,7 +522,12 @@ class FakeGitHubTransport:
         self._updated_comment_bodies[comment_id] = body
         if self.post_error is not None:
             raise self.post_error
-        return GitHubComment(comment_id=comment_id, author="codeatlas", body=body)
+        updated = GitHubComment(comment_id=comment_id, author="codeatlas", body=body)
+        for index, comment in enumerate(self._comments):
+            if comment.comment_id == comment_id:
+                self._comments[index] = updated
+                break
+        return updated
 
     def list_check_runs(self, repo: str, head_sha: str) -> list[dict[str, Any]]:
         self.calls.append(("list_check_runs", (repo, head_sha)))
@@ -575,10 +589,10 @@ class FakeGitHubTransport:
 
 
 __all__ = [
-    "GitHubTransport",
-    "GhCliTransport",
     "FakeGitHubTransport",
-    "parse_pr_metadata",
-    "parse_pr_files",
+    "GhCliTransport",
+    "GitHubTransport",
     "parse_comments",
+    "parse_pr_files",
+    "parse_pr_metadata",
 ]

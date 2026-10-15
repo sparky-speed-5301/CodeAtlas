@@ -1,13 +1,15 @@
 import importlib.util
 import json
 from pathlib import Path
-from typing import Optional
+from typing import Optional, cast
 
 import typer
 
+from codeatlas.cli_color import configure_cli_color
+from codeatlas.cli_platform import FailOn, emit, findings_fail, options, register
 from codeatlas.orchestrator import run_review
-from codeatlas.cli_platform import FailOn, findings_fail, options, register
 
+configure_cli_color()
 app = typer.Typer(help="Evidence-first repository-aware code review.")
 register(app)
 
@@ -130,6 +132,105 @@ def benchmark(
             raise typer.Exit(code=2) from error
     else:
         typer.echo(serialized, nl=False)
+
+
+@app.command("benchmark-collect")
+def benchmark_collect(
+    mode: str = typer.Option(..., "--mode", help="Collection mode: offline or public."),
+    suite: str = typer.Option(..., "--suite", help="Versioned repository benchmark suite JSON."),
+    case_id: str = typer.Option(..., "--case-id", help="One immutable benchmark case ID."),
+    fixture_root: str | None = typer.Option(None, "--fixture-root", help="Root used to resolve local fixture references."),
+    repository_url: str | None = typer.Option(None, "--repository-url", help="Pinned public HTTPS repository URL."),
+    base_sha: str | None = typer.Option(None, "--base-sha", help="Exact 40-character base commit SHA."),
+    head_sha: str | None = typer.Option(None, "--head-sha", help="Exact 40-character head commit SHA."),
+    license_spdx: str | None = typer.Option(None, "--license-spdx", help="License identifier for the public source."),
+    provenance: str | None = typer.Option(None, "--provenance", help="Short source provenance record."),
+    timeout_seconds: float = typer.Option(30.0, "--timeout-seconds", min=0.1, max=300.0),
+) -> None:
+    """Collect metadata for one offline fixture or pinned public repository."""
+    from codeatlas.benchmark.collection import CollectionMode, CollectionRequest, collect_benchmark
+
+    try:
+        request = CollectionRequest(
+            mode=cast(CollectionMode, mode), suite_path=suite, case_id=case_id, fixture_root=fixture_root,
+            repository_url=repository_url, base_sha=base_sha, head_sha=head_sha,
+            license_spdx=license_spdx, provenance=provenance, timeout_seconds=timeout_seconds,
+        )
+        result = collect_benchmark(request)
+    except (OSError, TypeError, ValueError, json.JSONDecodeError) as error:
+        typer.echo(f"Error: {error}", err=True)
+        raise typer.Exit(code=2) from error
+    typer.echo(json.dumps(result.model_dump(mode="json"), indent=2, sort_keys=True))
+    if result.status == "unavailable":
+        raise typer.Exit(code=4)
+
+
+@app.command("beta-check")
+def beta_check(
+    ctx: typer.Context,
+    config: Optional[str] = typer.Option(None, "--config", help="Strict controlled-beta JSON configuration."),
+) -> None:
+    """Validate local controlled-beta configuration and runtime prerequisites."""
+    from codeatlas.beta import check_beta, load_beta_config
+
+    try:
+        report = check_beta(load_beta_config(config))
+    except (OSError, TypeError, ValueError) as error:
+        typer.echo("Error [invalid_beta_config]: Controlled-beta configuration is unavailable or invalid.", err=True)
+        raise typer.Exit(code=2) from error
+    emit(ctx, report)
+    if report.status == "blocked":
+        raise typer.Exit(code=1)
+
+
+@app.command("beta-start")
+def beta_start(
+    ctx: typer.Context,
+    config: Optional[str] = typer.Option(None, "--config", help="Strict controlled-beta JSON configuration."),
+    allow_live_provider: bool = typer.Option(
+        False, "--allow-live-provider",
+        help="Explicitly authorize the configured live-provider mode for this invocation.",
+    ),
+    output: Optional[str] = typer.Option(None, "--output", help="Write the bounded startup plan to a new JSON file."),
+) -> None:
+    """Initialize a safe beta workflow plan without starting hidden processes or mutations."""
+    from codeatlas.beta import load_beta_config, start_beta, write_beta_export
+
+    try:
+        plan = start_beta(load_beta_config(config), allow_live_provider=allow_live_provider)
+        if output:
+            write_beta_export(plan, output)
+    except (OSError, TypeError, ValueError) as error:
+        typer.echo("Error [beta_start_blocked]: Controlled-beta startup was blocked by configuration or safety policy.", err=True)
+        raise typer.Exit(code=2) from error
+    emit(ctx, plan)
+
+
+@app.command("beta-report")
+def beta_report(
+    ctx: typer.Context,
+    config: Optional[str] = typer.Option(None, "--config", help="Strict controlled-beta JSON configuration."),
+    service: bool = typer.Option(False, "--service", help="Include bounded read-only diagnostics from the configured loopback service."),
+    output: Optional[str] = typer.Option(None, "--output", help="Write the bounded report to a new JSON file."),
+) -> None:
+    """Report beta configuration, diagnostics, cleanup policy, and known limitations."""
+    from codeatlas.beta import build_beta_report, load_beta_config, write_beta_export
+
+    try:
+        opts = options(ctx)
+        report = build_beta_report(
+            load_beta_config(config),
+            service_url=opts.service_url if service else None,
+            timeout=opts.timeout if service else None,
+        )
+        if output:
+            write_beta_export(report, output)
+    except (OSError, TypeError, ValueError) as error:
+        typer.echo("Error [beta_report_unavailable]: The bounded beta report could not be produced.", err=True)
+        raise typer.Exit(code=2) from error
+    emit(ctx, report)
+    if report.status == "blocked":
+        raise typer.Exit(code=1)
 
 
 @app.command()

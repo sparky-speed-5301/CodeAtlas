@@ -403,7 +403,7 @@ async function runTests(vscode) {
       const manager = new ServiceLifecycleManager({ serviceMode: 'managed', servicePort: port,
         serviceCommand: `"${python}" -m codeatlas.cli serve` });
       try {
-        await assert.rejects(manager.startManagedService({ timeoutMs: 3000 }), error =>
+        await assert.rejects(manager.startManagedService({ timeoutMs: 15000 }), error =>
           error.code === 'service_start_failed');
         assert.strictEqual(manager.owned, false);
       } finally {

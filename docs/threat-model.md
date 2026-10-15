@@ -25,6 +25,15 @@ outputs.
 
 ## Residual risks
 
-The current scaffold has no sandbox, model-call policy, dependency scanner, or
-secret-redaction implementation. Those are prerequisites for executing tools or
-reviewing untrusted repositories and are not claimed as implemented here.
+The earlier phase descriptions above are historical, not a current security
+certification. Later modules implement scoped patch approval, detached-worktree
+validation, runner allowlists, provider-output validation and pattern redaction.
+Detached worktrees do not provide OS-level filesystem or network isolation;
+approved tests execute untrusted repository code. Pattern redaction is incomplete
+and no dependency vulnerability database is checked by this scoped audit.
+
+See [platform, release and scoped security evidence](platform-release-security.md)
+for reproducible offline checks, the repository path-containment regression and
+remaining output-memory, filesystem-race, process-tree and host-profile risks.
+Passing deterministic contract tests does not establish safe arbitrary hostile
+repository execution.

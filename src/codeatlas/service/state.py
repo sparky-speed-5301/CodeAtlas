@@ -531,7 +531,8 @@ class ReviewStateManager:
         if record.recovery_state == "recovery_failed":
             record.status = "recovery_failed"
             record.progress_text = "The previous operation ended before completion and was not resumed"
-            record.errors = ["Operation interrupted before completion; start a new operation"]
+            record.errors = ["operation_interrupted"]
+            record.safe_error_code = "operation_interrupted"
         record.progress_text = status.progress_text if record.recovery_state == "recovered" else record.progress_text
         record.policy_decision = status.policy_decision
         record.persisted_base_commit = status.base_commit
@@ -545,6 +546,10 @@ class ReviewStateManager:
         record.truncated = status.truncated
         record.limitations = list(status.limitations)
         record.errors = list(status.errors) or record.errors
+        if record.safe_error_code is None:
+            record.safe_error_code = next(
+                (code for code in status.errors if code in _SAFE_STATUS_ERROR_CODES), None,
+            )
         record.findings = [item["payload"] for item in snapshot["entities"] if item["kind"] == "findings"]
         record.events = sorted([item["payload"] for item in snapshot["entities"] if item["kind"] == "lifecycle_events"], key=lambda e: e["at"])[-50:]
         for item in snapshot["entities"]:
@@ -622,7 +627,12 @@ class ReviewStateManager:
             record.safe_error_code = "operation_interrupted"
             if review["operation"].get("name") == "validation":
                 record.patch_validation_status = "recovery_failed"
-            record.limitations = (record.limitations + ["An interrupted fix operation was not resumed."])[-20:]
+                record.limitations.append(
+                    "Interrupted validation sandbox cleanup is unverified; recovery does not delete workspaces."
+                )
+            record.limitations = list(dict.fromkeys(
+                record.limitations + ["An interrupted fix operation was not resumed."]
+            ))[-20:]
         for item in snapshot["entities"]:
             if item["kind"] == "patch_proposals":
                 self._legacy_proposals[(record.run_id, item["proposal_id"])] = PatchProposal.model_validate(item["payload"])

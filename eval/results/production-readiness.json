@@ -1,0 +1,1220 @@
+{
+  "benchmark_version": "real-repositories-v1",
+  "environment": {
+    "platform": "Windows",
+    "python": "3.14.0"
+  },
+  "limitations": [
+    "Deterministic sanitized fixtures measure contracts and installed analyzer behavior, not live quality.",
+    "Available test contracts do not substitute for live providers, hosted GitHub, or native cross-platform evidence.",
+    "Repository-wide historical Ruff and mypy findings remain baseline debt."
+  ],
+  "production_ready": false,
+  "report_version": "production-readiness-v1",
+  "sections": {
+    "benchmark_integrity": {
+      "case_count": 12,
+      "status": "passed"
+    },
+    "budget_enforcement": {
+      "evidence": "tests/unit/test_reliability_budgets.py",
+      "limitations": [
+        "Deadlines are cooperative; all service/provider/database paths are not centrally instrumented."
+      ],
+      "status": "available"
+    },
+    "deterministic_repair_metrics": {
+      "reason": "candidate_collection_required",
+      "status": "not_run"
+    },
+    "deterministic_review_metrics": [
+      {
+        "benchmark_version": "real-repositories-v1",
+        "case_count": 12,
+        "category_case_counts": {
+          "ai_generated_defects": 1,
+          "ambiguous_changes": 1,
+          "authorization_authentication": 1,
+          "clean_changes": 1,
+          "correct_abstention": 1,
+          "multi_language_changes": 1,
+          "performance_regressions": 1,
+          "real_bugs": 1,
+          "security_issues": 1,
+          "sensitive_data_exposure": 1,
+          "test_regressions": 1,
+          "type_nullability": 1
+        },
+        "metrics": [
+          {
+            "ambiguous_population": "2 ambiguous cases",
+            "benchmark_version": "real-repositories-v1",
+            "confidence_interval": null,
+            "denominator": 0.0,
+            "exclusions": [
+              "ambiguous expected labels"
+            ],
+            "name": "precision",
+            "negative_population": "1 clean negative cases",
+            "numerator": 0.0,
+            "positive_population": "9 positive cases containing 9 expected anchors",
+            "unit": "rate",
+            "value": null
+          },
+          {
+            "ambiguous_population": "2 ambiguous cases",
+            "benchmark_version": "real-repositories-v1",
+            "confidence_interval": {
+              "high": 0.2991450484195441,
+              "low": 0.0,
+              "method": "wilson_95"
+            },
+            "denominator": 9.0,
+            "exclusions": [
+              "negative and ambiguous cases"
+            ],
+            "name": "recall",
+            "negative_population": "1 clean negative cases",
+            "numerator": 0.0,
+            "positive_population": "9 positive cases containing 9 expected anchors",
+            "unit": "rate",
+            "value": 0.0
+          },
+          {
+            "ambiguous_population": "2 ambiguous cases",
+            "benchmark_version": "real-repositories-v1",
+            "confidence_interval": {
+              "high": 0.7934506856227626,
+              "low": 0.0,
+              "method": "wilson_95"
+            },
+            "denominator": 1.0,
+            "exclusions": [
+              "positive and ambiguous cases"
+            ],
+            "name": "false_positive_rate",
+            "negative_population": "1 clean negative cases",
+            "numerator": 0.0,
+            "positive_population": "9 positive cases containing 9 expected anchors",
+            "unit": "rate",
+            "value": 0.0
+          },
+          {
+            "ambiguous_population": "2 ambiguous cases",
+            "benchmark_version": "real-repositories-v1",
+            "confidence_interval": {
+              "high": 1.0,
+              "low": 0.7008549515804559,
+              "method": "wilson_95"
+            },
+            "denominator": 9.0,
+            "exclusions": [
+              "negative and ambiguous cases"
+            ],
+            "name": "false_negative_rate",
+            "negative_population": "1 clean negative cases",
+            "numerator": 9.0,
+            "positive_population": "9 positive cases containing 9 expected anchors",
+            "unit": "rate",
+            "value": 1.0
+          },
+          {
+            "ambiguous_population": "2 ambiguous cases",
+            "benchmark_version": "real-repositories-v1",
+            "confidence_interval": {
+              "high": 0.24249400665524085,
+              "low": 2.7755575615628914e-17,
+              "method": "wilson_95"
+            },
+            "denominator": 12.0,
+            "exclusions": [],
+            "name": "abstention_rate",
+            "negative_population": "1 clean negative cases",
+            "numerator": 0.0,
+            "positive_population": "9 positive cases containing 9 expected anchors",
+            "unit": "rate",
+            "value": 0.0
+          },
+          {
+            "ambiguous_population": "2 ambiguous cases",
+            "benchmark_version": "real-repositories-v1",
+            "confidence_interval": {
+              "high": 1.0,
+              "low": 0.7575059933447592,
+              "method": "wilson_95"
+            },
+            "denominator": 12.0,
+            "exclusions": [],
+            "name": "coverage",
+            "negative_population": "1 clean negative cases",
+            "numerator": 12.0,
+            "positive_population": "9 positive cases containing 9 expected anchors",
+            "unit": "rate",
+            "value": 1.0
+          },
+          {
+            "ambiguous_population": "2 ambiguous cases",
+            "benchmark_version": "real-repositories-v1",
+            "confidence_interval": null,
+            "denominator": 0.0,
+            "exclusions": [
+              "observations with no findings"
+            ],
+            "name": "duplicate_rate",
+            "negative_population": "1 clean negative cases",
+            "numerator": 0.0,
+            "positive_population": "9 positive cases containing 9 expected anchors",
+            "unit": "rate",
+            "value": null
+          },
+          {
+            "ambiguous_population": "2 ambiguous cases",
+            "benchmark_version": "real-repositories-v1",
+            "confidence_interval": null,
+            "denominator": 0.0,
+            "exclusions": [
+              "unmatched findings and missed expected anchors"
+            ],
+            "name": "finding_anchor_accuracy",
+            "negative_population": "1 clean negative cases",
+            "numerator": 0.0,
+            "positive_population": "9 positive cases containing 9 expected anchors",
+            "unit": "rate",
+            "value": null
+          },
+          {
+            "ambiguous_population": "2 ambiguous cases",
+            "benchmark_version": "real-repositories-v1",
+            "confidence_interval": null,
+            "denominator": 0.0,
+            "exclusions": [
+              "unmatched findings and missed expected anchors"
+            ],
+            "name": "severity_accuracy",
+            "negative_population": "1 clean negative cases",
+            "numerator": 0.0,
+            "positive_population": "9 positive cases containing 9 expected anchors",
+            "unit": "rate",
+            "value": null
+          },
+          {
+            "ambiguous_population": "2 ambiguous cases",
+            "benchmark_version": "real-repositories-v1",
+            "confidence_interval": {
+              "high": 0.9837678271141151,
+              "low": 0.6226415635484043,
+              "method": "wilson_95"
+            },
+            "denominator": 11.0,
+            "exclusions": [
+              "unmatched findings, missed expected anchors, and allowed abstentions"
+            ],
+            "name": "quality_decision_accuracy",
+            "negative_population": "1 clean negative cases",
+            "numerator": 10.0,
+            "positive_population": "9 positive cases containing 9 expected anchors",
+            "unit": "rate",
+            "value": 0.9090909090909091
+          },
+          {
+            "ambiguous_population": "2 ambiguous cases",
+            "benchmark_version": "real-repositories-v1",
+            "confidence_interval": {
+              "high": 0.9837678271141151,
+              "low": 0.6226415635484043,
+              "method": "wilson_95"
+            },
+            "denominator": 11.0,
+            "exclusions": [
+              "cases where abstention is allowed"
+            ],
+            "name": "abstention_behavior_accuracy",
+            "negative_population": "1 clean negative cases",
+            "numerator": 10.0,
+            "positive_population": "9 positive cases containing 9 expected anchors",
+            "unit": "rate",
+            "value": 0.9090909090909091
+          },
+          {
+            "ambiguous_population": "2 ambiguous cases",
+            "benchmark_version": "real-repositories-v1",
+            "confidence_interval": null,
+            "denominator": 0.0,
+            "exclusions": [
+              "unmatched findings and missed expected anchors"
+            ],
+            "name": "evidence_completeness",
+            "negative_population": "1 clean negative cases",
+            "numerator": 0.0,
+            "positive_population": "9 positive cases containing 9 expected anchors",
+            "unit": "rate",
+            "value": null
+          },
+          {
+            "ambiguous_population": "2 ambiguous cases",
+            "benchmark_version": "real-repositories-v1",
+            "confidence_interval": null,
+            "denominator": 9.0,
+            "exclusions": [
+              "cases without expected findings"
+            ],
+            "name": "ranking_quality",
+            "negative_population": "1 clean negative cases",
+            "numerator": 0.0,
+            "positive_population": "9 positive cases containing 9 expected anchors",
+            "unit": "rate",
+            "value": 0.0
+          },
+          {
+            "ambiguous_population": "2 ambiguous cases",
+            "benchmark_version": "real-repositories-v1",
+            "confidence_interval": null,
+            "denominator": 0.0,
+            "exclusions": [
+              "cases without a first-finding timestamp"
+            ],
+            "name": "time_to_first_finding",
+            "negative_population": "1 clean negative cases",
+            "numerator": null,
+            "positive_population": "9 positive cases containing 9 expected anchors",
+            "unit": "milliseconds",
+            "value": null
+          },
+          {
+            "ambiguous_population": "2 ambiguous cases",
+            "benchmark_version": "real-repositories-v1",
+            "confidence_interval": null,
+            "denominator": 12.0,
+            "exclusions": [],
+            "name": "total_review_duration",
+            "negative_population": "1 clean negative cases",
+            "numerator": 7.345299996813992,
+            "positive_population": "9 positive cases containing 9 expected anchors",
+            "unit": "milliseconds",
+            "value": 0.6121083330678326
+          },
+          {
+            "ambiguous_population": "2 ambiguous cases",
+            "benchmark_version": "real-repositories-v1",
+            "confidence_interval": null,
+            "denominator": 0.0,
+            "exclusions": [
+              "not applicable to deterministic runs"
+            ],
+            "name": "provider_failure_rate",
+            "negative_population": "1 clean negative cases",
+            "numerator": 0.0,
+            "positive_population": "9 positive cases containing 9 expected anchors",
+            "unit": "rate",
+            "value": null
+          },
+          {
+            "ambiguous_population": "2 ambiguous cases",
+            "benchmark_version": "real-repositories-v1",
+            "confidence_interval": null,
+            "denominator": 0.0,
+            "exclusions": [
+              "not applicable to deterministic runs"
+            ],
+            "name": "retry_rate",
+            "negative_population": "1 clean negative cases",
+            "numerator": 0.0,
+            "positive_population": "9 positive cases containing 9 expected anchors",
+            "unit": "rate",
+            "value": null
+          },
+          {
+            "ambiguous_population": "2 ambiguous cases",
+            "benchmark_version": "real-repositories-v1",
+            "confidence_interval": null,
+            "denominator": 0.0,
+            "exclusions": [
+              "provider did not report token usage"
+            ],
+            "name": "input_token_usage",
+            "negative_population": "1 clean negative cases",
+            "numerator": null,
+            "positive_population": "9 positive cases containing 9 expected anchors",
+            "unit": "tokens",
+            "value": null
+          },
+          {
+            "ambiguous_population": "2 ambiguous cases",
+            "benchmark_version": "real-repositories-v1",
+            "confidence_interval": null,
+            "denominator": 0.0,
+            "exclusions": [
+              "provider did not report token usage"
+            ],
+            "name": "output_token_usage",
+            "negative_population": "1 clean negative cases",
+            "numerator": null,
+            "positive_population": "9 positive cases containing 9 expected anchors",
+            "unit": "tokens",
+            "value": null
+          },
+          {
+            "ambiguous_population": "2 ambiguous cases",
+            "benchmark_version": "real-repositories-v1",
+            "confidence_interval": null,
+            "denominator": 0.0,
+            "exclusions": [
+              "provider did not report cost"
+            ],
+            "name": "provider_cost",
+            "negative_population": "1 clean negative cases",
+            "numerator": null,
+            "positive_population": "9 positive cases containing 9 expected anchors",
+            "unit": "cost",
+            "value": null
+          }
+        ],
+        "mode": "deterministic"
+      }
+    ],
+    "fallback_behavior": {
+      "automatic_fallback": false,
+      "reason": "live_not_selected",
+      "status": "not_run"
+    },
+    "github_lifecycle_correctness": {
+      "evidence": "tests/integration/test_github_lifecycle_harness.py",
+      "limitations": [
+        "No webhook receiver, hosted GitHub Actions run, or artifact upload was exercised."
+      ],
+      "mode": "deterministic_mock_transport",
+      "status": "available"
+    },
+    "live_provider_repair_metrics": {
+      "provider_mode_used": "unavailable",
+      "reason": "live_not_selected",
+      "status": "unavailable"
+    },
+    "live_provider_review_metrics": {
+      "provider_mode_used": "unavailable",
+      "reason": "live_not_selected",
+      "status": "unavailable"
+    },
+    "persistence_recovery": {
+      "evidence": [
+        "tests/unit/test_service_persistence.py",
+        "tests/integration/test_process_recovery.py"
+      ],
+      "status": "available"
+    },
+    "platform_availability": {
+      "benchmark_version": "real-repositories-v1",
+      "declared_python_requirement": ">=3.11",
+      "environments": [
+        {
+          "availability": "unavailable",
+          "command": [
+            "py",
+            "-3.11",
+            "--version"
+          ],
+          "environment": "Python 3.11",
+          "limitations": [
+            "Version detection only; the full suite was not run by this matrix command."
+          ],
+          "result": "unavailable",
+          "skipped_tests": [
+            "full Python suite"
+          ],
+          "version": "No suitable Python runtime found"
+        },
+        {
+          "availability": "unavailable",
+          "command": [
+            "py",
+            "-3.12",
+            "--version"
+          ],
+          "environment": "Python 3.12",
+          "limitations": [
+            "Version detection only; the full suite was not run by this matrix command."
+          ],
+          "result": "unavailable",
+          "skipped_tests": [
+            "full Python suite"
+          ],
+          "version": "No suitable Python runtime found"
+        },
+        {
+          "availability": "available",
+          "command": [
+            "D:\\CodeAtlas-scaffold\\.venv-wp5a\\Scripts\\python.exe",
+            "--version"
+          ],
+          "environment": "Python 3.14",
+          "limitations": [
+            "Version detection only; the full suite was not run by this matrix command."
+          ],
+          "result": "detected",
+          "skipped_tests": [
+            "full Python suite"
+          ],
+          "version": "Python 3.14.0"
+        },
+        {
+          "availability": "unavailable",
+          "command": [
+            "D:\\CodeAtlas-scaffold\\.venv-wp5a\\Scripts\\python.exe",
+            "-c",
+            "import platform; print(platform.platform())"
+          ],
+          "environment": "Linux",
+          "limitations": [
+            "Only the current operating system is native evidence; portability is not inferred."
+          ],
+          "result": "unavailable",
+          "skipped_tests": [
+            "native platform suite"
+          ],
+          "version": null
+        },
+        {
+          "availability": "available",
+          "command": [
+            "D:\\CodeAtlas-scaffold\\.venv-wp5a\\Scripts\\python.exe",
+            "-c",
+            "import platform; print(platform.platform())"
+          ],
+          "environment": "Windows",
+          "limitations": [
+            "Only the current operating system is native evidence; portability is not inferred."
+          ],
+          "result": "native_host",
+          "skipped_tests": [],
+          "version": "Windows-11-10.0.26300-SP0"
+        },
+        {
+          "availability": "unavailable",
+          "command": [
+            "go",
+            "version"
+          ],
+          "environment": "Go",
+          "limitations": [
+            "Availability and version detection only; language or host integration tests are reported separately."
+          ],
+          "result": "unavailable",
+          "skipped_tests": [
+            "environment-specific integration suite"
+          ],
+          "version": null
+        },
+        {
+          "availability": "available",
+          "command": [
+            "C:\\Program Files (x86)\\Common Files\\Oracle\\Java\\java8path\\java.EXE",
+            "-version"
+          ],
+          "environment": "Java",
+          "limitations": [
+            "Availability and version detection only; language or host integration tests are reported separately."
+          ],
+          "result": "detected",
+          "skipped_tests": [
+            "environment-specific integration suite"
+          ],
+          "version": "java version \"1.8.0_491\""
+        },
+        {
+          "availability": "unavailable",
+          "command": [
+            "rustc",
+            "--version"
+          ],
+          "environment": "Rust",
+          "limitations": [
+            "Availability and version detection only; language or host integration tests are reported separately."
+          ],
+          "result": "unavailable",
+          "skipped_tests": [
+            "environment-specific integration suite"
+          ],
+          "version": null
+        },
+        {
+          "availability": "available",
+          "command": [
+            "C:\\Users\\akash\\AppData\\Local\\Programs\\Microsoft VS Code\\bin\\code.CMD",
+            "--version"
+          ],
+          "environment": "VS Code host",
+          "limitations": [
+            "Availability and version detection only; language or host integration tests are reported separately."
+          ],
+          "result": "detected",
+          "skipped_tests": [
+            "environment-specific integration suite"
+          ],
+          "version": "1.140.0"
+        }
+      ],
+      "host": {
+        "architecture": "AMD64",
+        "os": "windows",
+        "python": "3.14.0"
+      },
+      "limitations": [
+        "Simulated launcher tests are not native operating-system evidence.",
+        "No network-isolation guarantee is inferred from offline command policy.",
+        "Detection does not convert skipped environment-specific suites into passes."
+      ],
+      "production_ready": false,
+      "rows": [
+        {
+          "evidence_kind": "none",
+          "feature": "static_analysis",
+          "os": "windows",
+          "status": "not_run"
+        },
+        {
+          "evidence_kind": "none",
+          "feature": "runner_policy",
+          "os": "windows",
+          "status": "not_run"
+        },
+        {
+          "evidence_kind": "native_observation",
+          "feature": "wheel_install_uninstall",
+          "os": "windows",
+          "status": "passed"
+        },
+        {
+          "evidence_kind": "native_observation",
+          "feature": "vsix_install_uninstall",
+          "os": "windows",
+          "status": "passed"
+        },
+        {
+          "evidence_kind": "none",
+          "feature": "native_sandbox",
+          "os": "windows",
+          "status": "not_run"
+        },
+        {
+          "evidence_kind": "none",
+          "feature": "network_isolation",
+          "os": "windows",
+          "status": "not_run"
+        },
+        {
+          "evidence_kind": "none",
+          "feature": "static_analysis",
+          "os": "linux",
+          "status": "not_run"
+        },
+        {
+          "evidence_kind": "none",
+          "feature": "runner_policy",
+          "os": "linux",
+          "status": "not_run"
+        },
+        {
+          "evidence_kind": "none",
+          "feature": "wheel_install_uninstall",
+          "os": "linux",
+          "status": "not_run"
+        },
+        {
+          "evidence_kind": "none",
+          "feature": "vsix_install_uninstall",
+          "os": "linux",
+          "status": "not_run"
+        },
+        {
+          "evidence_kind": "none",
+          "feature": "native_sandbox",
+          "os": "linux",
+          "status": "not_run"
+        },
+        {
+          "evidence_kind": "none",
+          "feature": "network_isolation",
+          "os": "linux",
+          "status": "not_run"
+        },
+        {
+          "evidence_kind": "none",
+          "feature": "static_analysis",
+          "os": "macos",
+          "status": "not_run"
+        },
+        {
+          "evidence_kind": "none",
+          "feature": "runner_policy",
+          "os": "macos",
+          "status": "not_run"
+        },
+        {
+          "evidence_kind": "none",
+          "feature": "wheel_install_uninstall",
+          "os": "macos",
+          "status": "not_run"
+        },
+        {
+          "evidence_kind": "none",
+          "feature": "vsix_install_uninstall",
+          "os": "macos",
+          "status": "not_run"
+        },
+        {
+          "evidence_kind": "none",
+          "feature": "native_sandbox",
+          "os": "macos",
+          "status": "not_run"
+        },
+        {
+          "evidence_kind": "none",
+          "feature": "network_isolation",
+          "os": "macos",
+          "status": "not_run"
+        }
+      ],
+      "schema_version": 2,
+      "timestamp": "2026-10-15T15:58:52.991373+00:00"
+    },
+    "process_interruption_recovery": {
+      "evidence": "tests/integration/test_process_recovery.py",
+      "limitations": [
+        "Provider interruption uses an offline mock.",
+        "Crash-created test sandboxes are observed but not automatically cleaned.",
+        "Cleanup uncertainty is retained across restarts; recovery never deletes a persisted workspace path."
+      ],
+      "scenarios": [
+        "queued",
+        "provider_generation",
+        "test_execution",
+        "revert"
+      ],
+      "status": "available"
+    },
+    "provider_comparison": {
+      "basis": "example-provider-comparisons.json",
+      "live_quality_claimed": false,
+      "report": {
+        "benchmark_version": "real-repositories-v1",
+        "comparison_count": 1,
+        "comparisons": [
+          {
+            "case_id": "real-bug",
+            "comparison_id": "real-bug-provider-matrix",
+            "control_hash": "2523591f23a0699702dba7942585047f216475501541be2c9b4640806f91db01",
+            "missing_modes": [],
+            "modes_present": [
+              "offline",
+              "live",
+              "fallback",
+              "dry_run"
+            ],
+            "runs": [
+              {
+                "case_id": "real-bug",
+                "comparison_id": "real-bug-provider-matrix",
+                "control": {
+                  "base_sha": "ac7f2b801ef220e36d0cc65b97cdb6d7abb5e93f",
+                  "context_hash": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+                  "finding_anchor_id": "real-bug-1",
+                  "head_sha": "91d20fee394aba554aedbb7d801fef7aefd159d5",
+                  "language": [
+                    "python"
+                  ],
+                  "patch_limits": {
+                    "max_patch_bytes": 64000,
+                    "max_patch_lines": 150,
+                    "max_target_files": 1
+                  },
+                  "policy_version": "11C-A.1",
+                  "repository_identity": "codeatlas/sanitized-offline-benchmark-fixture",
+                  "request_hash": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+                  "target_files": [
+                    "bugs/page.py"
+                  ],
+                  "test_command_policy": "targeted_only",
+                  "validation_policy": "static-only-v1"
+                },
+                "cost_amount": null,
+                "cost_basis": null,
+                "cost_currency": null,
+                "duration_ms": 20.0,
+                "failure_code": null,
+                "fallback_trigger_code": null,
+                "fallback_used": false,
+                "formatter": "not_run",
+                "full_suite": "not_run",
+                "input_tokens": null,
+                "linter": "not_run",
+                "model_name": null,
+                "outcome": "completed",
+                "output_tokens": null,
+                "patch_hash": "cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+                "provider_contacted": false,
+                "provider_mode": "offline",
+                "provider_name": "offline",
+                "request_size_basis": "structured_request",
+                "request_size_bytes": 1000,
+                "response_size_basis": "accepted_structured_output",
+                "response_size_bytes": 500,
+                "retry_count": 0,
+                "run_mode": "offline",
+                "syntax": "passed",
+                "targeted_tests": "not_run",
+                "type_check": "not_run",
+                "validation_status": "static_validation_passed"
+              },
+              {
+                "case_id": "real-bug",
+                "comparison_id": "real-bug-provider-matrix",
+                "control": {
+                  "base_sha": "ac7f2b801ef220e36d0cc65b97cdb6d7abb5e93f",
+                  "context_hash": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+                  "finding_anchor_id": "real-bug-1",
+                  "head_sha": "91d20fee394aba554aedbb7d801fef7aefd159d5",
+                  "language": [
+                    "python"
+                  ],
+                  "patch_limits": {
+                    "max_patch_bytes": 64000,
+                    "max_patch_lines": 150,
+                    "max_target_files": 1
+                  },
+                  "policy_version": "11C-A.1",
+                  "repository_identity": "codeatlas/sanitized-offline-benchmark-fixture",
+                  "request_hash": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+                  "target_files": [
+                    "bugs/page.py"
+                  ],
+                  "test_command_policy": "targeted_only",
+                  "validation_policy": "static-only-v1"
+                },
+                "cost_amount": null,
+                "cost_basis": null,
+                "cost_currency": null,
+                "duration_ms": 20.0,
+                "failure_code": null,
+                "fallback_trigger_code": null,
+                "fallback_used": false,
+                "formatter": "not_run",
+                "full_suite": "not_run",
+                "input_tokens": null,
+                "linter": "not_run",
+                "model_name": "safe-model-v1",
+                "outcome": "completed",
+                "output_tokens": null,
+                "patch_hash": "cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+                "provider_contacted": true,
+                "provider_mode": "online",
+                "provider_name": "openai_compatible",
+                "request_size_basis": "structured_request",
+                "request_size_bytes": 1000,
+                "response_size_basis": "accepted_structured_output",
+                "response_size_bytes": 500,
+                "retry_count": 0,
+                "run_mode": "live",
+                "syntax": "passed",
+                "targeted_tests": "not_run",
+                "type_check": "not_run",
+                "validation_status": "static_validation_passed"
+              },
+              {
+                "case_id": "real-bug",
+                "comparison_id": "real-bug-provider-matrix",
+                "control": {
+                  "base_sha": "ac7f2b801ef220e36d0cc65b97cdb6d7abb5e93f",
+                  "context_hash": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+                  "finding_anchor_id": "real-bug-1",
+                  "head_sha": "91d20fee394aba554aedbb7d801fef7aefd159d5",
+                  "language": [
+                    "python"
+                  ],
+                  "patch_limits": {
+                    "max_patch_bytes": 64000,
+                    "max_patch_lines": 150,
+                    "max_target_files": 1
+                  },
+                  "policy_version": "11C-A.1",
+                  "repository_identity": "codeatlas/sanitized-offline-benchmark-fixture",
+                  "request_hash": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+                  "target_files": [
+                    "bugs/page.py"
+                  ],
+                  "test_command_policy": "targeted_only",
+                  "validation_policy": "static-only-v1"
+                },
+                "cost_amount": null,
+                "cost_basis": null,
+                "cost_currency": null,
+                "duration_ms": 20.0,
+                "failure_code": null,
+                "fallback_trigger_code": "timeout",
+                "fallback_used": true,
+                "formatter": "not_run",
+                "full_suite": "not_run",
+                "input_tokens": null,
+                "linter": "not_run",
+                "model_name": null,
+                "outcome": "completed",
+                "output_tokens": null,
+                "patch_hash": "cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+                "provider_contacted": true,
+                "provider_mode": "offline",
+                "provider_name": "offline",
+                "request_size_basis": "structured_request",
+                "request_size_bytes": 1000,
+                "response_size_basis": "accepted_structured_output",
+                "response_size_bytes": 500,
+                "retry_count": 0,
+                "run_mode": "fallback",
+                "syntax": "passed",
+                "targeted_tests": "not_run",
+                "type_check": "not_run",
+                "validation_status": "static_validation_passed"
+              },
+              {
+                "case_id": "real-bug",
+                "comparison_id": "real-bug-provider-matrix",
+                "control": {
+                  "base_sha": "ac7f2b801ef220e36d0cc65b97cdb6d7abb5e93f",
+                  "context_hash": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+                  "finding_anchor_id": "real-bug-1",
+                  "head_sha": "91d20fee394aba554aedbb7d801fef7aefd159d5",
+                  "language": [
+                    "python"
+                  ],
+                  "patch_limits": {
+                    "max_patch_bytes": 64000,
+                    "max_patch_lines": 150,
+                    "max_target_files": 1
+                  },
+                  "policy_version": "11C-A.1",
+                  "repository_identity": "codeatlas/sanitized-offline-benchmark-fixture",
+                  "request_hash": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+                  "target_files": [
+                    "bugs/page.py"
+                  ],
+                  "test_command_policy": "targeted_only",
+                  "validation_policy": "static-only-v1"
+                },
+                "cost_amount": null,
+                "cost_basis": null,
+                "cost_currency": null,
+                "duration_ms": 0.0,
+                "failure_code": null,
+                "fallback_trigger_code": null,
+                "fallback_used": false,
+                "formatter": "not_run",
+                "full_suite": "not_run",
+                "input_tokens": null,
+                "linter": "not_run",
+                "model_name": "safe-model-v1",
+                "outcome": "not_run",
+                "output_tokens": null,
+                "patch_hash": null,
+                "provider_contacted": false,
+                "provider_mode": "online",
+                "provider_name": "openai_compatible",
+                "request_size_basis": "structured_request",
+                "request_size_bytes": 0,
+                "response_size_basis": "accepted_structured_output",
+                "response_size_bytes": 0,
+                "retry_count": 0,
+                "run_mode": "dry_run",
+                "syntax": "not_run",
+                "targeted_tests": "not_run",
+                "type_check": "not_run",
+                "validation_status": "not_run"
+              }
+            ]
+          }
+        ],
+        "mode_summaries": [
+          {
+            "abstained": 0,
+            "completed": 1,
+            "failed": 0,
+            "fallback_uses": 0,
+            "mean_cost": null,
+            "mean_duration_ms": 20.0,
+            "mean_input_tokens": null,
+            "mean_output_tokens": null,
+            "mean_request_size_bytes": 1000.0,
+            "mean_response_size_bytes": 500.0,
+            "patches_generated": 1,
+            "provider_contacts": 0,
+            "retries": 0,
+            "run_mode": "offline",
+            "runs": 1,
+            "validations_passed": 1
+          },
+          {
+            "abstained": 0,
+            "completed": 1,
+            "failed": 0,
+            "fallback_uses": 0,
+            "mean_cost": null,
+            "mean_duration_ms": 20.0,
+            "mean_input_tokens": null,
+            "mean_output_tokens": null,
+            "mean_request_size_bytes": 1000.0,
+            "mean_response_size_bytes": 500.0,
+            "patches_generated": 1,
+            "provider_contacts": 1,
+            "retries": 0,
+            "run_mode": "live",
+            "runs": 1,
+            "validations_passed": 1
+          },
+          {
+            "abstained": 0,
+            "completed": 1,
+            "failed": 0,
+            "fallback_uses": 1,
+            "mean_cost": null,
+            "mean_duration_ms": 20.0,
+            "mean_input_tokens": null,
+            "mean_output_tokens": null,
+            "mean_request_size_bytes": 1000.0,
+            "mean_response_size_bytes": 500.0,
+            "patches_generated": 1,
+            "provider_contacts": 1,
+            "retries": 0,
+            "run_mode": "fallback",
+            "runs": 1,
+            "validations_passed": 1
+          },
+          {
+            "abstained": 0,
+            "completed": 0,
+            "failed": 0,
+            "fallback_uses": 0,
+            "mean_cost": null,
+            "mean_duration_ms": 0.0,
+            "mean_input_tokens": null,
+            "mean_output_tokens": null,
+            "mean_request_size_bytes": 0.0,
+            "mean_response_size_bytes": 0.0,
+            "patches_generated": 0,
+            "provider_contacts": 0,
+            "retries": 0,
+            "run_mode": "dry_run",
+            "runs": 1,
+            "validations_passed": 0
+          }
+        ],
+        "run_count": 4
+      },
+      "status": "contract_only"
+    },
+    "release_artifact_correctness": {
+      "checks": {
+        "compile": {
+          "exit_code": 0,
+          "status": "passed",
+          "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+          "stdout_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+        },
+        "vsix_boundary": {
+          "status": "passed"
+        },
+        "vsix_install_uninstall": {
+          "scope": "disposable CLI profile; no GUI activation smoke",
+          "status": "passed",
+          "steps": {
+            "install": {
+              "exit_code": 0,
+              "status": "passed",
+              "stderr_sha256": "54e7031fe117fec4195919b1b09367edd7c177078adce850bffbfff0299c6007",
+              "stdout_sha256": "478c4dd48f8bebe9face9befc8ca367fb117a95748cfe4bd7d5028aebf3c0a67"
+            },
+            "present": {
+              "status": "passed"
+            },
+            "uninstall": {
+              "exit_code": 0,
+              "status": "passed",
+              "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+              "stdout_sha256": "0f694ea80fbe29cfa5d4cc883dd64d4d6989d9a5b714dad377a84f7136719d13"
+            },
+            "unregistered": {
+              "status": "passed"
+            }
+          }
+        },
+        "vsix_metadata": {
+          "commands": 31,
+          "license": "Apache-2.0",
+          "status": "passed",
+          "version": "0.1.0",
+          "vscode_engine": "^1.85.0"
+        },
+        "vsix_reproducible": {
+          "scope": "two archive assemblies of the same freshly compiled inputs",
+          "status": "passed"
+        },
+        "vsix_scan": {
+          "scope": "bounded archive/path and credential-pattern scan, not vulnerability scanning",
+          "status": "passed"
+        },
+        "wheel_build": {
+          "scope": "network-free deterministic assembly of the declared pure-Python package",
+          "status": "passed"
+        },
+        "wheel_install_uninstall": {
+          "scope": "no-deps packaging smoke, not dependency-complete runtime installation",
+          "status": "passed",
+          "steps": {
+            "absent": {
+              "exit_code": 0,
+              "status": "passed",
+              "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+              "stdout_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+            },
+            "create": {
+              "exit_code": 0,
+              "status": "passed",
+              "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+              "stdout_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+            },
+            "install": {
+              "exit_code": 0,
+              "status": "passed",
+              "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+              "stdout_sha256": "83ee491b09157d8a43ac9aa7e78ef5f052397bfd48879237074343699dda1744"
+            },
+            "metadata": {
+              "exit_code": 0,
+              "status": "passed",
+              "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+              "stdout_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+            },
+            "uninstall": {
+              "exit_code": 0,
+              "status": "passed",
+              "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+              "stdout_sha256": "b72bcff7e1dadafbc19d51f7f1d218880484adf19477548603b3deb55320d2d3"
+            }
+          }
+        },
+        "wheel_metadata": {
+          "status": "passed"
+        },
+        "wheel_reproducible": {
+          "scope": "two independent network-free archive assemblies of the same source inputs",
+          "status": "passed"
+        },
+        "wheel_scan": {
+          "scope": "bounded archive/path and credential-pattern scan, not vulnerability scanning",
+          "status": "passed"
+        }
+      },
+      "production_ready": false,
+      "status": "passed"
+    },
+    "security_findings": {
+      "findings": [
+        {
+          "id": "repository-symlink-containment",
+          "limitation": "Resolve-before-read is not race-proof filesystem isolation; native symlink test may skip without Windows privileges.",
+          "root": "src/codeatlas/repository/scanner.py",
+          "status": "fixed_with_regression"
+        }
+      ],
+      "gaps": [
+        "No live providers or credentials used.",
+        "Persistence, service, GitHub and benchmark internals excluded from this audit.",
+        "No dependency vulnerability database, penetration test, or OS-level network isolation checked.",
+        "Subprocess capture truncates persisted output, not process memory; descendant timeout containment is not certified.",
+        "Windows profile-directory access in runner environment remains an isolation risk; detached worktrees are not security sandboxes."
+      ],
+      "platform": "win32",
+      "production_ready": false,
+      "python": "3.14.0",
+      "results": [
+        {
+          "boundary": "repository_paths",
+          "counts": {
+            "errors": 0,
+            "failures": 0,
+            "skipped": 1,
+            "tests": 3
+          },
+          "exit_code": 0,
+          "status": "passed",
+          "tests": [
+            "tests/unit/test_security_boundaries.py"
+          ]
+        },
+        {
+          "boundary": "provider_data_and_output",
+          "counts": {
+            "errors": 0,
+            "failures": 0,
+            "skipped": 0,
+            "tests": 78
+          },
+          "exit_code": 0,
+          "status": "passed",
+          "tests": [
+            "tests/unit/test_live_provider.py",
+            "tests/unit/test_patch_suggestions.py"
+          ]
+        },
+        {
+          "boundary": "approval_and_patch_paths",
+          "counts": {
+            "errors": 0,
+            "failures": 0,
+            "skipped": 0,
+            "tests": 42
+          },
+          "exit_code": 0,
+          "status": "passed",
+          "tests": [
+            "tests/unit/test_patching.py",
+            "tests/unit/test_isolated_validation.py"
+          ]
+        },
+        {
+          "boundary": "runner_commands_environment_redaction",
+          "counts": {
+            "errors": 0,
+            "failures": 0,
+            "skipped": 0,
+            "tests": 19
+          },
+          "exit_code": 0,
+          "status": "passed",
+          "tests": [
+            "tests/unit/test_verification_runner.py",
+            "tests/unit/test_failure_diagnostics.py"
+          ]
+        },
+        {
+          "boundary": "extension_package_and_workspace_trust",
+          "counts": {
+            "errors": 0,
+            "failures": 0,
+            "skipped": 0,
+            "tests": 4
+          },
+          "exit_code": 0,
+          "status": "passed",
+          "tests": [
+            "tests/unit/test_vscode_extension.py"
+          ]
+        }
+      ],
+      "schema_version": 1
+    },
+    "service_aware_diagnostics": {
+      "evidence": "tests/unit/test_service_diagnostics.py",
+      "limitations": [
+        "A running service is required for a healthy service-aware result."
+      ],
+      "status": "available"
+    }
+  }
+}

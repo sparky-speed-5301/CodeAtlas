@@ -3,7 +3,9 @@
 from __future__ import annotations
 
 import re
-from typing import Sequence
+from collections.abc import Sequence
+
+from codeatlas.reliability import truncate_utf8
 
 from .models import OutputRedactionAudit
 
@@ -75,17 +77,17 @@ def audit_and_redact_results(
     extra_tokens: Sequence[str] = (),
     max_output_bytes: int = 100_000,
 ) -> tuple[str, str, list[str], OutputRedactionAudit]:
-    """Truncate, redact, and audit all output streams safely."""
-    # First enforce output size limits
-    stdout_raw = stdout[:max_output_bytes]
-    stderr_raw = stderr[:max_output_bytes]
-
+    """Redact before byte truncation so cut boundaries cannot expose partial secrets."""
+    if type(max_output_bytes) is not int or max_output_bytes < 0:
+        raise ValueError("Invalid output byte budget")
     redacted_stdout, audit1 = redact_test_output(
-        stdout_raw, extra_tokens=extra_tokens, target_name="stdout"
+        stdout, extra_tokens=extra_tokens, target_name="stdout"
     )
     redacted_stderr, audit2 = redact_test_output(
-        stderr_raw, extra_tokens=extra_tokens, target_name="stderr"
+        stderr, extra_tokens=extra_tokens, target_name="stderr"
     )
+    redacted_stdout = truncate_utf8(redacted_stdout, max_output_bytes).value or ""
+    redacted_stderr = truncate_utf8(redacted_stderr, max_output_bytes).value or ""
 
     redacted_failures: list[str] = []
     total_matches = audit1.raw_value_matches + audit2.raw_value_matches
@@ -112,6 +114,6 @@ def audit_and_redact_results(
 
 
 __all__ = [
-    "redact_test_output",
     "audit_and_redact_results",
+    "redact_test_output",
 ]

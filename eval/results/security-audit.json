@@ -1,0 +1,96 @@
+{
+  "schema_version": 1,
+  "python": "3.14.0",
+  "platform": "win32",
+  "production_ready": false,
+  "results": [
+    {
+      "boundary": "repository_paths",
+      "status": "passed",
+      "exit_code": 0,
+      "counts": {
+        "tests": 3,
+        "failures": 0,
+        "errors": 0,
+        "skipped": 1
+      },
+      "tests": [
+        "tests/unit/test_security_boundaries.py"
+      ]
+    },
+    {
+      "boundary": "provider_data_and_output",
+      "status": "passed",
+      "exit_code": 0,
+      "counts": {
+        "tests": 78,
+        "failures": 0,
+        "errors": 0,
+        "skipped": 0
+      },
+      "tests": [
+        "tests/unit/test_live_provider.py",
+        "tests/unit/test_patch_suggestions.py"
+      ]
+    },
+    {
+      "boundary": "approval_and_patch_paths",
+      "status": "passed",
+      "exit_code": 0,
+      "counts": {
+        "tests": 42,
+        "failures": 0,
+        "errors": 0,
+        "skipped": 0
+      },
+      "tests": [
+        "tests/unit/test_patching.py",
+        "tests/unit/test_isolated_validation.py"
+      ]
+    },
+    {
+      "boundary": "runner_commands_environment_redaction",
+      "status": "passed",
+      "exit_code": 0,
+      "counts": {
+        "tests": 19,
+        "failures": 0,
+        "errors": 0,
+        "skipped": 0
+      },
+      "tests": [
+        "tests/unit/test_verification_runner.py",
+        "tests/unit/test_failure_diagnostics.py"
+      ]
+    },
+    {
+      "boundary": "extension_package_and_workspace_trust",
+      "status": "passed",
+      "exit_code": 0,
+      "counts": {
+        "tests": 4,
+        "failures": 0,
+        "errors": 0,
+        "skipped": 0
+      },
+      "tests": [
+        "tests/unit/test_vscode_extension.py"
+      ]
+    }
+  ],
+  "findings": [
+    {
+      "id": "repository-symlink-containment",
+      "status": "fixed_with_regression",
+      "root": "src/codeatlas/repository/scanner.py",
+      "limitation": "Resolve-before-read is not race-proof filesystem isolation; native symlink test may skip without Windows privileges."
+    }
+  ],
+  "gaps": [
+    "No live providers or credentials used.",
+    "Persistence, service, GitHub and benchmark internals excluded from this audit.",
+    "No dependency vulnerability database, penetration test, or OS-level network isolation checked.",
+    "Subprocess capture truncates persisted output, not process memory; descendant timeout containment is not certified.",
+    "Windows profile-directory access in runner environment remains an isolation risk; detached worktrees are not security sandboxes."
+  ]
+}

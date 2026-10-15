@@ -1,5 +1,12 @@
 """Deterministic repair-quality benchmarking primitives."""
 
+from .collection import (
+    CollectionRequest,
+    CollectionResult,
+    collect_benchmark,
+    collect_offline,
+    collect_public,
+)
 from .provider_comparison import (
     ProviderComparisonControl,
     ProviderComparisonObservation,
@@ -7,6 +14,24 @@ from .provider_comparison import (
     ProviderPatchLimits,
     load_provider_comparisons,
     score_provider_comparisons,
+)
+from .product_validation import (
+    ControlledExpectedAnchor,
+    ControlledRepositoryCase,
+    ControlledRepositorySuite,
+    HumanReviewEvaluation,
+    ProductMetricCatalog,
+    ProductMetricDefinition,
+    load_controlled_repository_suite,
+    load_human_evaluations,
+    load_metric_catalog,
+)
+from .quality_collection import (
+    QualityAttribution,
+    collect_deterministic_reviews,
+    collect_live_review_quality,
+    collect_repair_quality,
+    quality_report,
 )
 from .repair import (
     RepairBenchmarkCase,
@@ -38,14 +63,23 @@ from .repository import (
 )
 
 __all__ = [
+    "CollectionRequest",
+    "CollectionResult",
+    "ControlledExpectedAnchor",
+    "ControlledRepositoryCase",
+    "ControlledRepositorySuite",
     "ExpectedAnchor",
+    "HumanReviewEvaluation",
     "MetricResult",
     "ObservedFinding",
     "PatchScopeExpectation",
     "ProviderComparisonControl",
     "ProviderComparisonObservation",
     "ProviderComparisonReport",
+    "ProductMetricCatalog",
+    "ProductMetricDefinition",
     "ProviderPatchLimits",
+    "QualityAttribution",
     "RepairBenchmarkCase",
     "RepairBenchmarkReport",
     "RepairBenchmarkResult",
@@ -57,10 +91,20 @@ __all__ = [
     "ReviewObservation",
     "TestCommandPolicy",
     "benchmark_candidate",
+    "collect_benchmark",
+    "collect_deterministic_reviews",
+    "collect_live_review_quality",
+    "collect_offline",
+    "collect_public",
+    "collect_repair_quality",
     "load_benchmark_suite",
+    "load_controlled_repository_suite",
+    "load_human_evaluations",
+    "load_metric_catalog",
     "load_provider_comparisons",
     "load_repository_cases",
     "load_review_observations",
+    "quality_report",
     "run_deterministic_benchmark",
     "run_repository_benchmark",
     "score_provider_comparisons",

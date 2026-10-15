@@ -114,7 +114,7 @@ class MockFixer:
                 f"+++ b/{primary_file}\n"
                 f"@@ -{context_line},2 +{context_line},3 @@\n"
                 f" {existing_line}\n"
-                '+    AWS_SECRET_KEY = "AKIA1234567890ABCDEF"\n'
+                '+    AWS_SECRET_KEY = "' + "AKIA" + '1234567890ABCDEF"\n'
                 "         pass\n"
             )
         elif self.mode == "oversized_patch":

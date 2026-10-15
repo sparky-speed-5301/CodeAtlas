@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import json
 from pathlib import Path
+
 import pytest
 from typer.testing import CliRunner
 
@@ -45,6 +46,7 @@ def test_help_output_patch_export_options(command: str) -> None:
     runner = CliRunner()
     res = runner.invoke(app, ["patch", command, "--help"])
     assert res.exit_code == 0, res.output
+    assert "\x1b[" not in res.output
 
     expected_options = [
         ("--report-output", "PATH", "Write"),
@@ -64,6 +66,14 @@ def test_help_output_patch_export_options(command: str) -> None:
         line = matching_lines[0]
         assert metavar in line, f"Expected {metavar} metavar on line for {opt_name}: {line}"
         assert desc_snippet in norm_output, f"Expected description snippet '{desc_snippet}' for {opt_name}"
+
+
+def test_json_mode_help_is_plain_text() -> None:
+    runner = CliRunner()
+    result = runner.invoke(app, ["--json", "patch", "validate", "--help"])
+    assert result.exit_code == 0, result.output
+    assert "\x1b[" not in result.output
+    assert "--report-output" in result.output
 
 
 @pytest.mark.parametrize("command", ["validate", "apply-isolated"])

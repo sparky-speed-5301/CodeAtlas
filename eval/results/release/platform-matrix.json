@@ -1,0 +1,275 @@
+{
+  "schema_version": 2,
+  "benchmark_version": "real-repositories-v1",
+  "timestamp": "2026-10-15T15:58:52.991373+00:00",
+  "host": {
+    "os": "windows",
+    "architecture": "AMD64",
+    "python": "3.14.0"
+  },
+  "declared_python_requirement": ">=3.11",
+  "production_ready": false,
+  "environments": [
+    {
+      "environment": "Python 3.11",
+      "availability": "unavailable",
+      "version": "No suitable Python runtime found",
+      "command": [
+        "py",
+        "-3.11",
+        "--version"
+      ],
+      "result": "unavailable",
+      "skipped_tests": [
+        "full Python suite"
+      ],
+      "limitations": [
+        "Version detection only; the full suite was not run by this matrix command."
+      ]
+    },
+    {
+      "environment": "Python 3.12",
+      "availability": "unavailable",
+      "version": "No suitable Python runtime found",
+      "command": [
+        "py",
+        "-3.12",
+        "--version"
+      ],
+      "result": "unavailable",
+      "skipped_tests": [
+        "full Python suite"
+      ],
+      "limitations": [
+        "Version detection only; the full suite was not run by this matrix command."
+      ]
+    },
+    {
+      "environment": "Python 3.14",
+      "availability": "available",
+      "version": "Python 3.14.0",
+      "command": [
+        "D:\\CodeAtlas-scaffold\\.venv-wp5a\\Scripts\\python.exe",
+        "--version"
+      ],
+      "result": "detected",
+      "skipped_tests": [
+        "full Python suite"
+      ],
+      "limitations": [
+        "Version detection only; the full suite was not run by this matrix command."
+      ]
+    },
+    {
+      "environment": "Linux",
+      "availability": "unavailable",
+      "version": null,
+      "command": [
+        "D:\\CodeAtlas-scaffold\\.venv-wp5a\\Scripts\\python.exe",
+        "-c",
+        "import platform; print(platform.platform())"
+      ],
+      "result": "unavailable",
+      "skipped_tests": [
+        "native platform suite"
+      ],
+      "limitations": [
+        "Only the current operating system is native evidence; portability is not inferred."
+      ]
+    },
+    {
+      "environment": "Windows",
+      "availability": "available",
+      "version": "Windows-11-10.0.26300-SP0",
+      "command": [
+        "D:\\CodeAtlas-scaffold\\.venv-wp5a\\Scripts\\python.exe",
+        "-c",
+        "import platform; print(platform.platform())"
+      ],
+      "result": "native_host",
+      "skipped_tests": [],
+      "limitations": [
+        "Only the current operating system is native evidence; portability is not inferred."
+      ]
+    },
+    {
+      "environment": "Go",
+      "availability": "unavailable",
+      "version": null,
+      "command": [
+        "go",
+        "version"
+      ],
+      "result": "unavailable",
+      "skipped_tests": [
+        "environment-specific integration suite"
+      ],
+      "limitations": [
+        "Availability and version detection only; language or host integration tests are reported separately."
+      ]
+    },
+    {
+      "environment": "Java",
+      "availability": "available",
+      "version": "java version \"1.8.0_491\"",
+      "command": [
+        "C:\\Program Files (x86)\\Common Files\\Oracle\\Java\\java8path\\java.EXE",
+        "-version"
+      ],
+      "result": "detected",
+      "skipped_tests": [
+        "environment-specific integration suite"
+      ],
+      "limitations": [
+        "Availability and version detection only; language or host integration tests are reported separately."
+      ]
+    },
+    {
+      "environment": "Rust",
+      "availability": "unavailable",
+      "version": null,
+      "command": [
+        "rustc",
+        "--version"
+      ],
+      "result": "unavailable",
+      "skipped_tests": [
+        "environment-specific integration suite"
+      ],
+      "limitations": [
+        "Availability and version detection only; language or host integration tests are reported separately."
+      ]
+    },
+    {
+      "environment": "VS Code host",
+      "availability": "available",
+      "version": "1.140.0",
+      "command": [
+        "C:\\Users\\akash\\AppData\\Local\\Programs\\Microsoft VS Code\\bin\\code.CMD",
+        "--version"
+      ],
+      "result": "detected",
+      "skipped_tests": [
+        "environment-specific integration suite"
+      ],
+      "limitations": [
+        "Availability and version detection only; language or host integration tests are reported separately."
+      ]
+    }
+  ],
+  "rows": [
+    {
+      "os": "windows",
+      "feature": "static_analysis",
+      "status": "not_run",
+      "evidence_kind": "none"
+    },
+    {
+      "os": "windows",
+      "feature": "runner_policy",
+      "status": "not_run",
+      "evidence_kind": "none"
+    },
+    {
+      "os": "windows",
+      "feature": "wheel_install_uninstall",
+      "status": "passed",
+      "evidence_kind": "native_observation"
+    },
+    {
+      "os": "windows",
+      "feature": "vsix_install_uninstall",
+      "status": "passed",
+      "evidence_kind": "native_observation"
+    },
+    {
+      "os": "windows",
+      "feature": "native_sandbox",
+      "status": "not_run",
+      "evidence_kind": "none"
+    },
+    {
+      "os": "windows",
+      "feature": "network_isolation",
+      "status": "not_run",
+      "evidence_kind": "none"
+    },
+    {
+      "os": "linux",
+      "feature": "static_analysis",
+      "status": "not_run",
+      "evidence_kind": "none"
+    },
+    {
+      "os": "linux",
+      "feature": "runner_policy",
+      "status": "not_run",
+      "evidence_kind": "none"
+    },
+    {
+      "os": "linux",
+      "feature": "wheel_install_uninstall",
+      "status": "not_run",
+      "evidence_kind": "none"
+    },
+    {
+      "os": "linux",
+      "feature": "vsix_install_uninstall",
+      "status": "not_run",
+      "evidence_kind": "none"
+    },
+    {
+      "os": "linux",
+      "feature": "native_sandbox",
+      "status": "not_run",
+      "evidence_kind": "none"
+    },
+    {
+      "os": "linux",
+      "feature": "network_isolation",
+      "status": "not_run",
+      "evidence_kind": "none"
+    },
+    {
+      "os": "macos",
+      "feature": "static_analysis",
+      "status": "not_run",
+      "evidence_kind": "none"
+    },
+    {
+      "os": "macos",
+      "feature": "runner_policy",
+      "status": "not_run",
+      "evidence_kind": "none"
+    },
+    {
+      "os": "macos",
+      "feature": "wheel_install_uninstall",
+      "status": "not_run",
+      "evidence_kind": "none"
+    },
+    {
+      "os": "macos",
+      "feature": "vsix_install_uninstall",
+      "status": "not_run",
+      "evidence_kind": "none"
+    },
+    {
+      "os": "macos",
+      "feature": "native_sandbox",
+      "status": "not_run",
+      "evidence_kind": "none"
+    },
+    {
+      "os": "macos",
+      "feature": "network_isolation",
+      "status": "not_run",
+      "evidence_kind": "none"
+    }
+  ],
+  "limitations": [
+    "Simulated launcher tests are not native operating-system evidence.",
+    "No network-isolation guarantee is inferred from offline command policy.",
+    "Detection does not convert skipped environment-specific suites into passes."
+  ]
+}

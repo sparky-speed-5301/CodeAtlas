@@ -46,6 +46,14 @@ changed file must exist in the fixture's `before/` or `after/` snapshot. The
 checked-in fixture also has `mirror.bundle`, which contains the declared Git
 commits and can be cloned without network access.
 
+## Quality collection
+
+`codeatlas.benchmark.quality_collection` runs installed deterministic analyzers against the immutable sanitized snapshots and records measured findings separately from labels. It can also collect explicitly selected live reviewer or repair-provider results through injected bounded provider interfaces. Live collection requires explicit selection, network permission, an approved credential environment-variable name, provider timeout and response limits, and exact repository/base/head identity.
+
+Unavailable live collection records `provider_mode_used: unavailable` with a stable reason such as `missing_credentials`, `network_disabled`, `timeout`, `rate_limit`, `malformed_response`, or `secret_response`. It never substitutes deterministic output. Fallback is disabled unless the caller explicitly selects `fallback` and supplies a non-network provider; reports retain the trigger and effective-provider attribution. Collection artifacts retain hashes, safe provider/model names, timings, usage metadata, and scored observations—not prompts, transcripts, credential values, or raw provider responses.
+
+Deterministic fixture metrics remain contract evidence, not real-world provider quality. Validation statuses preserve `passed`, `failed`, `not_run`, `unavailable`, `blocked`, and `unsupported`; only `passed` and `failed` enter pass-rate denominators.
+
 ## Review observations and metrics
 
 Review observations identify their mode as `deterministic` or `live_provider`.
@@ -119,6 +127,59 @@ reverted_by_user
 The observation model rejects contradictory claims, including `syntax_passed`
 with a failed syntax check, `type_check_unavailable` with an available result,
 an accepted and rejected patch, or a revert without prior acceptance.
+
+## Collecting benchmark repositories
+
+Collection is separate from scoring and has two explicit modes. It returns
+metadata and status only; it never returns source contents, applies patches,
+runs tests, approves validation, commits, merges, pushes, or contacts a model
+provider.
+
+### Offline sanitized mode
+
+Use the checked-in fixture with no network, credentials, live provider, or
+external service:
+
+```bash
+codeatlas benchmark-collect --mode offline \
+  --suite eval/cases/real-repositories/v1/suite.json \
+  --case-id real-bug
+```
+
+The fixture must contain `before/`, `after/`, `revisions.json`, and
+`metadata.json`. The metadata records an SPDX license identifier and provenance;
+the declared base and head commits, repository identity, labels, anchors,
+severity, abstention, fixability, patch scope, test policy, limitations, and
+benchmark version remain in the versioned suite. The result includes a digest
+of labelled snapshot files, never their contents.
+
+### Controlled public-repository mode
+
+Public collection must be explicitly invoked with an HTTPS URL, case ID, exact
+40-character base and head SHAs, license metadata, and provenance:
+
+```bash
+codeatlas benchmark-collect --mode public \
+  --suite path/to/pinned-suite.json --case-id case-001 \
+  --repository-url https://github.com/example/project.git \
+  --base-sha <40-character-base-sha> --head-sha <40-character-head-sha> \
+  --license-spdx MIT --provenance "upstream repository; license file reviewed"
+```
+
+The collector uses a bounded, non-interactive Git fetch in a temporary
+workspace, verifies both exact commits, and removes the workspace. It does not
+modify branches, push, mutate pull requests or issues, install dependencies,
+or place credentials in repair context. Moving branches are never accepted as
+benchmark pins. A failure is machine-readable and stable, for example:
+
+```text
+status: unavailable
+reason: sha_verification_failed
+```
+
+Supported reason codes include `case_not_found`, `fixture_unavailable`,
+`metadata_unavailable`, `invalid_url`, `missing_pin`, `license_missing`,
+`fetch_failed`, `sha_verification_failed`, `timeout`, and `cleanup_failed`.
 
 ## Running the benchmark
 

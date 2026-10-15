@@ -71,6 +71,12 @@ revert. Prior validation approvals are cleared. Revert availability is false
 because exact original bytes are not stored. Recovery never executes a
 provider, a test command, Git mutation, or workspace write.
 
+The safe `operation_interrupted` diagnostic survives repeated service restarts.
+An interrupted validation also retains a bounded limitation stating that sandbox
+cleanup is unverified. A killed process may leave an isolated worktree behind;
+recovery does not infer ownership from a saved path or automatically delete it.
+This warning records uncertainty, not successful cleanup or permission to retry.
+
 Deterministic proposal IDs may repeat. Durable keys include the repository and
 run so proposals from different reviews are independently retrievable.
 

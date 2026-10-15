@@ -15,7 +15,7 @@ from .repository import (
     _MetricPopulation,
 )
 
-CheckStatus = Literal["passed", "failed", "not_run", "unavailable"]
+CheckStatus = Literal["passed", "failed", "not_run", "unavailable", "blocked", "unsupported"]
 RepairLifecycleStatus = Literal[
     "proposal_generated",
     "patch_policy_accepted",
@@ -63,6 +63,7 @@ class RepairObservation(BaseModel):
     latency_ms: float = Field(default=0, ge=0)
     cost: float | None = Field(default=None, ge=0)
     lifecycle_statuses: tuple[RepairLifecycleStatus, ...] = ()
+    regenerated: bool = False
 
     @model_validator(mode="after")
     def validate_state(self) -> RepairObservation:
@@ -130,7 +131,7 @@ def _status_metric(
     available = [
         observation
         for _, observation in rows
-        if getattr(observation, field) not in {"not_run", "unavailable"}
+        if getattr(observation, field) in {"passed", "failed"}
     ]
     passed = sum(getattr(observation, field) == "passed" for observation in available)
     return _metric(
@@ -138,7 +139,7 @@ def _status_metric(
         passed,
         len(available),
         **population,
-        exclusions=(f"{field} not_run or unavailable",),
+        exclusions=(f"{field} not_run, unavailable, blocked, or unsupported",),
     )
 
 
@@ -189,6 +190,8 @@ def score_repair_benchmark(
 
         metrics = [
             _metric("proposal_eligibility_correctness", eligibility_correct, total, **common),
+            _metric("proposal_generation_success", len(generated), sum(item.proposal_eligible for _, item in rows), **common, exclusions=("proposal not eligible",)),
+            _metric("regeneration_rate", sum(item.regenerated for _, item in rows), len(generated), **common, exclusions=("no proposal generated",)),
             _metric("structured_output_acceptance", sum(item.structured_output_accepted for item in generated), len(generated), **common, exclusions=("no proposal generated",)),
             _metric("patch_parse_success", sum(item.patch_parse_succeeded for item in generated), len(generated), **common, exclusions=("no proposal generated",)),
             _metric("target_file_scope_accuracy", scope_correct, len(parsed), **common, exclusions=("patch did not parse",)),

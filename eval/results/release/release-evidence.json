@@ -1,0 +1,1005 @@
+{
+  "schema_version": 1,
+  "production_ready": false,
+  "artifacts": [
+    {
+      "file": "codeatlas-0.1.0.vsix",
+      "sha256": "738f1e3794e83863e7c5a07cef3614aeff3fc5aff55f8b947a40093792145189",
+      "scan": {
+        "status": "passed",
+        "errors": [],
+        "inventory": [
+          {
+            "file": "[Content_Types].xml",
+            "bytes": 611,
+            "sha256": "cc9759fccb28ca15d68aabec05db5f69d07e1d6e443cfb7fe188cc4a9da7bfa4"
+          },
+          {
+            "file": "extension.vsixmanifest",
+            "bytes": 753,
+            "sha256": "148c07ca47359f73f3a035270a5a9c605c6b3978bf3dbab8bbd3974e82dc436a"
+          },
+          {
+            "file": "extension/CHANGELOG.md",
+            "bytes": 3967,
+            "sha256": "825befa7f0fa8387a48f2d5a994c3f5f7d67ea8b740bd47fcda5d272d569a00e"
+          },
+          {
+            "file": "extension/LICENSE",
+            "bytes": 10115,
+            "sha256": "af0d2b0002daa9665269591ad63a5f5b5b968af05a29feb777126c8c288cd40a"
+          },
+          {
+            "file": "extension/README.md",
+            "bytes": 18450,
+            "sha256": "7d17b18a841ea6006017b599b37a85c169f0097116b7d14a33c38b6e4b725326"
+          },
+          {
+            "file": "extension/out/client.d.ts",
+            "bytes": 2632,
+            "sha256": "e105f9f6bfa8e4317dfecd83afbed7c975b85c986e9245642649b7cd55380fc1"
+          },
+          {
+            "file": "extension/out/client.js",
+            "bytes": 11180,
+            "sha256": "c877ee124c665135f8f06469b24f4bd3238f86b7862a4a82b8d1606228d876ee"
+          },
+          {
+            "file": "extension/out/client.js.map",
+            "bytes": 8138,
+            "sha256": "998e4e5cf8f282ff556a29b92d52cbb6aa88931cf029fd24a5a39015311da611"
+          },
+          {
+            "file": "extension/out/decorations.d.ts",
+            "bytes": 1291,
+            "sha256": "fdb0c8d4574ff5d266bf26e812966f1e748af2cfecf3f5c86f9658946c785af2"
+          },
+          {
+            "file": "extension/out/decorations.js",
+            "bytes": 8239,
+            "sha256": "7cb70e7d92ca86c4ed7cfa0b6e37f9cfe59ae17ebbf49453930abbdafef5adb5"
+          },
+          {
+            "file": "extension/out/decorations.js.map",
+            "bytes": 5834,
+            "sha256": "b2e8b94878513beee6ac6f03b70e37497f59a423285bc60d9068b29a5458d988"
+          },
+          {
+            "file": "extension/out/detail-panel.d.ts",
+            "bytes": 204,
+            "sha256": "845827d257e74ff90f0ca6eb7920a7995aa3efe9dc077c9512b08cfd59510c5a"
+          },
+          {
+            "file": "extension/out/detail-panel.js",
+            "bytes": 4559,
+            "sha256": "3a3c3880d9d3d0c7c76a229354086a3a635973b954101174de7c53c62b600a3a"
+          },
+          {
+            "file": "extension/out/detail-panel.js.map",
+            "bytes": 1836,
+            "sha256": "767eb5823255de10aebe1c684143e23ca304cf0127da4b6b9126b26e406d0ea8"
+          },
+          {
+            "file": "extension/out/extension.d.ts",
+            "bytes": 2101,
+            "sha256": "aba853483388ea41470c9a3bd74a0fd8d187bf5fadc13f0c0ca874be9993f019"
+          },
+          {
+            "file": "extension/out/extension.js",
+            "bytes": 78973,
+            "sha256": "2c51d2600a53e430d2e13503edce5136a7cd2774a543feb738fb133c524a7458"
+          },
+          {
+            "file": "extension/out/extension.js.map",
+            "bytes": 56346,
+            "sha256": "00ba1a9e5b67647180a9c6fe9da8d8c0ab47d46cddfb508c7e8669692e5beced"
+          },
+          {
+            "file": "extension/out/fix-preview.d.ts",
+            "bytes": 2499,
+            "sha256": "51fd3b120d9c82239532c65ffe9fa279201c67b419c53f370692dfe1361ee1d1"
+          },
+          {
+            "file": "extension/out/fix-preview.js",
+            "bytes": 9166,
+            "sha256": "d0d30b9ee82aed50291b9c719e257cbc5380908831719615104387d6ba87ce21"
+          },
+          {
+            "file": "extension/out/fix-preview.js.map",
+            "bytes": 6663,
+            "sha256": "0fc8509bb5f8eac53f5ea47ac34b0ca572a56dfeeb9f6f80d01519440ea7892c"
+          },
+          {
+            "file": "extension/out/profiles.d.ts",
+            "bytes": 1213,
+            "sha256": "83cdaa950a40bab5f3446688bf03b25a05e820b1071dfa48b220c2dc3ee3ae88"
+          },
+          {
+            "file": "extension/out/profiles.js",
+            "bytes": 9381,
+            "sha256": "348db56a5623b7fd2d02da3f8f42be6107b7ac5f43fc10fbaa8ef8195fab8914"
+          },
+          {
+            "file": "extension/out/profiles.js.map",
+            "bytes": 6821,
+            "sha256": "8356a48d00bce50d5f245c2e5554c32f95885f8cb1dec0b18e51a46d3068826f"
+          },
+          {
+            "file": "extension/out/providers/context.d.ts",
+            "bytes": 734,
+            "sha256": "1ce78a73f71c0f2ad43217d51db745db13e4b1adc3fe26f9776030272edc7c88"
+          },
+          {
+            "file": "extension/out/providers/context.js",
+            "bytes": 4939,
+            "sha256": "7fcea5682bb1df1285b87bc0385319d6dde1de88e6f1b24265da815b853fd093"
+          },
+          {
+            "file": "extension/out/providers/context.js.map",
+            "bytes": 3553,
+            "sha256": "f214c9790f5eba0ed09cc891767d9e3a1428d04a5254c0a899069dd62cadceb6"
+          },
+          {
+            "file": "extension/out/providers/findings.d.ts",
+            "bytes": 691,
+            "sha256": "4fdadf04976d58e5b7097744f51bb90065c6d72866282e00d2cb4ccfc5f725e8"
+          },
+          {
+            "file": "extension/out/providers/findings.js",
+            "bytes": 4127,
+            "sha256": "4b5dcb65bb5d12691113ba95a184bb2850b562da9121fd4f28cb1f10b44bde06"
+          },
+          {
+            "file": "extension/out/providers/findings.js.map",
+            "bytes": 2650,
+            "sha256": "a565d62923fdc3f4c6cd09ca79a9d73ca16df11f86e0cb39804e2dc5f0a2cddb"
+          },
+          {
+            "file": "extension/out/providers/status.d.ts",
+            "bytes": 1355,
+            "sha256": "d10c7a729bf2f4c765689a1361adf518f3eb75daf21944185a2372da13f3ad82"
+          },
+          {
+            "file": "extension/out/providers/status.js",
+            "bytes": 9899,
+            "sha256": "946be997588a2a19c96b231b5b123df13ea09bbccbf6acb075c1a7f8794f89ef"
+          },
+          {
+            "file": "extension/out/providers/status.js.map",
+            "bytes": 7899,
+            "sha256": "fc039e071c29b28cb69527d12bc36cff8cd2d0bd6ff8a08abce9e9741bc208a5"
+          },
+          {
+            "file": "extension/out/quickpick.d.ts",
+            "bytes": 142,
+            "sha256": "7c65a9a9c6d1d3da555839f50484f87c756dc83bab321e6355e1c58ce6bcb788"
+          },
+          {
+            "file": "extension/out/quickpick.js",
+            "bytes": 666,
+            "sha256": "f26446fc33cda602872b75ed26ac2bc072eb315dcde26402ed542e77515746f8"
+          },
+          {
+            "file": "extension/out/quickpick.js.map",
+            "bytes": 587,
+            "sha256": "d7c2112e974ff3e056e055ac18004d1365556b1a929e91b74ae0b3b9f3e93b5c"
+          },
+          {
+            "file": "extension/out/service.d.ts",
+            "bytes": 2373,
+            "sha256": "1130a71b5a06c11c347ca2c8168b9be166d57b6aaf8a166b6d9ee90009302153"
+          },
+          {
+            "file": "extension/out/service.js",
+            "bytes": 24719,
+            "sha256": "9178baedadac39e12b201780c036b7d9a689a1f4df9af5c4ebf60f1c8ef996ab"
+          },
+          {
+            "file": "extension/out/service.js.map",
+            "bytes": 20435,
+            "sha256": "f595c1aa2957333799e50b9266d0269e50e695bd4d42b0280b9c905335e1e0bc"
+          },
+          {
+            "file": "extension/out/types.d.ts",
+            "bytes": 10699,
+            "sha256": "87d74908ea47206428bcc77aa764841eaee2cf53286454371069106e50704258"
+          },
+          {
+            "file": "extension/out/types.js",
+            "bytes": 373,
+            "sha256": "fc755e4291433e88056a75c083b2921bb12eedcebfe8df6a9fa0ab84c794d536"
+          },
+          {
+            "file": "extension/out/types.js.map",
+            "bytes": 116,
+            "sha256": "c413af53e300ef5a094bda0af4297cb1b282514690044f71dcc60ec8d7d1a759"
+          },
+          {
+            "file": "extension/package.json",
+            "bytes": 16158,
+            "sha256": "69cbba9f85659b9b094c32c63feb11b81f85b11658d9e4a4bb5aac0a52e0ba21"
+          },
+          {
+            "file": "extension/resources/icon.svg",
+            "bytes": 308,
+            "sha256": "db6ad4a2554c1a4971dbb2a5ecc0aefd96d4f93717b7f4f2bfb3cb458572b83f"
+          }
+        ],
+        "scope": "bounded archive/path and credential-pattern scan, not vulnerability scanning"
+      }
+    },
+    {
+      "file": "codeatlas-0.1.0-py3-none-any.whl",
+      "sha256": "22e54bed7aea73c9bcee2f772c2213cdcf63210d020b21461923024b5bc620f6",
+      "scan": {
+        "status": "passed",
+        "errors": [],
+        "inventory": [
+          {
+            "file": "codeatlas-0.1.0.dist-info/METADATA",
+            "bytes": 383,
+            "sha256": "0c92d1e5b2d66beda7c0ea67d00df1646fc0c84e46a49e86658c79366d38780c"
+          },
+          {
+            "file": "codeatlas-0.1.0.dist-info/RECORD",
+            "bytes": 11377,
+            "sha256": "e4bbc2b679cff6c8d9cc5c8318be9f0a34188da450e6172c32a6bfd400c4478a"
+          },
+          {
+            "file": "codeatlas-0.1.0.dist-info/WHEEL",
+            "bytes": 97,
+            "sha256": "c1ffc78c45871bc78894fc1815ee85d22890dbd266c94f4ef6918d8cbd3c7c09"
+          },
+          {
+            "file": "codeatlas-0.1.0.dist-info/entry_points.txt",
+            "bytes": 48,
+            "sha256": "b39547ad239243ea4c465da158b3cfa2b2faf825b03938d9c31ad8d2d92af2fa"
+          },
+          {
+            "file": "codeatlas/__init__.py",
+            "bytes": 48,
+            "sha256": "a2d9ee6617767200689f0f82aa54116b1850f2010c74deb438348fadd3d443c0"
+          },
+          {
+            "file": "codeatlas/__main__.py",
+            "bytes": 114,
+            "sha256": "721d389ef01a41476b5e0a2c6932e744656ac8a35d130c2d2c12794c01108d80"
+          },
+          {
+            "file": "codeatlas/adapters/__init__.py",
+            "bytes": 1376,
+            "sha256": "772f8c8b6f64ad180ba0343577993b85218a60ecb3d606482b68bb5f5b0220ac"
+          },
+          {
+            "file": "codeatlas/adapters/base.py",
+            "bytes": 11993,
+            "sha256": "0e18f04832cd67a5fed1b22ce3cc6b4e6a41a6568c356460de4ad620181ea5f6"
+          },
+          {
+            "file": "codeatlas/adapters/compiled.py",
+            "bytes": 4282,
+            "sha256": "bbf1b9ad22a18e91a6fa539bb85491ffe90b956824dd3821c6d996b00cadef39"
+          },
+          {
+            "file": "codeatlas/adapters/go/__init__.py",
+            "bytes": 2030,
+            "sha256": "e9a51be28c5e086485e18d4e88f1e9e53c97f5fa530e26b8ebd4ad9a9c6ea9ef"
+          },
+          {
+            "file": "codeatlas/adapters/java/__init__.py",
+            "bytes": 2323,
+            "sha256": "23bcaf8b85a82d3f13155ededdada3e23b4a0c42a32905c548e363e7c1aada84"
+          },
+          {
+            "file": "codeatlas/adapters/javascript/__init__.py",
+            "bytes": 4035,
+            "sha256": "08967016329f9cfd34e6e49e48254292e889fbf9634aceda71685b6111d811e8"
+          },
+          {
+            "file": "codeatlas/adapters/python/__init__.py",
+            "bytes": 836,
+            "sha256": "da0babfb09f4cd6b7207da66c1069f79c090708f5b503ce55f0ce70bf52f7e72"
+          },
+          {
+            "file": "codeatlas/adapters/rust/__init__.py",
+            "bytes": 1800,
+            "sha256": "2b9bfb57d4a913a85fc38b747d95e13aa634abbad152697894df6f4da7dc756f"
+          },
+          {
+            "file": "codeatlas/adapters/typescript/__init__.py",
+            "bytes": 252,
+            "sha256": "99d773f32fd090fdbc46be9b2f2c08329f38abe98cf294170d434be7c1c61e86"
+          },
+          {
+            "file": "codeatlas/analyzers/__init__.py",
+            "bytes": 471,
+            "sha256": "4966f060bb0286a1e07e377edc8acc6ccb74f07676bc23e3b69ca30c6dd17920"
+          },
+          {
+            "file": "codeatlas/analyzers/base.py",
+            "bytes": 461,
+            "sha256": "9ff81590d7529b7c7efd87d293b614c5325b183cfc970781df00caf91d045c15"
+          },
+          {
+            "file": "codeatlas/analyzers/models.py",
+            "bytes": 908,
+            "sha256": "fefe2a6b01ac26d8d9baaa21c4debe4bcd56a56d25816b5aaf745f735aa1feab"
+          },
+          {
+            "file": "codeatlas/analyzers/registry.py",
+            "bytes": 1488,
+            "sha256": "65bbf1e8e10ca6a797ddfb8cf8d32b35de0cde0a84d403f6c70bd18b194180b7"
+          },
+          {
+            "file": "codeatlas/analyzers/secrets.py",
+            "bytes": 7585,
+            "sha256": "134117da6ca2af28ec8256397f5ef54a568831f172bfa7910f1da5027bb16e2c"
+          },
+          {
+            "file": "codeatlas/analyzers/sensitive.py",
+            "bytes": 10022,
+            "sha256": "f99634be1b0b556ffbcdf4c70ff562a6b384d35b60fa461c4c05457f72ae675a"
+          },
+          {
+            "file": "codeatlas/benchmark/__init__.py",
+            "bytes": 2353,
+            "sha256": "925935306508eac1bb90b8bbd7bb46e48198bfe6d9141a7c571b51a0bc56fdd9"
+          },
+          {
+            "file": "codeatlas/benchmark/collection.py",
+            "bytes": 9591,
+            "sha256": "2cacbedbead3eda2faca52f705a8a349caffd9b5dbe32e7e8b8d4cdee4c2e9f5"
+          },
+          {
+            "file": "codeatlas/benchmark/provider_collection.py",
+            "bytes": 8359,
+            "sha256": "d682deeb3b2f95c96c7569e93c31b3ed4f5ad68b2baaccdeefd1277ca538a70d"
+          },
+          {
+            "file": "codeatlas/benchmark/provider_comparison.py",
+            "bytes": 18347,
+            "sha256": "33d6be925c1cf9a4e516efbae0f7c3770882b13c0c789af9cba972d5429dd719"
+          },
+          {
+            "file": "codeatlas/benchmark/quality_collection.py",
+            "bytes": 15113,
+            "sha256": "c1fb8ca881f85b3ea32d669e4bfd8d7c3a3d62eddc1faf5dca0221b270f6a364"
+          },
+          {
+            "file": "codeatlas/benchmark/repair.py",
+            "bytes": 10040,
+            "sha256": "34746f2d345821842cb07acef51a02c2b749def7efad6d48229981ca81e68f7a"
+          },
+          {
+            "file": "codeatlas/benchmark/repair_metrics.py",
+            "bytes": 12718,
+            "sha256": "5c2944f4e1bc53b8f6ad2344fddd1331868e3c6fde9fa87040820f9eea53c234"
+          },
+          {
+            "file": "codeatlas/benchmark/repository.py",
+            "bytes": 23928,
+            "sha256": "4a0c61804100702023e9702df74cca634376296b3ee72db95528b81da65a0efb"
+          },
+          {
+            "file": "codeatlas/benchmark/runner.py",
+            "bytes": 5142,
+            "sha256": "c764a4074090584cd69527f849a4eea09b33d418d1c430f9dfe712d49d20d793"
+          },
+          {
+            "file": "codeatlas/cli.py",
+            "bytes": 39573,
+            "sha256": "98a7569878446ba8e158f5beb19c02db271de14b12469499931304019ab6f5d3"
+          },
+          {
+            "file": "codeatlas/cli_color.py",
+            "bytes": 543,
+            "sha256": "56afc8a735503a2ff9f7b48a194884037901160ffa80b0f5e7e9fd978254a594"
+          },
+          {
+            "file": "codeatlas/cli_platform.py",
+            "bytes": 17979,
+            "sha256": "10916756912dd62e1b2d8efc7be763cc884e4c906b349e9e2f7d0626f69e7bd5"
+          },
+          {
+            "file": "codeatlas/client.py",
+            "bytes": 13177,
+            "sha256": "becf6d6980701cccd95abc63401ab950627aeac7652089a511dd174d66724e03"
+          },
+          {
+            "file": "codeatlas/core/__init__.py",
+            "bytes": 124,
+            "sha256": "048af0f70f5da6e1b214a98573a7e66403d5c68fb34f4f1cfcdc26158d6d3482"
+          },
+          {
+            "file": "codeatlas/core/language.py",
+            "bytes": 750,
+            "sha256": "ab3ac966cf62de66c1fd1fce2a42b7dcdd65b88ef7bda3bfa78cd3cbf401b86c"
+          },
+          {
+            "file": "codeatlas/evidence/__init__.py",
+            "bytes": 89,
+            "sha256": "299a5370f67b843bdcea0c4bc710242efc1d764c3c42dfd97250896bbf45251b"
+          },
+          {
+            "file": "codeatlas/evidence/logger.py",
+            "bytes": 3687,
+            "sha256": "9f8ce464af7afb3e209fe598144e5389a624ece048b626c64476d1bca4d65b8b"
+          },
+          {
+            "file": "codeatlas/findings/__init__.py",
+            "bytes": 192,
+            "sha256": "169b4a2ab31c80e83592d1804e2fee8f98ccca90e61ff36b797cf2b0c30955c4"
+          },
+          {
+            "file": "codeatlas/findings/models.py",
+            "bytes": 3261,
+            "sha256": "a8bd09032f073d77213f0e3bf9401cec7dbf8389e8b9b525c1e24d5c3378d1d8"
+          },
+          {
+            "file": "codeatlas/findings/rendering.py",
+            "bytes": 2357,
+            "sha256": "f99659da4c4561221686a7bec57ae56c5e8c1a46fd665a240e3989604d310588"
+          },
+          {
+            "file": "codeatlas/git/__init__.py",
+            "bytes": 795,
+            "sha256": "45b3cc7919ad9d45ea19fb17033c2fbd8710fffe4d405391d209544f127dc3a8"
+          },
+          {
+            "file": "codeatlas/git/diff.py",
+            "bytes": 2690,
+            "sha256": "3a0639fa439feecbd64c14dede526b1fe29605b678b1c1189f0b024c7fb905ae"
+          },
+          {
+            "file": "codeatlas/git/errors.py",
+            "bytes": 1007,
+            "sha256": "c356ec175a8ceefd855768538894ea62617b9d2b04307ef738211637a249bf08"
+          },
+          {
+            "file": "codeatlas/git/executable.py",
+            "bytes": 1882,
+            "sha256": "5cf0bfc3d7f0089dd4622a9cee53d46352225a0e493b7abfadb853fd71bdf89e"
+          },
+          {
+            "file": "codeatlas/git/models.py",
+            "bytes": 1170,
+            "sha256": "a42decbb8d626eca266e961eaffe6fcf30f17a96c3fc3cce37d7c8f042f0eed4"
+          },
+          {
+            "file": "codeatlas/git/refs.py",
+            "bytes": 847,
+            "sha256": "65a02cea9b8f4afa8a31b5c024a620b3d41a1e6ed2633025c561bca5f37fe398"
+          },
+          {
+            "file": "codeatlas/git/repository.py",
+            "bytes": 936,
+            "sha256": "eb064a2249dc9b3cce9e6bf5394fdb88cd54ec4b748fe90201033a109ccaacd7"
+          },
+          {
+            "file": "codeatlas/git/snapshot.py",
+            "bytes": 2063,
+            "sha256": "1dfb2dc593a228306693447c7c58412e2af3320efd08806255a67dc13fadf969"
+          },
+          {
+            "file": "codeatlas/git/worktree.py",
+            "bytes": 228,
+            "sha256": "8e8661e7fb3fc2be7e9fe336d0c9451d37c209f46048aec1920d029d1dae85c1"
+          },
+          {
+            "file": "codeatlas/github/__init__.py",
+            "bytes": 1548,
+            "sha256": "e4a7dbbe772b43014de71542385f6ba1c40a7b309984985c9a85a18b694e357e"
+          },
+          {
+            "file": "codeatlas/github/adapter.py",
+            "bytes": 39757,
+            "sha256": "10d09a538bb1322bd4aace5bf32b953b53331fec9453f841326dea25c7729d01"
+          },
+          {
+            "file": "codeatlas/github/checks.py",
+            "bytes": 3847,
+            "sha256": "6ed3100354622b1108faf5727ded7c3fd591b25dc031545a86bda7b519abde0d"
+          },
+          {
+            "file": "codeatlas/github/errors.py",
+            "bytes": 993,
+            "sha256": "b978a53ee963a6e3fa6942e1907bea12f065873e9f5aa624dea25c0015860365"
+          },
+          {
+            "file": "codeatlas/github/models.py",
+            "bytes": 3394,
+            "sha256": "4e0c8446ba3566d63e6fcac2623c1eef80509962742f2b1cc15be1cc407096fc"
+          },
+          {
+            "file": "codeatlas/github/summary.py",
+            "bytes": 10812,
+            "sha256": "5b5ba9c3f41d7f7161155595e87eb391b08ab835ca92807042ee7bddbd49b740"
+          },
+          {
+            "file": "codeatlas/github/transport.py",
+            "bytes": 23084,
+            "sha256": "6c1deb1c46422de58720c7d5eba370aaa994e51fba59491f16542b2d233f01c3"
+          },
+          {
+            "file": "codeatlas/orchestrator/__init__.py",
+            "bytes": 1853,
+            "sha256": "8f12ced2cdb0c44f975765d3616fe55a28831ea3326798e9376c13611c616966"
+          },
+          {
+            "file": "codeatlas/orchestrator/artifacts.py",
+            "bytes": 7544,
+            "sha256": "40d4db384ef2335a476f75c1ab50e7f270ade41e053de25daed38fbd629b5827"
+          },
+          {
+            "file": "codeatlas/orchestrator/context.py",
+            "bytes": 14283,
+            "sha256": "e15f92a11149488caccb9e32bd2e85e6e2e54317f071da0cb5e843a4706d3f31"
+          },
+          {
+            "file": "codeatlas/orchestrator/manifest.py",
+            "bytes": 6325,
+            "sha256": "c091bc6d7f98e63ffb37856962e47ef9777e680db45b121152cacc57239f500a"
+          },
+          {
+            "file": "codeatlas/orchestrator/repair.py",
+            "bytes": 31469,
+            "sha256": "829560495803a05a4fe6d718684868cda950041feb35e5e01c0e5ef9cf5fffc3"
+          },
+          {
+            "file": "codeatlas/orchestrator/repair_loop.py",
+            "bytes": 20355,
+            "sha256": "4c13e4e83f15f88add039a190469ee0881f9af03ec8ab6b34ad8a4bf128fa343"
+          },
+          {
+            "file": "codeatlas/orchestrator/repair_models.py",
+            "bytes": 10220,
+            "sha256": "49dc8dca4d28185a61773b2505cb1e3cccbe3cf1c697fde985b832d8f03285ba"
+          },
+          {
+            "file": "codeatlas/orchestrator/review.py",
+            "bytes": 49944,
+            "sha256": "4a9a747cb9877a9ea1fabb0473af01c149fdfb9e89607801f641efadd698dde3"
+          },
+          {
+            "file": "codeatlas/orchestrator/support.py",
+            "bytes": 831,
+            "sha256": "5abdaa98dcbc220d0aaf98b99038ac20061434134ff579931ec97a3a55d3ed10"
+          },
+          {
+            "file": "codeatlas/orchestrator/validation.py",
+            "bytes": 6583,
+            "sha256": "50aa6e1fac812bc19d9a472f36c188be7725f3c89140b99d79b90c26ab6c8e58"
+          },
+          {
+            "file": "codeatlas/patching/__init__.py",
+            "bytes": 1911,
+            "sha256": "7c453339b210163fa916943b50679909d6a8932f646654f559b2a5a8ebc3d5f2"
+          },
+          {
+            "file": "codeatlas/patching/apply.py",
+            "bytes": 56229,
+            "sha256": "96c35e375abce7f821b5fbc4ad7531779a92e50752b37d44585cd429541da0c5"
+          },
+          {
+            "file": "codeatlas/patching/mock.py",
+            "bytes": 5425,
+            "sha256": "86b92f3e3143f1ba72b327397537d05cf2eb7cebfbc60eba8c08e12186ee1304"
+          },
+          {
+            "file": "codeatlas/patching/models.py",
+            "bytes": 9395,
+            "sha256": "73b289806afae4b51cdd90b9239542e7b68bfb4b81ea2bbc44dadf3cd059fcc5"
+          },
+          {
+            "file": "codeatlas/patching/parser.py",
+            "bytes": 9990,
+            "sha256": "bd87ca1bac93ac1ffe42028bb464f7a0e93343843384c76e7bf9fb750f6347d4"
+          },
+          {
+            "file": "codeatlas/patching/policy.py",
+            "bytes": 7582,
+            "sha256": "ed9d8f699be6e16423ce15ea3d8572848ebb6b7d462e5c8738bb0984945e5861"
+          },
+          {
+            "file": "codeatlas/patching/proposal.py",
+            "bytes": 11035,
+            "sha256": "586c5a6b63fb01ce742e0abf6f89bb0c9248193abf95fbe8568edca4b7b6b3d7"
+          },
+          {
+            "file": "codeatlas/patching/sandbox.py",
+            "bytes": 4091,
+            "sha256": "b63d94d16f5f0a019e513adb495ad3f0fbc95572209bb64b428d1953bbf53546"
+          },
+          {
+            "file": "codeatlas/patching/suggestions.py",
+            "bytes": 15107,
+            "sha256": "87ec95ac7dbcffa6097965392665acc2b44ffa9f67d12311c8ee2b8dac42853e"
+          },
+          {
+            "file": "codeatlas/patching/validator.py",
+            "bytes": 9452,
+            "sha256": "40ca1d9c7df1e4b07f61b35d20eb071f2fdf392ce0180df9f131ee059c137587"
+          },
+          {
+            "file": "codeatlas/policy/__init__.py",
+            "bytes": 35,
+            "sha256": "bd2be3b17c72d96d3004f26f093cc372987433e0441da9a5e77af90051775c1e"
+          },
+          {
+            "file": "codeatlas/providers/__init__.py",
+            "bytes": 3334,
+            "sha256": "b1543b195d5f5dfa9466384a7753be644ea0caadc6688c42577c4fdbe8fc14e3"
+          },
+          {
+            "file": "codeatlas/providers/config.py",
+            "bytes": 8048,
+            "sha256": "de97b4209fde45a4f783020a7002f5d1e08f3597b74418675c560d1534123ddc"
+          },
+          {
+            "file": "codeatlas/providers/errors.py",
+            "bytes": 2425,
+            "sha256": "37ade15fcb70431a88cce77cf4db4091967847b0683df33e2d3bde7161bc768c"
+          },
+          {
+            "file": "codeatlas/providers/live.py",
+            "bytes": 21692,
+            "sha256": "95de04b4b7b2b626bd670390f303ef95bdcab3df3ba25cae7a7cd1b6a2e116b9"
+          },
+          {
+            "file": "codeatlas/providers/prompt.py",
+            "bytes": 9306,
+            "sha256": "9305150d5859faf23d1fdc360d3abae9f6338973f152f8f37d596d8ba3750931"
+          },
+          {
+            "file": "codeatlas/providers/repair.py",
+            "bytes": 9176,
+            "sha256": "06e4c3ff342572fcadadd20f97c5cf52eeda2db7119247307c19b5614ff82d6c"
+          },
+          {
+            "file": "codeatlas/providers/repair_config.py",
+            "bytes": 7959,
+            "sha256": "80cd8f23bff6be4e36530b4bc1d7eb0c0cc08a186d202a8efe9fab76041f420a"
+          },
+          {
+            "file": "codeatlas/providers/repair_models.py",
+            "bytes": 7343,
+            "sha256": "a034c4f5a240a240426a4b4571ded5cdc7ba18e63ffea56362535901bbec7d3d"
+          },
+          {
+            "file": "codeatlas/providers/repair_prompt.py",
+            "bytes": 2687,
+            "sha256": "3e7e828c84aa6ee1819c09785bf254fe9714272b02996b66a3052c4799854053"
+          },
+          {
+            "file": "codeatlas/providers/transport.py",
+            "bytes": 8328,
+            "sha256": "1583b0e85d3ba73ba482e0a8dcf1dcf0f4600c3c64bbb6a1103d06a4e32bd001"
+          },
+          {
+            "file": "codeatlas/reliability.py",
+            "bytes": 8879,
+            "sha256": "790f322d9db335d7d05922866c829740c29e490326138b86fc0507c8ed0a76eb"
+          },
+          {
+            "file": "codeatlas/repair/__init__.py",
+            "bytes": 1341,
+            "sha256": "df9104e1dfe0f7cc9ae674bba5cfb0d810e4f0ebb10a70af9f938c43bd959161"
+          },
+          {
+            "file": "codeatlas/repair/context.py",
+            "bytes": 453,
+            "sha256": "d55b6b203533ef9b3d5136062be866779d6a8f852c6c20f0e50fbb873c2998cf"
+          },
+          {
+            "file": "codeatlas/repair/loop.py",
+            "bytes": 381,
+            "sha256": "f50d2a14aa4d2c799078949358dc8696966f50b7474ba6e2d01fced931306759"
+          },
+          {
+            "file": "codeatlas/repair/provider.py",
+            "bytes": 913,
+            "sha256": "8b16178e5c37fec2d07ca7e9c89731af7f0d730f0d249ceea1139ec99373101f"
+          },
+          {
+            "file": "codeatlas/repository/__init__.py",
+            "bytes": 1873,
+            "sha256": "87f34ec69bf07068fbd7e96f60cfe1383ba88bcb5c2ffe244fbe53d96cbeac13"
+          },
+          {
+            "file": "codeatlas/repository/compiled.py",
+            "bytes": 3877,
+            "sha256": "eeebd3f9e7110d5ac2f740192ee8b0890e5fcca3769b0a7f2d75f828aa74d3ca"
+          },
+          {
+            "file": "codeatlas/repository/files.py",
+            "bytes": 6382,
+            "sha256": "b41bff4f9b706fc99f3a41b952b78d5c476e15e179a7c3c5e172d3fb5a59f244"
+          },
+          {
+            "file": "codeatlas/repository/graph.py",
+            "bytes": 2476,
+            "sha256": "2ac2c57513bde8c2339f5f283ffc4d8401a8d1719477fead819f8026f48a6a54"
+          },
+          {
+            "file": "codeatlas/repository/imports.py",
+            "bytes": 10562,
+            "sha256": "67d00686e2e52db45a0973df57cacb6690e3de6a23ffebe04b6cefded9792f61"
+          },
+          {
+            "file": "codeatlas/repository/index.py",
+            "bytes": 6191,
+            "sha256": "35ecad975ba77548a9d90f2f0184a4edafdba1501809457a5dd0396e7d25bfba"
+          },
+          {
+            "file": "codeatlas/repository/models.py",
+            "bytes": 4682,
+            "sha256": "c768ec345af9c5c7e590087019775b632e3d688aa38f2c092b60030f93f8c366"
+          },
+          {
+            "file": "codeatlas/repository/references.py",
+            "bytes": 4470,
+            "sha256": "a278ab2e130d951736785b9feb51e7331400b059977c30c854256f6cae5fa1af"
+          },
+          {
+            "file": "codeatlas/repository/retrieval.py",
+            "bytes": 10143,
+            "sha256": "7162dc7839c66820f004641286513368a9d6fb5599c3e0cd8a782f5453050fd7"
+          },
+          {
+            "file": "codeatlas/repository/scanner.py",
+            "bytes": 2676,
+            "sha256": "cf4ff4bb68d300fc26a04ab34361e9f0c4f30bf0a6ebf94f2482b86efdbc2ccb"
+          },
+          {
+            "file": "codeatlas/repository/symbols.py",
+            "bytes": 17218,
+            "sha256": "ada252cefa7d70eb6fbb1e8475c1e730936b74a953a866de19619fb267ee8a05"
+          },
+          {
+            "file": "codeatlas/retrieval/__init__.py",
+            "bytes": 36,
+            "sha256": "a8e3c28bff7d6eded9069a7ba9d8e1b12200bb725140fdd725c79fcf1d40191f"
+          },
+          {
+            "file": "codeatlas/review/__init__.py",
+            "bytes": 1328,
+            "sha256": "e38d60c61499ce9f242b11eaf08ddd045deac66564f7efbd30687b20cb8004c7"
+          },
+          {
+            "file": "codeatlas/review/mock.py",
+            "bytes": 13329,
+            "sha256": "9002dc2e7658d28e71278e31edd30bb2258423e702a6f00aad6aae28ceb11a17"
+          },
+          {
+            "file": "codeatlas/review/packet.py",
+            "bytes": 29104,
+            "sha256": "82cecbc5086295307276f410e897e7bec108b33dfb2ffd8169c8a0920bff2029"
+          },
+          {
+            "file": "codeatlas/review/policy.py",
+            "bytes": 6651,
+            "sha256": "ef6752f1159710aa5c4417b952c4ecf023564c0590f4e77b1e9452a083d51a78"
+          },
+          {
+            "file": "codeatlas/review/provider.py",
+            "bytes": 2165,
+            "sha256": "047ddf687cc6080d9b98102576118b9a129389499091401b536edf28376429c8"
+          },
+          {
+            "file": "codeatlas/review/quality.py",
+            "bytes": 16044,
+            "sha256": "e69a8ed70c0889fa3bbac98845cdce1c337b62b8512dc693a5084eddc77601eb"
+          },
+          {
+            "file": "codeatlas/review/ranking.py",
+            "bytes": 8215,
+            "sha256": "79c65435c481f543b07cfc572faf60872c4d5050c2b03257269bb5660ad37c1e"
+          },
+          {
+            "file": "codeatlas/review/rendering.py",
+            "bytes": 2240,
+            "sha256": "3cfe364c2a5d5537dc9b9a54c68298494fa79f762b25e45bff0c093c176610f4"
+          },
+          {
+            "file": "codeatlas/review/validator.py",
+            "bytes": 4238,
+            "sha256": "4db632118bb833fe7cc111f4e0ec8146b83bb8117b3918911eef2648e6e8a6cd"
+          },
+          {
+            "file": "codeatlas/service/__init__.py",
+            "bytes": 2268,
+            "sha256": "fa0726fe0ec534b682fd350cb2c96db3a9effe846ce11d6ebe050a870f5b66a6"
+          },
+          {
+            "file": "codeatlas/service/contract.py",
+            "bytes": 6846,
+            "sha256": "0bd88376df1259f489da007d855fd266ccbc4a098da133647c58e7a859960c0e"
+          },
+          {
+            "file": "codeatlas/service/diagnostics.py",
+            "bytes": 11380,
+            "sha256": "be881ca3acacf53f0bf949955298368cab63d101e9e0d7992325781b818e38cd"
+          },
+          {
+            "file": "codeatlas/service/models.py",
+            "bytes": 19409,
+            "sha256": "d98f6016e4858a43cdf9fbc34edacdcad4326e33270c87843e4b2477545a550d"
+          },
+          {
+            "file": "codeatlas/service/persistence.py",
+            "bytes": 25051,
+            "sha256": "4b7bc9188276cbc4337e8486cb37af314c50fb46cdce8ac87b0444568d3b7164"
+          },
+          {
+            "file": "codeatlas/service/persistence_codec.py",
+            "bytes": 46249,
+            "sha256": "c85d23e8341da13c6bddf12a135a6cfe2df55c9b0e3c15cb512f392249bc9e45"
+          },
+          {
+            "file": "codeatlas/service/server.py",
+            "bytes": 42727,
+            "sha256": "addd80f80ac329a3474acfa8c5c57fee3617ccb9c3f8c459d40ebce4af67b5ef"
+          },
+          {
+            "file": "codeatlas/service/state.py",
+            "bytes": 131459,
+            "sha256": "fd6f7bd09228463d170fc86570864bcc15493a582d2ebbd4693ae99c011d4a6a"
+          },
+          {
+            "file": "codeatlas/verification/__init__.py",
+            "bytes": 1302,
+            "sha256": "4663f5a8aadb1b6eaa0db5a16384caf1bb0a0112b62259e3372c51f3f8b3063d"
+          },
+          {
+            "file": "codeatlas/verification/command_policy.py",
+            "bytes": 9780,
+            "sha256": "11da67ff24d72fa89bd004305856a5e5f3d8f08c5159e99e1f08a034e4caa747"
+          },
+          {
+            "file": "codeatlas/verification/diagnostics.py",
+            "bytes": 12117,
+            "sha256": "fb8fead7f26399418620124c175c8ada7e1a6649f737a407dc507861e56da2fd"
+          },
+          {
+            "file": "codeatlas/verification/discovery.py",
+            "bytes": 25012,
+            "sha256": "b73d10cc418d2c4abfb12a1046ed4637dfb2ff0af004037cec13ebfeb874762c"
+          },
+          {
+            "file": "codeatlas/verification/executor.py",
+            "bytes": 11116,
+            "sha256": "19fa98fd7de9efac07bfdfd075fc72d2c797f09477f892100940c0fb800a5241"
+          },
+          {
+            "file": "codeatlas/verification/models.py",
+            "bytes": 3822,
+            "sha256": "ecc7160bbda7f0abcdae1a86a7a73c3bedd43035639dd924aafc3f37827ca13a"
+          },
+          {
+            "file": "codeatlas/verification/redaction.py",
+            "bytes": 4048,
+            "sha256": "a6c1c031daaa2330d2e5261e1ce956359e9f24987993ec1b05f4defe6b4b092c"
+          },
+          {
+            "file": "codeatlas/verification/runner.py",
+            "bytes": 9606,
+            "sha256": "f9da3bc416e7b15ba095d43ddd3a9ce1c579c799d9a1b014d68211a69f644707"
+          },
+          {
+            "file": "codeatlas/verification/runner_selection.py",
+            "bytes": 7128,
+            "sha256": "603d471b3bbb81959ae040d97396d96a0840fefc9d22fbc92def94fb0c549f83"
+          }
+        ],
+        "scope": "bounded archive/path and credential-pattern scan, not vulnerability scanning"
+      }
+    }
+  ],
+  "checks": {
+    "compile": {
+      "status": "passed",
+      "exit_code": 0,
+      "stdout_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    "vsix_reproducible": {
+      "status": "passed",
+      "scope": "two archive assemblies of the same freshly compiled inputs"
+    },
+    "vsix_scan": {
+      "status": "passed",
+      "scope": "bounded archive/path and credential-pattern scan, not vulnerability scanning"
+    },
+    "vsix_boundary": {
+      "status": "passed"
+    },
+    "vsix_metadata": {
+      "status": "passed",
+      "version": "0.1.0",
+      "license": "Apache-2.0",
+      "vscode_engine": "^1.85.0",
+      "commands": 31
+    },
+    "vsix_install_uninstall": {
+      "status": "passed",
+      "steps": {
+        "install": {
+          "status": "passed",
+          "exit_code": 0,
+          "stdout_sha256": "478c4dd48f8bebe9face9befc8ca367fb117a95748cfe4bd7d5028aebf3c0a67",
+          "stderr_sha256": "54e7031fe117fec4195919b1b09367edd7c177078adce850bffbfff0299c6007"
+        },
+        "present": {
+          "status": "passed"
+        },
+        "uninstall": {
+          "status": "passed",
+          "exit_code": 0,
+          "stdout_sha256": "0f694ea80fbe29cfa5d4cc883dd64d4d6989d9a5b714dad377a84f7136719d13",
+          "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+        },
+        "unregistered": {
+          "status": "passed"
+        }
+      },
+      "scope": "disposable CLI profile; no GUI activation smoke"
+    },
+    "wheel_build": {
+      "status": "passed",
+      "scope": "network-free deterministic assembly of the declared pure-Python package"
+    },
+    "wheel_reproducible": {
+      "status": "passed",
+      "scope": "two independent network-free archive assemblies of the same source inputs"
+    },
+    "wheel_scan": {
+      "status": "passed",
+      "scope": "bounded archive/path and credential-pattern scan, not vulnerability scanning"
+    },
+    "wheel_metadata": {
+      "status": "passed"
+    },
+    "wheel_install_uninstall": {
+      "status": "passed",
+      "steps": {
+        "create": {
+          "status": "passed",
+          "exit_code": 0,
+          "stdout_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+          "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+        },
+        "install": {
+          "status": "passed",
+          "exit_code": 0,
+          "stdout_sha256": "83ee491b09157d8a43ac9aa7e78ef5f052397bfd48879237074343699dda1744",
+          "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+        },
+        "metadata": {
+          "status": "passed",
+          "exit_code": 0,
+          "stdout_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+          "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+        },
+        "uninstall": {
+          "status": "passed",
+          "exit_code": 0,
+          "stdout_sha256": "b72bcff7e1dadafbc19d51f7f1d218880484adf19477548603b3deb55320d2d3",
+          "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+        },
+        "absent": {
+          "status": "passed",
+          "exit_code": 0,
+          "stdout_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+          "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+        }
+      },
+      "scope": "no-deps packaging smoke, not dependency-complete runtime installation"
+    }
+  },
+  "gaps": [
+    "Offline credential-pattern scans do not replace dependency CVE scanning.",
+    "Build inputs are the working tree, not a signed/tagged or immutable release source.",
+    "Custom deterministic wheel assembly is not setuptools backend certification.",
+    "Custom deterministic VSIX builder is not Marketplace/vsce certification."
+  ]
+}

@@ -3,8 +3,8 @@
 from __future__ import annotations
 
 import fnmatch
+from collections.abc import Sequence
 from pathlib import Path
-from typing import Sequence
 
 from codeatlas.repository.files import classify_file
 from codeatlas.repository.models import RepositoryFile
@@ -75,9 +75,10 @@ def scan_repository(
             continue
 
         try:
+            path.resolve().relative_to(root)
             rel_path = path.relative_to(root).as_posix()
-        except ValueError:
-            # File is outside repo root
+        except (ValueError, OSError, RuntimeError):
+            # Reject links resolving outside the repository or failing resolution.
             continue
 
         # Prevent escaping or indexing .git internals

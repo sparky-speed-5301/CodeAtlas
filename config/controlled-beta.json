@@ -1,0 +1,33 @@
+{
+  "config_version": "controlled-beta-v1",
+  "beta_mode": true,
+  "provider_mode": "offline_deterministic",
+  "live_provider": null,
+  "workflow": "cli",
+  "github_mode": "review_only_dry_run",
+  "diagnostics": {
+    "export_enabled": true,
+    "max_report_bytes": 32768,
+    "max_service_reviews": 50,
+    "timeout_seconds": 10.0,
+    "include_repository_paths": false,
+    "include_provider_transcripts": false,
+    "include_credentials": false
+  },
+  "cleanup": {
+    "strategy": "owned_temporary_resources_only",
+    "automatic_persisted_path_deletion": false,
+    "retain_failed_sandbox": false,
+    "foreign_process_termination": false
+  },
+  "safety": {
+    "automatic_apply": false,
+    "automatic_approval": false,
+    "automatic_commit": false,
+    "automatic_merge": false,
+    "automatic_push": false,
+    "arbitrary_commands": false,
+    "dependency_installation": false,
+    "unrestricted_network_access": false
+  }
+}

@@ -120,8 +120,21 @@ def register(app: typer.Typer) -> None:
         emit(ctx, client(ctx).capabilities())
 
     @app.command()
-    def doctor(ctx: typer.Context) -> None:
-        """Check the installed CLI's local runtime without contacting a service."""
+    def doctor(
+        ctx: typer.Context,
+        service: bool = typer.Option(False, "--service", help="Inspect bounded, read-only local service diagnostics."),
+    ) -> None:
+        """Check the local runtime, or explicitly inspect the local service."""
+        if service:
+            from codeatlas.service.diagnostics import collect_service_diagnostics
+
+            opts = options(ctx)
+            diagnostics = collect_service_diagnostics(opts.service_url, timeout=opts.timeout)
+            emit(ctx, diagnostics)
+            if diagnostics.status == "error":
+                raise typer.Exit(1)
+            return
+
         checks: list[dict[str, str]] = []
 
         python_ok = sys.version_info >= (3, 11)

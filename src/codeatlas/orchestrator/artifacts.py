@@ -5,14 +5,20 @@ from __future__ import annotations
 import json
 import os
 import tempfile
+from collections.abc import Mapping, Sequence
 from pathlib import Path
-from typing import Any, Mapping, Sequence
+from typing import Any
 
+from codeatlas.reliability import BudgetResult, BudgetSession, BudgetStatus
 from codeatlas.verification.redaction import redact_test_output
 
 
 class ArtifactOutputError(ValueError):
     """An artifact cannot be exported safely; messages contain no payloads or paths."""
+
+    def __init__(self, message: str, budget_result: BudgetResult[None] | None = None) -> None:
+        super().__init__(message)
+        self.budget_result = budget_result
 
 
 def _check_destination(path: Path, repository: Path) -> None:
@@ -54,6 +60,7 @@ def write_validation_artifacts(
     repository_root: Path,
     protected_paths: Sequence[str | Path] = (),
     extra_tokens: Sequence[str] = (),
+    budget: BudgetSession | None = None,
 ) -> None:
     """Export the exact report subobjects, without rebuilding or changing them.
 
@@ -112,7 +119,19 @@ def write_validation_artifacts(
             reason = str(error) if isinstance(error, ArtifactOutputError) else type(error).__name__
             raise ArtifactOutputError(f"{option}: cannot export artifact ({reason})") from None
 
+    if budget is not None:
+        result = budget.reserve({
+            "max_artifacts": len(prepared),
+            "max_artifact_bytes": sum(len(content.encode("utf-8")) for _, _, content in prepared),
+        })
+        if result.status != BudgetStatus.COMPLETED:
+            raise ArtifactOutputError("artifact budget preflight failed", result)
+
     for option, path, content in prepared:
+        if budget is not None:
+            result = budget.checkpoint()
+            if result.status != BudgetStatus.COMPLETED:
+                raise ArtifactOutputError("artifact budget checkpoint failed", result)
         temporary: Path | None = None
         try:
             _check_destination(path, repository_root.resolve())
