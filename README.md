@@ -113,6 +113,9 @@ intelligence, and bounded packet assembly; it never executes files in the target
 findings. Use `--no-analyzers` to collect metadata and symbols only. Use `--no-index-repository`
 to disable index construction. The evaluation runner is static and never executes files in a case.
 See `docs/` for scope, architecture, non-goals, threats, limitations, and metrics. Controlled provider modes are documented in [Provider comparison](docs/provider-comparison.md).
+For explicit onboarding, CLI/VS Code setup, dry-run CI, approvals, troubleshooting,
+and cleanup, see [Controlled beta operations](docs/controlled-beta-operations.md)
+and [Beta feedback and report interpretation](docs/controlled-beta-feedback.md).
 
 ## Phase 9C & 9D: GitHub Pull-Request Integration
 

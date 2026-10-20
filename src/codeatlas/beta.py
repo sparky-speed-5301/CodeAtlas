@@ -17,6 +17,8 @@ from urllib.parse import urlparse
 
 from pydantic import BaseModel, ConfigDict, Field, PrivateAttr, model_validator
 
+from codeatlas.beta_execution import BetaExecutionSummary
+from codeatlas.git.errors import GitExecutableError
 from codeatlas.git.executable import git_executable
 from codeatlas.providers.errors import ProviderConfigError
 from codeatlas.service.contract import openapi_document
@@ -176,6 +178,7 @@ class BetaReport(BaseModel):
     ], str | bool] = Field(max_length=6)
     check: BetaCheckReport
     service_diagnostics: ServiceDiagnosticsResponse | None = None
+    execution: BetaExecutionSummary | None = None
     cleanup: dict[Literal[
         "strategy", "automatic_persisted_path_deletion", "foreign_process_termination",
     ], str | bool] = Field(max_length=3)
@@ -232,7 +235,7 @@ def check_beta(config: ControlledBetaConfig) -> BetaCheckReport:
             check=False, timeout=5,
         )
         git_ok = result.returncode == 0
-    except (OSError, subprocess.SubprocessError):
+    except (OSError, subprocess.SubprocessError, GitExecutableError):
         git_ok = False
     checks.append(_check("git", "ok" if git_ok else "error", "git_available" if git_ok else "git_unavailable", "Git is available." if git_ok else "Git is unavailable."))
 
@@ -260,7 +263,7 @@ def check_beta(config: ControlledBetaConfig) -> BetaCheckReport:
                 and provider.api_key_env_var == config.live_provider.api_key_env_var
                 and provider.privacy_mode == config.live_provider.privacy_mode
             )
-        except (OSError, ValueError, ProviderConfigError):
+        except (OSError, TypeError, ValueError, ProviderConfigError):
             config_ok = False
         credential_available = bool(os.environ.get(config.live_provider.api_key_env_var, "").strip())
         available = config_ok and credential_available
@@ -270,7 +273,7 @@ def check_beta(config: ControlledBetaConfig) -> BetaCheckReport:
         detail = "The explicitly selected live-provider configuration and credential are available." if available else (
             "The selected provider configuration is unavailable or does not match the beta selection."
             if not config_ok else
-            "The selected provider credential environment variable is unavailable; no credential value was read or exported."
+            "The selected provider credential environment variable is unavailable; no credential value was exported."
         )
         checks.append(_check("provider", "ok" if available else "error", code, detail))
 
@@ -340,6 +343,7 @@ def build_beta_report(
     *,
     service_url: str | None = None,
     timeout: float | None = None,
+    execution: BetaExecutionSummary | None = None,
 ) -> BetaReport:
     check = check_beta(config)
     diagnostics = None
@@ -365,6 +369,7 @@ def build_beta_report(
         },
         check=check,
         service_diagnostics=diagnostics,
+        execution=execution,
         cleanup={
             "strategy": config.cleanup.strategy,
             "automatic_persisted_path_deletion": False,
@@ -393,7 +398,13 @@ def write_beta_export(report: BaseModel, destination: str | Path) -> None:
         or (hasattr(os.path, "isreserved") and os.path.isreserved(path))
     ):
         raise ValueError("beta export requires a new regular file in an existing unlinked directory")
-    payload = json.dumps(report.model_dump(mode="json"), indent=2, sort_keys=True, allow_nan=False) + "\n"
+    from codeatlas.orchestrator.repair_models import repair_payload_is_safe
+
+    validated = type(report).model_validate_json(report.model_dump_json())
+    data = validated.model_dump(mode="json")
+    if not repair_payload_is_safe(data):
+        raise ValueError("beta export failed the existing secret audit")
+    payload = json.dumps(data, indent=2, sort_keys=True, allow_nan=False) + "\n"
     if len(payload.encode("utf-8")) > MAX_BETA_REPORT_BYTES:
         raise ValueError("beta export exceeds its fixed size bound")
     temporary: Path | None = None

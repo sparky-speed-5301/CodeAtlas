@@ -7,6 +7,8 @@ from typing import Literal
 
 from pydantic import BaseModel, ConfigDict, Field, model_validator
 
+from codeatlas.orchestrator.repair_models import repair_payload_is_safe
+
 from .repository import (
     MetricResult,
     RepositoryBenchmarkCase,
@@ -16,6 +18,12 @@ from .repository import (
 )
 
 CheckStatus = Literal["passed", "failed", "not_run", "unavailable", "blocked", "unsupported"]
+RepairProviderRunMode = Literal["offline", "live", "fallback", "dry_run", "unavailable", "blocked", "not_run"]
+AutofixCategory = Literal["autofix_supported", "requires_more_context", "review_only", "default_abstention", "unsupported"]
+AutofixResult = Literal["generated", "rejected_by_policy", "validated", "tests_passed", "tests_failed", "not_run", "unavailable", "blocked", "applied_after_confirmation", "reverted"]
+RepairEvidenceKind = Literal["contract_fixture", "measured", "unspecified"]
+_REPAIR_DIMENSIONS = ("semantic_correctness", "minimality", "maintainability", "explanation_quality")
+_CHECK_FIELDS = ("syntax", "formatter", "linter", "type_check", "targeted_tests", "full_suite", *_REPAIR_DIMENSIONS)
 RepairLifecycleStatus = Literal[
     "proposal_generated",
     "patch_policy_accepted",
@@ -64,6 +72,19 @@ class RepairObservation(BaseModel):
     cost: float | None = Field(default=None, ge=0)
     lifecycle_statuses: tuple[RepairLifecycleStatus, ...] = ()
     regenerated: bool = False
+    provider_run_mode: RepairProviderRunMode | None = None
+    evidence_kind: RepairEvidenceKind = "unspecified"
+    evidence_source: str | None = Field(default=None, min_length=1, max_length=256, pattern=r"^[A-Za-z0-9][A-Za-z0-9._:/#-]*$")
+    autofix_category: AutofixCategory = "review_only"
+    manual_correction: bool | None = None
+    semantic_correctness: CheckStatus = "not_run"
+    minimality: CheckStatus = "not_run"
+    maintainability: CheckStatus = "not_run"
+    explanation_quality: CheckStatus = "not_run"
+
+    @property
+    def effective_provider_run_mode(self) -> RepairProviderRunMode:
+        return self.provider_run_mode or ("offline" if self.mode == "deterministic" else "live")
 
     @model_validator(mode="after")
     def validate_state(self) -> RepairObservation:
@@ -110,6 +131,10 @@ class RepairObservation(BaseModel):
             raise ValueError("applied_after_confirmation requires confirmed application")
         if "reverted_by_user" in self.lifecycle_statuses and not self.reverted:
             raise ValueError("reverted_by_user requires a reverted patch")
+        if not repair_payload_is_safe(self.model_dump(mode="json")):
+            raise ValueError("repair observation failed the existing secret audit")
+        if self.effective_provider_run_mode in {"unavailable", "blocked", "not_run"} and self.proposal_generated:
+            raise ValueError("unexecuted provider modes cannot claim generation")
         return self
 
 

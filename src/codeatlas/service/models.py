@@ -5,7 +5,9 @@ from __future__ import annotations
 import os
 from typing import Any, Literal
 
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import BaseModel, ConfigDict, Field, model_serializer, model_validator
+
+from codeatlas.findings.models import FeedbackLabel, FeedbackOutcome, FeedbackReason
 
 # Review lifecycle states
 LifecycleState = Literal[
@@ -41,6 +43,19 @@ class HealthResponse(BaseModel):
     active_reviews: int = 0
     provider: Literal["mock", "live", "deterministic", "mixed"] = "deterministic"
     api_version: Literal["1"] = "1"
+
+
+class StorageHealthResponse(BaseModel):
+    """Fixed-size storage observations without database or repository details."""
+
+    model_config = ConfigDict(extra="forbid", strict=True)
+
+    state_lifetime: Literal["process", "persistent"]
+    status: Literal["ok", "error", "not_applicable"]
+    code: Literal[
+        "ok", "not_applicable", "corrupted_database", "migration_invalid",
+        "database_unavailable",
+    ]
 
 
 class ErrorResponse(BaseModel):
@@ -111,7 +126,9 @@ class FindingSummary(BaseModel):
     quality_score: float = Field(default=0.0, ge=0, le=1)
     ambiguity_score: float = Field(default=0.0, ge=0, le=1)
     unsupported_flow: bool = False
-    feedback: str | None = None
+    feedback: FeedbackLabel | None = None
+    feedback_outcome: FeedbackOutcome | None = None
+    feedback_reason: FeedbackReason | None = None
 
 
 class ReviewStatusResponse(BaseModel):
@@ -228,24 +245,39 @@ class FindingDetailResponse(BaseModel):
     quality_score: float = Field(default=0.0, ge=0, le=1)
     score_components: dict[str, float] = Field(default_factory=dict)
     quality_limitations: list[str] = Field(default_factory=list)
-    feedback: str | None = None
+    feedback: FeedbackLabel | None = None
+    feedback_outcome: FeedbackOutcome | None = None
+    feedback_reason: FeedbackReason | None = None
     context: FindingContext = Field(default_factory=FindingContext)
 
 
-FeedbackLabel = Literal[
-    "useful",
-    "not_useful",
-    "false_positive",
-    "accepted",
-    "dismissed",
-    "needs_more_context",
-]
-
-
 class FindingFeedbackRequest(BaseModel):
-    """Explicit, reversible repository-scoped feedback for one finding."""
+    """Enum-only feedback; an empty request clears legacy and structured metadata."""
+
+    model_config = ConfigDict(extra="forbid", strict=True)
 
     feedback: FeedbackLabel | None = None
+    outcome: FeedbackOutcome | None = None
+    reason: FeedbackReason | None = None
+
+    @model_validator(mode="after")
+    def coherent_feedback(self) -> FindingFeedbackRequest:
+        if self.feedback is not None and self.outcome is not None and self.feedback != self.outcome:
+            raise ValueError("Feedback and outcome must agree")
+        if self.reason is not None and self.outcome is None and self.feedback is None:
+            raise ValueError("A reason requires feedback")
+        return self
+
+    @property
+    def effective_feedback(self) -> FeedbackLabel | None:
+        return self.outcome if self.outcome is not None else self.feedback
+
+    @property
+    def effective_outcome(self) -> FeedbackOutcome | None:
+        from typing import get_args
+
+        label = self.effective_feedback
+        return label if label in get_args(FeedbackOutcome) else None
 
 
 class FindingFeedbackResponse(BaseModel):
@@ -254,7 +286,28 @@ class FindingFeedbackResponse(BaseModel):
     repository: str
     feedback: FeedbackLabel | None = None
     previous_feedback: FeedbackLabel | None = None
+    outcome: FeedbackOutcome | None = None
+    reason: FeedbackReason | None = None
+    previous_outcome: FeedbackOutcome | None = None
+    previous_reason: FeedbackReason | None = None
     reversed: bool = False
+    changed: bool = False
+
+
+class FixProposalFeedbackRequest(FindingFeedbackRequest):
+    run_id: str = Field(min_length=1, max_length=256)
+    finding_id: str = Field(min_length=1, max_length=256)
+    proposal_id: str = Field(min_length=1, max_length=256)
+
+    @model_validator(mode="after")
+    def structured_only(self) -> FixProposalFeedbackRequest:
+        if self.feedback is not None and self.effective_outcome is None:
+            raise ValueError("Proposal feedback requires a structured outcome")
+        return self
+
+
+class FixProposalFeedbackResponse(FindingFeedbackResponse):
+    proposal_id: str
 
 
 class CancelResponse(BaseModel):
@@ -408,6 +461,18 @@ class FixProposalResponse(BaseModel):
     human_approval_manifest: dict[str, Any] | None = None
     validation_history: list[str] = Field(default_factory=list)
     recovery_state: RecoveryState = "not_required"
+    feedback: FeedbackOutcome | None = None
+    feedback_outcome: FeedbackOutcome | None = None
+    feedback_reason: FeedbackReason | None = None
+
+    @model_serializer(mode="wrap")
+    def serialize_feedback(self, handler: Any) -> dict[str, Any]:
+        data = handler(self)
+        # Unannotated proposals retain the legacy preview schema shape.
+        if self.feedback is None and self.feedback_outcome is None and self.feedback_reason is None:
+            for key in ("feedback", "feedback_outcome", "feedback_reason"):
+                data.pop(key, None)
+        return data
 
 
 class FixValidationApprovalRequest(BaseModel):

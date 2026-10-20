@@ -6,12 +6,26 @@ from typing import Any, Literal
 
 from pydantic import BaseModel, ConfigDict, Field, field_validator
 
-
 Severity = Literal["info", "low", "medium", "high", "blocker"]
 EvidenceStrength = Literal["none", "weak", "supported", "strong", "reproduced"]
 QualityDecision = Literal[
     "report", "report_with_uncertainty", "review_only", "abstain",
     "suppress_duplicate", "suppress_low_evidence",
+]
+
+
+FeedbackOutcome = Literal[
+    "accepted", "rejected", "needs_more_context", "needs_regeneration", "abstained", "not_evaluated",
+]
+FeedbackReason = Literal[
+    "correct", "false_positive", "wrong_severity", "wrong_location", "duplicate",
+    "unclear_explanation", "insufficient_evidence", "unsafe_fix", "incorrect_fix",
+    "insufficient_context", "tests_failed", "unsupported_language", "not_fixable",
+    "conflict", "user_cancelled",
+]
+FeedbackLabel = Literal[
+    "useful", "not_useful", "false_positive", "accepted", "dismissed", "needs_more_context",
+    "rejected", "needs_regeneration", "abstained", "not_evaluated",
 ]
 
 
@@ -57,14 +71,9 @@ class Finding(BaseModel):
     quality_score: float = Field(default=0.0, ge=0, le=1)
     score_components: dict[str, float] = Field(default_factory=dict)
     quality_limitations: list[str] = Field(default_factory=list)
-    feedback: Literal[
-        "useful",
-        "not_useful",
-        "false_positive",
-        "accepted",
-        "dismissed",
-        "needs_more_context",
-    ] | None = None
+    feedback: FeedbackLabel | None = None
+    feedback_outcome: FeedbackOutcome | None = None
+    feedback_reason: FeedbackReason | None = None
 
     @field_validator("end_line")
     @classmethod

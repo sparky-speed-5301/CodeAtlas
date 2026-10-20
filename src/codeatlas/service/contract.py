@@ -9,6 +9,7 @@ from typing import Any
 from pydantic import BaseModel
 
 from codeatlas import __version__
+from codeatlas.beta_feedback import BetaFeedbackExport
 from codeatlas.service import models as m
 
 API_VERSION = "1"
@@ -34,12 +35,15 @@ FINDING = "/reviews/{run_id}/findings/{finding_id}"
 FIX = FINDING + "/fix-proposal"
 ENDPOINTS = (
     Endpoint("GET", "/health", "health", m.HealthResponse),
+    Endpoint("GET", "/diagnostics/storage", "storageHealth", m.StorageHealthResponse),
     Endpoint("GET", "/capabilities", "capabilities", m.CapabilitiesResponse),
     Endpoint("GET", "/openapi.json", "openapi"),
     Endpoint("GET", "/reviews", "listReviews", m.ReviewsListResponse, query=("limit", "offset")),
     Endpoint("POST", "/reviews", "startReview", m.ReviewStatusResponse, m.ReviewCreateRequest, 201),
     Endpoint("GET", "/reviews/{run_id}", "getReview", m.ReviewStatusResponse),
     Endpoint("GET", "/reviews/{run_id}/events", "getReviewEvents", m.ReviewEventsResponse),
+    Endpoint("GET", "/reviews/{run_id}/beta-feedback", "exportBetaFeedback", BetaFeedbackExport,
+             query=("repository_identity",)),
     Endpoint("POST", "/reviews/{run_id}/cancel", "cancelReview", m.CancelResponse),
     Endpoint("POST", "/reviews/{run_id}/retry", "retryReview", m.ReviewStatusResponse, status=201),
     Endpoint("GET", "/reviews/{run_id}/findings", "listFindings", m.FindingsListResponse,
@@ -57,6 +61,8 @@ ENDPOINTS = (
     Endpoint("POST", FIX, "generateFix", m.FixProposalResponse, m.FixProposalRequest, 201),
     Endpoint("POST", FIX + "/regenerate", "regenerateFix", m.FixProposalResponse, m.FixProposalRequest, 201),
     Endpoint("POST", FIX + "/reject", "rejectFix", m.FixProposalResponse, m.FixRejectRequest),
+    Endpoint("POST", FIX + "/feedback", "setFixFeedback",
+             m.FixProposalFeedbackResponse, m.FixProposalFeedbackRequest),
     Endpoint("POST", FIX + "/approve-validation", "approveFixValidation",
              m.FixValidationApprovalResponse, m.FixValidationApprovalRequest),
     Endpoint("POST", FIX + "/validate", "validateFix", m.FixValidationResponse, m.FixValidationRequest),
@@ -121,6 +127,9 @@ def openapi_document() -> dict[str, Any]:
                 **{str(code): error for code in (400, 404, 405, 409, 413, 429, 500)},
             },
         }
+        if item.operation == "storageHealth":
+            operation["description"] = "Read-only, bounded storage observations; loopback peers only."
+            operation["responses"]["403"] = error
         if item.request:
             operation["requestBody"] = {"required": True, "content": {
                 "application/json": {"schema": schema(item.request, request=True)}}}

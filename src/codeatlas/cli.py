@@ -212,16 +212,41 @@ def beta_report(
     config: Optional[str] = typer.Option(None, "--config", help="Strict controlled-beta JSON configuration."),
     service: bool = typer.Option(False, "--service", help="Include bounded read-only diagnostics from the configured loopback service."),
     output: Optional[str] = typer.Option(None, "--output", help="Write the bounded report to a new JSON file."),
+    session: list[str] | None = typer.Option(None, "--session", help="Explicit session record; repeat at most 50 times."),
+    onboarding: str | None = typer.Option(None, "--onboarding", help="Explicit bounded onboarding JSON evidence."),
+    incidents: str | None = typer.Option(None, "--incidents", help="Explicit repository-scoped incident store."),
+    repository: str | None = typer.Option(None, "--repository", help="Repository used only to verify incident scope."),
+    feedback: list[str] | None = typer.Option(None, "--feedback", help="Explicit safe feedback export; repeat at most 50 times."),
 ) -> None:
-    """Report beta configuration, diagnostics, cleanup policy, and known limitations."""
+    """Report configuration and explicitly supplied safe beta execution evidence."""
     from codeatlas.beta import build_beta_report, load_beta_config, write_beta_export
+    from codeatlas.beta_execution import load_onboarding_evidence, summarize_execution
+    from codeatlas.beta_session import BetaSessionStore
 
     try:
+        if len(session or []) > 50:
+            raise ValueError("too many beta session inputs")
+        if (incidents is None) != (repository is None):
+            raise ValueError("incident evidence requires both --incidents and --repository")
+        incident_report = None
+        if incidents is not None and repository is not None:
+            from codeatlas.beta_incidents import BetaIncidentStore
+            incident_report = BetaIncidentStore(incidents, repository=repository).load()
+        if len(feedback or []) > 50:
+            raise ValueError("too many feedback inputs")
+        from codeatlas.beta_execution import load_feedback_evidence
+        execution = summarize_execution(
+            tuple(BetaSessionStore(path).load() for path in (session or [])),
+            onboarding=load_onboarding_evidence(onboarding) if onboarding else None,
+            incidents=incident_report,
+            feedback=tuple(load_feedback_evidence(path) for path in (feedback or [])),
+        )
         opts = options(ctx)
         report = build_beta_report(
             load_beta_config(config),
             service_url=opts.service_url if service else None,
             timeout=opts.timeout if service else None,
+            execution=execution,
         )
         if output:
             write_beta_export(report, output)
@@ -231,6 +256,525 @@ def beta_report(
     emit(ctx, report)
     if report.status == "blocked":
         raise typer.Exit(code=1)
+
+
+@app.command("beta-onboard")
+def beta_onboard(
+    ctx: typer.Context,
+    repo: str = typer.Option(..., "--repo", help="Controlled local Git repository."),
+    base: str = typer.Option(..., "--base", help="Base revision to resolve without fetching."),
+    head: str = typer.Option("HEAD", "--head", help="Head revision to resolve without fetching."),
+    config: str | None = typer.Option(None, "--config", help="Strict controlled-beta JSON configuration."),
+    expected_repository_id: str | None = typer.Option(None, "--expected-repository-id"),
+    expected_base_sha: str | None = typer.Option(None, "--expected-base-sha"),
+    expected_head_sha: str | None = typer.Option(None, "--expected-head-sha"),
+    allow_live_provider: bool = typer.Option(False, "--allow-live-provider"),
+    service: bool = typer.Option(False, "--service", help="Probe the explicitly configured loopback service."),
+    extension_version: str | None = typer.Option(None, "--extension-version", help="Installed extension version for compatibility checking."),
+    github_repository: str | None = typer.Option(None, "--github-repo", help="Explicitly authorize read-only PR metadata probing for OWNER/REPO."),
+    github_pr: int | None = typer.Option(None, "--github-pr"),
+    output: str | None = typer.Option(None, "--output", help="Export to a new bounded JSON file without overwriting."),
+) -> None:
+    """Check controlled-repository onboarding without tests, live requests, or remote writes."""
+    from codeatlas.beta import write_beta_export
+    from codeatlas.onboarding import OnboardingRequest, onboard_repository
+
+    try:
+        opts = options(ctx)
+        request = OnboardingRequest(
+            repository=repo, base=base, head=head,
+            expected_repository_id=expected_repository_id,
+            expected_base_sha=expected_base_sha, expected_head_sha=expected_head_sha,
+            allow_live_provider=allow_live_provider,
+            service_url=opts.service_url if service else None,
+            extension_version=extension_version,
+            github_repository=github_repository, github_pr=github_pr,
+            timeout_seconds=min(opts.timeout, 30.0),
+        )
+        report = onboard_repository(request, config_path=config)
+        if output:
+            write_beta_export(report, output)
+    except (OSError, TypeError, ValueError) as error:
+        typer.echo("Error [invalid_beta_configuration]: Onboarding input or export is unavailable or invalid.", err=True)
+        raise typer.Exit(code=2) from error
+    emit(ctx, report)
+    if report.status == "blocked":
+        raise typer.Exit(code=1)
+    if report.status == "unavailable":
+        raise typer.Exit(code=4)
+
+
+beta_session_app = typer.Typer(help="Run explicit, metadata-only controlled-beta session stages.")
+app.add_typer(beta_session_app, name="beta-session")
+
+
+class _BetaSessionScopeError(ValueError):
+    pass
+
+
+class _BetaSessionTerminalError(ValueError):
+    pass
+
+
+def _load_beta_session(path: str):
+    from codeatlas.beta_session import BetaSessionRunner, BetaSessionStore
+
+    store = BetaSessionStore(path)
+    return store, BetaSessionRunner(store.load())
+
+
+def _beta_exit_code(runner) -> int:
+    result = runner.session.events[-1].result
+    if result in {"blocked", "failed"}:
+        return 1
+    if result == "unavailable":
+        return 4
+    return 0
+
+
+def _save_beta_session(ctx: typer.Context, store, runner) -> None:
+    store.save(runner.session)
+    emit(ctx, runner.session)
+
+
+def _save_beta_result(ctx: typer.Context, store, runner) -> None:
+    _save_beta_session(ctx, store, runner)
+    if (code := _beta_exit_code(runner)):
+        raise typer.Exit(code=code)
+
+
+def _require_active_beta_session(runner) -> None:
+    if runner.session.lifecycle_status != "active":
+        raise _BetaSessionTerminalError("terminal beta sessions cannot contact the service")
+
+
+def _verify_service_review_scope(client, runner, run_id: str) -> None:
+    from codeatlas.service.persistence import repository_id
+
+    status = client.get_review(run_id)
+    if (status.run_id != run_id
+            or repository_id(status.repository) != runner.session.repository_identity_hash
+            or status.base_commit != runner.session.base_sha
+            or status.head_commit != runner.session.head_sha):
+        raise _BetaSessionScopeError("service review does not match the beta session")
+
+
+def _verify_service_proposal_scope(client, runner, run_id: str, finding_id: str, proposal_id: str):
+    _verify_service_review_scope(client, runner, run_id)
+    proposal = client.get_fix(run_id, finding_id, proposal_id)
+    from codeatlas.service.persistence import repository_id
+
+    if (proposal.run_id != run_id or proposal.finding_id != finding_id
+            or proposal.proposal_id != proposal_id
+            or repository_id(proposal.repository) != runner.session.repository_identity_hash
+            or proposal.base_commit != runner.session.base_sha
+            or proposal.head_commit != runner.session.head_sha
+            or proposal.patch_hash != runner.session.patch_hash):
+        raise _BetaSessionScopeError("service proposal does not match the beta session")
+    return proposal
+
+
+def _record_service_failure(ctx: typer.Context, store, runner, stage: str, error) -> None:
+    from codeatlas.beta_session import SessionStage
+
+    runner.record_service_failure(
+        stage=cast(SessionStage, stage), timed_out=error.code in {"timeout", "wait_timeout"},
+    )
+    _save_beta_result(ctx, store, runner)
+
+
+def _record_scope_failure(ctx: typer.Context, store, runner, stage: str) -> None:
+    from codeatlas.beta_session import SessionStage
+
+    runner.record_service_failure(
+        stage=cast(SessionStage, stage), blocked=True, failure_code="session_scope_mismatch",
+    )
+    _save_beta_result(ctx, store, runner)
+
+
+@beta_session_app.command("create")
+def beta_session_create(
+    ctx: typer.Context,
+    session: str = typer.Option(..., "--session", help="New explicit session metadata file."),
+    repo: str = typer.Option(..., "--repo"),
+    base: str = typer.Option(..., "--base"),
+    head: str = typer.Option("HEAD", "--head"),
+    case_id: str = typer.Option(..., "--case-id"),
+    language: str = typer.Option(..., "--language"),
+    config: str | None = typer.Option(None, "--config"),
+    allow_live_provider: bool = typer.Option(False, "--allow-live-provider"),
+) -> None:
+    """Create one session only after bounded repository onboarding succeeds."""
+    from codeatlas.beta import load_beta_config
+    from codeatlas.beta_session import BetaSessionRunner, BetaSessionStore
+    from codeatlas.onboarding import OnboardingRequest, onboard_repository
+
+    try:
+        selected = load_beta_config(config)
+        report = onboard_repository(OnboardingRequest(
+            repository=repo, base=base, head=head, allow_live_provider=allow_live_provider,
+            timeout_seconds=min(options(ctx).timeout, 30.0),
+        ), config_path=config)
+        if not report.beta_ready or report.base_sha is None or report.head_sha is None:
+            typer.echo("Error [session_not_authorized]: Repository onboarding did not authorize a session.", err=True)
+            raise typer.Exit(code=1 if report.status == "blocked" else 4)
+        if language not in report.languages:
+            typer.echo("Error [unsupported_language]: The selected language was not detected in committed source.", err=True)
+            raise typer.Exit(code=1)
+        runner = BetaSessionRunner.create(repository=repo, case_id=case_id, language=language,
+                                          base_sha=report.base_sha, head_sha=report.head_sha, config=selected)
+        BetaSessionStore(session).create(runner.session)
+    except typer.Exit:
+        raise
+    except (OSError, TypeError, ValueError, json.JSONDecodeError) as error:
+        typer.echo("Error [invalid_session]: The bounded beta session could not be created.", err=True)
+        raise typer.Exit(code=2) from error
+    emit(ctx, runner.session)
+
+
+@beta_session_app.command("review")
+def beta_session_review(ctx: typer.Context, session: str = typer.Option(..., "--session"),
+                        repo: str = typer.Option(..., "--repo"), config: str | None = typer.Option(None, "--config"),
+                        allow_live_provider: bool = typer.Option(False, "--allow-live-provider")) -> None:
+    """Run exactly one offline or explicitly authorized live review stage."""
+    from codeatlas.beta import load_beta_config
+
+    try:
+        store, runner = _load_beta_session(session)
+        selected = load_beta_config(config)
+        if runner.session.provider_mode == "live":
+            runner.run_live_review(repository=repo, config=selected, allow_live_provider=allow_live_provider)
+        else:
+            runner.run_offline_review(repository=repo)
+        _save_beta_result(ctx, store, runner)
+    except typer.Exit:
+        raise
+    except (OSError, TypeError, ValueError, json.JSONDecodeError) as error:
+        typer.echo("Error [review_stage_failed]: The selected review stage could not complete.", err=True)
+        raise typer.Exit(code=1) from error
+
+
+@beta_session_app.command("github-dry-run")
+def beta_session_github_dry_run(ctx: typer.Context, session: str = typer.Option(..., "--session"),
+                                repo: str = typer.Option(..., "--repo"),
+                                github_repository: str = typer.Option(..., "--github-repo"),
+                                pull_request: int = typer.Option(..., "--github-pr", min=1)) -> None:
+    """Run a read-only GitHub review with zero write calls."""
+    try:
+        store, runner = _load_beta_session(session)
+        runner.run_github_dry_run(repository=repo, github_repository=github_repository, pull_request=pull_request)
+        _save_beta_result(ctx, store, runner)
+    except typer.Exit:
+        raise
+    except (OSError, TypeError, ValueError, json.JSONDecodeError) as error:
+        typer.echo("Error [github_review_failed]: The GitHub dry-run stage could not complete.", err=True)
+        raise typer.Exit(code=1) from error
+
+
+@beta_session_app.command("propose")
+def beta_session_propose(ctx: typer.Context, session: str = typer.Option(..., "--session"),
+                         run_id: str = typer.Option(..., "--run-id"), finding_id: str = typer.Option(..., "--finding-id")) -> None:
+    """Generate one draft FixProposal through the loopback service."""
+    from codeatlas.client import ClientError, CodeAtlasClient
+
+    try:
+        store, runner = _load_beta_session(session)
+        _require_active_beta_session(runner)
+        opts = options(ctx)
+        client = CodeAtlasClient(opts.service_url, timeout=opts.timeout)
+        _verify_service_review_scope(client, runner, run_id)
+        proposal = client.generate_fix(run_id, finding_id)
+        from codeatlas.service.persistence import repository_id
+
+        if (
+            proposal.run_id != run_id
+            or proposal.finding_id != finding_id
+            or repository_id(proposal.repository) != runner.session.repository_identity_hash
+            or proposal.base_commit != runner.session.base_sha
+            or proposal.head_commit != runner.session.head_sha
+        ):
+            raise _BetaSessionScopeError("generated proposal does not match the beta session")
+        runner.record_fix_proposal(
+            available=proposal.generation_status == "draft_ready",
+            context_hash=None,
+            patch_hash=proposal.patch_hash or None,
+        )
+        _save_beta_result(ctx, store, runner)
+    except typer.Exit:
+        raise
+    except ClientError as error:
+        _record_service_failure(ctx, store, runner, "fix_proposal", error)
+    except _BetaSessionScopeError:
+        _record_scope_failure(ctx, store, runner, "fix_proposal")
+    except _BetaSessionTerminalError:
+        typer.echo("Error [terminal_session]: Terminal sessions cannot contact the service.", err=True)
+        raise typer.Exit(code=1) from None
+    except (OSError, TypeError, ValueError, json.JSONDecodeError) as error:
+        typer.echo("Error [invalid_session_input]: The proposal stage could not be completed.", err=True)
+        raise typer.Exit(code=2) from error
+
+
+def _service_scoped_validation(ctx: typer.Context, session: str, run_id: str, finding_id: str, proposal_id: str):
+    from codeatlas.client import CodeAtlasClient
+
+    store, runner = _load_beta_session(session)
+    _require_active_beta_session(runner)
+    opts = options(ctx)
+    client = CodeAtlasClient(opts.service_url, timeout=opts.timeout)
+    _verify_service_proposal_scope(client, runner, run_id, finding_id, proposal_id)
+    return store, runner, client
+
+
+@beta_session_app.command("approve-validation")
+def beta_session_approve_validation(ctx: typer.Context, session: str = typer.Option(..., "--session"),
+                                    run_id: str = typer.Option(..., "--run-id"), finding_id: str = typer.Option(..., "--finding-id"),
+                                    proposal_id: str = typer.Option(..., "--proposal-id"),
+                                    approval_token: str = typer.Option(..., "--approval-token", hide_input=True)) -> None:
+    """Verify an existing validate-scoped token without persisting it."""
+    from codeatlas.client import ClientError
+    from codeatlas.service.models import FixValidationApprovalRequest
+
+    try:
+        store, runner, client = _service_scoped_validation(ctx, session, run_id, finding_id, proposal_id)
+        response = client.approve_fix_validation(FixValidationApprovalRequest(
+            run_id=run_id, finding_id=finding_id, proposal_id=proposal_id, approval_token=approval_token))
+        runner.record_validation_approval(approved=response.approval_verified)
+        _save_beta_result(ctx, store, runner)
+    except typer.Exit:
+        raise
+    except ClientError as error:
+        _record_service_failure(ctx, store, runner, "validation_approval", error)
+    except _BetaSessionScopeError:
+        _record_scope_failure(ctx, store, runner, "validation_approval")
+    except _BetaSessionTerminalError:
+        typer.echo("Error [terminal_session]: Terminal sessions cannot contact the service.", err=True)
+        raise typer.Exit(code=1) from None
+    except (OSError, TypeError, ValueError, json.JSONDecodeError) as error:
+        typer.echo("Error [invalid_session_input]: Validation approval could not be completed.", err=True)
+        raise typer.Exit(code=2) from error
+
+
+@beta_session_app.command("validate")
+def beta_session_validate(ctx: typer.Context, session: str = typer.Option(..., "--session"),
+                          run_id: str = typer.Option(..., "--run-id"), finding_id: str = typer.Option(..., "--finding-id"),
+                          proposal_id: str = typer.Option(..., "--proposal-id"),
+                          approval_token: str = typer.Option(..., "--approval-token", hide_input=True)) -> None:
+    """Run only approved isolated validation; this command never runs tests."""
+    from codeatlas.beta_session import CleanupStatus
+    from codeatlas.client import ClientError
+    from codeatlas.service.models import FixValidationRequest
+
+    try:
+        store, runner, client = _service_scoped_validation(ctx, session, run_id, finding_id, proposal_id)
+        response = client.validate_fix(FixValidationRequest(
+            run_id=run_id, finding_id=finding_id, proposal_id=proposal_id, approval_token=approval_token,
+            run_tests=False, run_full_suite=False))
+        cleanup_status = response.cleanup_status if response.cleanup_status in {
+            "completed", "retained", "not_applicable", "failed",
+        } else "not_run"
+        runner.record_validation(
+            passed=response.valid and response.approval_verified,
+            cleanup_status=cast(CleanupStatus, cleanup_status),
+        )
+        _save_beta_result(ctx, store, runner)
+    except typer.Exit:
+        raise
+    except ClientError as error:
+        _record_service_failure(ctx, store, runner, "validation", error)
+    except _BetaSessionScopeError:
+        _record_scope_failure(ctx, store, runner, "validation")
+    except _BetaSessionTerminalError:
+        typer.echo("Error [terminal_session]: Terminal sessions cannot contact the service.", err=True)
+        raise typer.Exit(code=1) from None
+    except (OSError, TypeError, ValueError, json.JSONDecodeError) as error:
+        typer.echo("Error [invalid_session_input]: Validation could not be completed.", err=True)
+        raise typer.Exit(code=2) from error
+
+
+@beta_session_app.command("targeted-tests")
+def beta_session_targeted_tests(
+    ctx: typer.Context, session: str = typer.Option(..., "--session"),
+    run_id: str = typer.Option(..., "--run-id"), finding_id: str = typer.Option(..., "--finding-id"),
+    proposal_id: str = typer.Option(..., "--proposal-id"),
+    approval_token: str = typer.Option(..., "--approval-token", hide_input=True),
+) -> None:
+    """Explicitly request policy-allowed targeted tests during isolated validation."""
+    from codeatlas.beta_session import CleanupStatus, ResultStatus
+    from codeatlas.client import ClientError
+    from codeatlas.service.models import FixValidationRequest
+
+    try:
+        store, runner, client = _service_scoped_validation(ctx, session, run_id, finding_id, proposal_id)
+        response = client.validate_fix(FixValidationRequest(
+            run_id=run_id, finding_id=finding_id, proposal_id=proposal_id, approval_token=approval_token,
+            run_tests=True, run_full_suite=False))
+        cleanup_status = response.cleanup_status if response.cleanup_status in {
+            "completed", "retained", "not_applicable", "failed",
+        } else "not_run"
+        runner.record_validation(
+            passed=response.valid and response.approval_verified,
+            cleanup_status=cast(CleanupStatus, cleanup_status),
+        )
+        test_result = response.tests_status if response.tests_status in {
+            "passed", "blocked", "unavailable", "not_run",
+        } else "failed"
+        runner.record_targeted_tests(result=cast(ResultStatus, test_result))
+        _save_beta_result(ctx, store, runner)
+    except typer.Exit:
+        raise
+    except ClientError as error:
+        _record_service_failure(ctx, store, runner, "targeted_tests", error)
+    except _BetaSessionScopeError:
+        _record_scope_failure(ctx, store, runner, "targeted_tests")
+    except _BetaSessionTerminalError:
+        typer.echo("Error [terminal_session]: Terminal sessions cannot contact the service.", err=True)
+        raise typer.Exit(code=1) from None
+    except (OSError, TypeError, ValueError, json.JSONDecodeError) as error:
+        typer.echo("Error [invalid_session_input]: Targeted tests could not be completed.", err=True)
+        raise typer.Exit(code=2) from error
+
+
+@beta_session_app.command("apply")
+def beta_session_apply(ctx: typer.Context, session: str = typer.Option(..., "--session"),
+                       run_id: str = typer.Option(..., "--run-id"), finding_id: str = typer.Option(..., "--finding-id"),
+                       proposal_id: str = typer.Option(..., "--proposal-id"),
+                       confirmed_patch_hash: str = typer.Option(..., "--confirmed-patch-hash"),
+                       approval_token: str = typer.Option(..., "--approval-token", hide_input=True),
+                       approve_apply: bool = typer.Option(False, "--approve-apply")) -> None:
+    """Apply only with an explicit flag, existing apply token, and exact patch hash."""
+    from codeatlas.client import ClientError
+    from codeatlas.service.models import FixApplyRequest
+
+    try:
+        store, runner = _load_beta_session(session)
+        _require_active_beta_session(runner)
+        if not approve_apply or runner.session.validation_result != "passed" or confirmed_patch_hash != runner.session.patch_hash:
+            runner.record_apply(status="blocked", explicitly_approved=False)
+            _save_beta_result(ctx, store, runner)
+            return
+        opts = options(ctx)
+        from codeatlas.client import CodeAtlasClient
+
+        client = CodeAtlasClient(opts.service_url, timeout=opts.timeout)
+        _verify_service_proposal_scope(client, runner, run_id, finding_id, proposal_id)
+        response = client.apply_fix(FixApplyRequest(
+            run_id=run_id, finding_id=finding_id, proposal_id=proposal_id, approval_token=approval_token,
+            confirmed_patch_hash=confirmed_patch_hash))
+        runner.record_apply(status="applied" if response.apply_status == "applied" else "not_applied",
+                            explicitly_approved=response.approval_verified)
+        _save_beta_result(ctx, store, runner)
+    except typer.Exit:
+        raise
+    except ClientError as error:
+        _record_service_failure(ctx, store, runner, "apply", error)
+    except _BetaSessionScopeError:
+        _record_scope_failure(ctx, store, runner, "apply")
+    except _BetaSessionTerminalError:
+        typer.echo("Error [terminal_session]: Terminal sessions cannot contact the service.", err=True)
+        raise typer.Exit(code=1) from None
+    except (OSError, TypeError, ValueError, json.JSONDecodeError) as error:
+        typer.echo("Error [invalid_session_input]: Explicit apply could not be completed.", err=True)
+        raise typer.Exit(code=2) from error
+
+
+@beta_session_app.command("revert")
+def beta_session_revert(ctx: typer.Context, session: str = typer.Option(..., "--session"),
+                        run_id: str = typer.Option(..., "--run-id"), finding_id: str = typer.Option(..., "--finding-id"),
+                        proposal_id: str = typer.Option(..., "--proposal-id"),
+                        confirmed_patch_hash: str = typer.Option(..., "--confirmed-patch-hash")) -> None:
+    """Restore exact pre-apply bytes only for the session's applied proposal."""
+    from codeatlas.client import ClientError
+    from codeatlas.service.models import FixRevertRequest
+
+    try:
+        store, runner, client = _service_scoped_validation(ctx, session, run_id, finding_id, proposal_id)
+        if runner.session.apply_status != "applied" or confirmed_patch_hash != runner.session.patch_hash:
+            runner.record_revert(status="blocked")
+            _save_beta_result(ctx, store, runner)
+            return
+        response = client.revert_fix(FixRevertRequest(
+            run_id=run_id, finding_id=finding_id, proposal_id=proposal_id,
+            confirmed_patch_hash=confirmed_patch_hash))
+        runner.record_revert(status="reverted" if response.apply_status == "reverted" else "failed")
+        _save_beta_result(ctx, store, runner)
+    except typer.Exit:
+        raise
+    except ClientError as error:
+        _record_service_failure(ctx, store, runner, "revert", error)
+    except _BetaSessionScopeError:
+        _record_scope_failure(ctx, store, runner, "revert")
+    except _BetaSessionTerminalError:
+        typer.echo("Error [terminal_session]: Terminal sessions cannot contact the service.", err=True)
+        raise typer.Exit(code=1) from None
+    except (OSError, TypeError, ValueError, json.JSONDecodeError) as error:
+        typer.echo("Error [invalid_session_input]: Revert could not be completed.", err=True)
+        raise typer.Exit(code=2) from error
+
+
+@beta_session_app.command("inspect")
+def beta_session_inspect(ctx: typer.Context, session: str = typer.Option(..., "--session")) -> None:
+    """Display one safe persisted beta-session projection."""
+    try:
+        _store, runner = _load_beta_session(session)
+    except (OSError, TypeError, ValueError, json.JSONDecodeError) as error:
+        typer.echo("Error [invalid_session]: Session inspection failed.", err=True)
+        raise typer.Exit(code=2) from error
+    emit(ctx, runner.session)
+
+
+@beta_session_app.command("complete")
+def beta_session_complete(ctx: typer.Context, session: str = typer.Option(..., "--session")) -> None:
+    """Mark an active beta session complete without service work."""
+    try:
+        store, runner = _load_beta_session(session)
+        runner.complete()
+        _save_beta_result(ctx, store, runner)
+    except typer.Exit:
+        raise
+    except (OSError, TypeError, ValueError, json.JSONDecodeError) as error:
+        typer.echo("Error [session_completion_failed]: Session completion could not be recorded.", err=True)
+        raise typer.Exit(code=1) from error
+
+
+@beta_session_app.command("retry")
+def beta_session_retry(ctx: typer.Context, session: str = typer.Option(..., "--session")) -> None:
+    """Record one explicit retry decision without executing work."""
+    try:
+        store, runner = _load_beta_session(session)
+        runner.retry()
+        _save_beta_result(ctx, store, runner)
+    except typer.Exit:
+        raise
+    except (OSError, TypeError, ValueError, json.JSONDecodeError) as error:
+        typer.echo("Error [retry_failed]: Retry could not be recorded.", err=True)
+        raise typer.Exit(code=1) from error
+
+
+@beta_session_app.command("cancel")
+def beta_session_cancel(ctx: typer.Context, session: str = typer.Option(..., "--session")) -> None:
+    """Cancel a session without starting or cancelling hidden work."""
+    try:
+        store, runner = _load_beta_session(session)
+        runner.cancel()
+        _save_beta_result(ctx, store, runner)
+    except typer.Exit:
+        raise
+    except (OSError, TypeError, ValueError, json.JSONDecodeError) as error:
+        typer.echo("Error [session_cancelled]: Session cancellation could not be recorded.", err=True)
+        raise typer.Exit(code=1) from error
+
+
+@beta_session_app.command("export")
+def beta_session_export(ctx: typer.Context, session: str = typer.Option(..., "--session"),
+                        output: str = typer.Option(..., "--output")) -> None:
+    """Export a bounded safe snapshot to a new file without overwriting."""
+    try:
+        _store, runner = _load_beta_session(session)
+        runner.export(output)
+    except (OSError, TypeError, ValueError, json.JSONDecodeError) as error:
+        typer.echo("Error [session_export_failed]: Session export failed.", err=True)
+        raise typer.Exit(code=2) from error
+    emit(ctx, runner.session)
 
 
 @app.command()

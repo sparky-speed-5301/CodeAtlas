@@ -1,8 +1,8 @@
 """Measured repair quality without executing repository code.
 
 The benchmark distinguishes patch production from patch usefulness.  A
-candidate is useful only when it is parseable, scoped, syntax-safe, and (when
-the case provides one) produces the expected source.  Repository benchmarking
+candidate is useful only when it is parseable, scoped, syntax-safe, and matches
+an explicit expected-source oracle. Oracle agreement is not correctness proof.  Repository benchmarking
 reads declared files from a real checkout but never invokes a provider or a
 command.
 """
@@ -144,7 +144,7 @@ def benchmark_candidate(case: RepairBenchmarkCase, candidate: RepairOutput | dic
             reason="syntax_validation_failed",
         )
     expected = None if case.expected_source is None else preview == case.expected_source
-    useful = expected is not False
+    useful = expected is True
     return RepairBenchmarkResult(
         case_id=case.case_id,
         provider_output_valid=True,
@@ -154,7 +154,7 @@ def benchmark_candidate(case: RepairBenchmarkCase, candidate: RepairOutput | dic
         syntax_safe=True,
         expected_behavior_met=expected,
         useful=useful,
-        reason="useful" if useful else "expected_behavior_not_met",
+        reason="useful" if useful else ("expected_behavior_unavailable" if expected is None else "expected_behavior_not_met"),
         changed_lines=sum(1 for hunk in parsed[0].hunks for line in hunk.lines if line.startswith(("+", "-"))),
         patch_bytes=len(diff.encode("utf-8")),
         limitations=syntax.limitations,

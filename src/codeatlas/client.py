@@ -194,9 +194,23 @@ class CodeAtlasClient:
         return self._model(m.ExplainResponse, "POST", f"/findings/{identifier(finding_id)}/explain",
                            m.ExplainRequest(run_id=run_id))
 
-    def set_feedback(self, run_id: str, finding_id: str, feedback: m.FeedbackLabel | None) -> m.FindingFeedbackResponse:
+    def export_beta_feedback(self, run_id: str, repository_identity: str):
+        from codeatlas.beta_feedback import BetaFeedbackExport
+        return self._model(BetaFeedbackExport, "GET", "/reviews/" + quote(run_id, safe="") + "/beta-feedback?" + urlencode({"repository_identity": repository_identity}))
+
+    def set_feedback(self, run_id: str, finding_id: str, feedback: m.FeedbackLabel | None = None,
+                     *, outcome: m.FeedbackOutcome | None = None,
+                     reason: m.FeedbackReason | None = None) -> m.FindingFeedbackResponse:
         return self._model(m.FindingFeedbackResponse, "POST", self.finding_path(run_id, finding_id) + "/feedback",
-                           m.FindingFeedbackRequest(feedback=feedback))
+                           m.FindingFeedbackRequest(feedback=feedback, outcome=outcome, reason=reason))
+
+    def set_fix_feedback(self, run_id: str, finding_id: str, proposal_id: str,
+                         outcome: m.FeedbackOutcome | None = None,
+                         *, reason: m.FeedbackReason | None = None) -> m.FixProposalFeedbackResponse:
+        return self._model(m.FixProposalFeedbackResponse, "POST",
+                           self.finding_path(run_id, finding_id) + "/fix-proposal/feedback",
+                           m.FixProposalFeedbackRequest(run_id=run_id, finding_id=finding_id,
+                                                        proposal_id=proposal_id, outcome=outcome, reason=reason))
 
     def get_fix(self, run_id: str, finding_id: str, proposal_id: str | None = None) -> m.FixProposalResponse:
         path = self.finding_path(run_id, finding_id) + "/fix-proposal"

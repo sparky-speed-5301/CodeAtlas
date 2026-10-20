@@ -10,20 +10,28 @@ import json
 import os
 import sqlite3
 import threading
+import time
 from collections.abc import Iterator
 from contextlib import contextmanager
 from dataclasses import dataclass
 from datetime import UTC, datetime, timedelta
 from pathlib import Path
-from typing import Any
+from typing import Any, Literal
 
 from codeatlas.orchestrator.repair_models import (
     REPAIR_POLICY_VERSION,
     repair_payload_is_safe,
 )
 
+StorageHealthCode = Literal[
+    "ok", "corrupted_database", "migration_invalid", "database_unavailable",
+]
+
 SCHEMA_VERSION = 2
 PAYLOAD_VERSION = "5.1"
+STORAGE_HEALTH_SECONDS = 0.25
+STORAGE_HEALTH_PROGRESS_STEPS = 1000
+STORAGE_HEALTH_MAX_STEPS = 100_000
 KINDS = (
     "findings", "finding_feedback", "fix_proposals", "validation_attempts",
     "validation_evidence", "apply_events", "revert_events", "lifecycle_events",
@@ -171,6 +179,71 @@ class SQLitePersistence:
     @property
     def schema_version(self) -> int:
         return SCHEMA_VERSION
+
+    def storage_health(self) -> StorageHealthCode:
+        """Inspect the owned connection without migrations, payload reads, or writes.
+
+        Progress and elapsed-time budgets bound SQLite VM work, not blocking
+        filesystem calls or the connection's existing busy timeout.
+        """
+        deadline = time.monotonic() + STORAGE_HEALTH_SECONDS
+        if not self._lock.acquire(timeout=STORAGE_HEALTH_SECONDS):
+            return "database_unavailable"
+        installed = False
+        migration = False
+        steps = 0
+
+        def progress() -> int:
+            nonlocal steps
+            steps += STORAGE_HEALTH_PROGRESS_STEPS
+            return int(steps >= STORAGE_HEALTH_MAX_STEPS or time.monotonic() >= deadline)
+
+        def rows(statement: str, limit: int) -> list[sqlite3.Row]:
+            cursor = self._db.execute(statement)
+            try:
+                return cursor.fetchmany(limit)
+            finally:
+                cursor.close()
+
+        try:
+            if self._closed or time.monotonic() >= deadline:
+                return "database_unavailable"
+            self._db.set_progress_handler(progress, STORAGE_HEALTH_PROGRESS_STEPS)
+            installed = True
+            checked = rows("PRAGMA quick_check(1)", 1)
+            if time.monotonic() >= deadline:
+                return "database_unavailable"
+            if len(checked) != 1 or checked[0][0] != "ok":
+                return "corrupted_database"
+            migration = True
+            version = rows("PRAGMA user_version", 1)
+            if len(version) != 1 or version[0][0] != SCHEMA_VERSION:
+                return "migration_invalid"
+            ledger = rows(
+                "SELECT version, substr(checksum, 1, 65) FROM schema_migrations "
+                f"ORDER BY version LIMIT {SCHEMA_VERSION + 1}",
+                SCHEMA_VERSION + 1,
+            )
+            expected = [(target, hashlib.sha256("\n".join(statements).encode()).hexdigest())
+                        for target, statements in MIGRATIONS]
+            if time.monotonic() >= deadline:
+                return "database_unavailable"
+            if [tuple(row) for row in ledger] != expected:
+                return "migration_invalid"
+            return "ok"
+        except sqlite3.Error as error:
+            code = getattr(error, "sqlite_errorcode", 0) & 0xFF
+            if code in {sqlite3.SQLITE_CORRUPT, sqlite3.SQLITE_NOTADB}:
+                return "corrupted_database"
+            if migration and code == sqlite3.SQLITE_ERROR:
+                return "migration_invalid"
+            return "database_unavailable"
+        finally:
+            try:
+                if installed:
+                    self._db.set_progress_handler(None, 0)
+            finally:
+                self._lock.release()
 
     @contextmanager
     def transaction(self) -> Iterator[sqlite3.Connection]:

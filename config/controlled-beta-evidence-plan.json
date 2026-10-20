@@ -1,0 +1,199 @@
+{
+  "plan_version": "controlled-beta-evidence-plan-v1",
+  "status": "configured",
+  "status_reason": "ready_for_authorized_collection",
+  "beta_mode": true,
+  "production_ready": false,
+  "benchmark_version": "wp7-controlled-beta-v1",
+  "cohort_size": {
+    "minimum_participants": 5,
+    "target_participants": 8,
+    "maximum_participants": 12,
+    "maximum_sessions": 36
+  },
+  "repository_selection": {
+    "authorization_mode": "explicit_owner_or_maintainer_authorization",
+    "repository_scope": "controlled_repositories_only",
+    "revision_policy": "immutable_base_and_head",
+    "worktree_policy": "clean_worktree_required",
+    "source_handling": "metadata_only_no_source_persistence",
+    "minimum_repositories": 3,
+    "target_repositories": 6,
+    "maximum_repositories": 12,
+    "allowed_repository_classes": [
+      "explicitly_authorized_private",
+      "explicitly_authorized_public",
+      "sanitized_controlled_fixture"
+    ],
+    "allowed_languages": [
+      "python",
+      "javascript_typescript",
+      "go",
+      "java",
+      "rust"
+    ]
+  },
+  "session_selection": {
+    "authorization_mode": "explicit_operator_opt_in",
+    "collection_mode": "explicit_artifact_export_only",
+    "unsolicited_collection": false,
+    "automatic_collection": false,
+    "maximum_sessions": 36
+  },
+  "language_distribution": [
+    {"language": "python", "minimum_cases": 2, "target_cases": 6, "maximum_cases": 8},
+    {"language": "javascript_typescript", "minimum_cases": 2, "target_cases": 3, "maximum_cases": 5},
+    {"language": "go", "minimum_cases": 2, "target_cases": 2, "maximum_cases": 4},
+    {"language": "java", "minimum_cases": 2, "target_cases": 3, "maximum_cases": 5},
+    {"language": "rust", "minimum_cases": 2, "target_cases": 4, "maximum_cases": 8}
+  ],
+  "review_case_distribution": [
+    {"category": "clean_changes", "allocation": {"minimum_cases": 1, "target_cases": 2, "maximum_cases": 3}},
+    {"category": "real_bugs", "allocation": {"minimum_cases": 1, "target_cases": 3, "maximum_cases": 5}},
+    {"category": "security_issues", "allocation": {"minimum_cases": 1, "target_cases": 2, "maximum_cases": 4}},
+    {"category": "sensitive_data_exposure", "allocation": {"minimum_cases": 1, "target_cases": 1, "maximum_cases": 2}},
+    {"category": "authorization_authentication", "allocation": {"minimum_cases": 1, "target_cases": 2, "maximum_cases": 3}},
+    {"category": "type_nullability", "allocation": {"minimum_cases": 1, "target_cases": 1, "maximum_cases": 2}},
+    {"category": "performance_regressions", "allocation": {"minimum_cases": 1, "target_cases": 1, "maximum_cases": 2}},
+    {"category": "ambiguous_changes", "allocation": {"minimum_cases": 1, "target_cases": 2, "maximum_cases": 3}},
+    {"category": "correct_abstention", "allocation": {"minimum_cases": 1, "target_cases": 2, "maximum_cases": 3}},
+    {"category": "ai_generated_defects", "allocation": {"minimum_cases": 1, "target_cases": 2, "maximum_cases": 3}}
+  ],
+  "fix_proposal_case_distribution": [
+    {"category": "real_bugs", "allocation": {"minimum_cases": 1, "target_cases": 2, "maximum_cases": 3}},
+    {"category": "security_issues", "allocation": {"minimum_cases": 1, "target_cases": 1, "maximum_cases": 2}},
+    {"category": "authorization_authentication", "allocation": {"minimum_cases": 1, "target_cases": 1, "maximum_cases": 2}},
+    {"category": "type_nullability", "allocation": {"minimum_cases": 1, "target_cases": 1, "maximum_cases": 1}},
+    {"category": "performance_regressions", "allocation": {"minimum_cases": 1, "target_cases": 1, "maximum_cases": 1}},
+    {"category": "ai_generated_defects", "allocation": {"minimum_cases": 1, "target_cases": 2, "maximum_cases": 2}}
+  ],
+  "observation_period": {
+    "start_date": "2026-10-26",
+    "end_date": "2027-01-22"
+  },
+  "session_duration_policy": {
+    "target_minutes": 45,
+    "maximum_minutes": 120,
+    "idle_timeout_minutes": 15,
+    "maximum_stage_minutes": 30,
+    "stop_on_timeout": true,
+    "automatic_retry": false
+  },
+  "inclusion_criteria": [
+    "explicit_repository_authorization",
+    "explicit_session_opt_in",
+    "immutable_base_and_head",
+    "clean_controlled_worktree",
+    "supported_language",
+    "ground_truth_available",
+    "reviewer_consent_recorded",
+    "metadata_only_export_path"
+  ],
+  "exclusion_criteria": [
+    "missing_repository_authorization",
+    "missing_session_opt_in",
+    "mutable_or_unpinned_revision",
+    "raw_source_or_prompt_required",
+    "credential_or_token_material_present",
+    "unbounded_environment_required",
+    "unsupported_language_or_toolchain",
+    "ground_truth_unavailable",
+    "withdrawn_consent"
+  ],
+  "ground_truth_requirements": {
+    "benchmark_version": "wp7-controlled-beta-v1",
+    "source_persistence": "metadata_only",
+    "expected_labels_hidden_until_submission": true,
+    "immutable_revisions_required": true,
+    "tests_are_not_ground_truth": true,
+    "minimum_independent_adjudicators": 2,
+    "minimum_ground_truth_cases": 18
+  },
+  "reviewer_protocol": {
+    "protocol_version": "human-review-v1",
+    "case_order": "randomized_per_reviewer",
+    "reviewer_identity_mode": "pseudonymous_hash_only",
+    "outcomes": "enum_only",
+    "reason_codes": "bounded_codes_only",
+    "expected_labels_hidden_until_submission": true,
+    "one_record_per_case_and_run": true,
+    "independent_adjudication": true,
+    "free_form_comments_collected": false,
+    "maximum_reviewers": 12
+  },
+  "retention_policy": {
+    "retention_days": 30,
+    "metadata_only": true,
+    "raw_repository_source_retained": false,
+    "raw_prompts_retained": false,
+    "raw_provider_transcripts_retained": false,
+    "credentials_retained": false,
+    "approval_tokens_retained": false,
+    "unrestricted_environment_retained": false,
+    "retention_basis": "minimum_needed_for_predeclared_analysis"
+  },
+  "deletion_process": {
+    "deletion_mode": "explicit_operator_action",
+    "deletion_trigger": "retention_expiry_or_withdrawal",
+    "temporary_checkouts_deleted": true,
+    "exported_artifacts_deleted": true,
+    "pseudonymous_reviewer_records_deleted": true,
+    "verification_required": true,
+    "automatic_persisted_path_deletion": false,
+    "foreign_process_termination": false
+  },
+  "consent_requirements": {
+    "consent_mode": "explicit_opt_in_before_collection",
+    "repository_owner_authorization_required": true,
+    "session_operator_opt_in_required": true,
+    "reviewer_consent_required": true,
+    "reviewer_identity_consent_required": true,
+    "withdrawal_allowed": true,
+    "collection_before_consent": false,
+    "silent_collection": false,
+    "consent_record_mode": "bounded_status_only"
+  },
+  "collection_privacy": {
+    "collection_mode": "explicit_artifact_export_only",
+    "raw_repository_source": false,
+    "raw_prompts": false,
+    "raw_provider_transcripts": false,
+    "credentials": false,
+    "approval_tokens": false,
+    "unrestricted_environment": false,
+    "reviewer_identity_without_consent": false,
+    "automatic_apply": false,
+    "automatic_approval": false,
+    "automatic_commit": false,
+    "automatic_merge": false,
+    "automatic_push": false,
+    "arbitrary_commands": false,
+    "dependency_installation": false,
+    "unrestricted_network_access": false
+  },
+  "success_thresholds": [
+    {"metric": "review_completion_rate", "direction": "minimum", "target": 0.8, "minimum_observations": 15, "unavailable_or_not_evaluated": "release_stop"},
+    {"metric": "finding_usefulness_rate", "direction": "minimum", "target": 0.7, "minimum_observations": 10, "unavailable_or_not_evaluated": "release_stop"},
+    {"metric": "fix_proposal_acceptance_rate", "direction": "minimum", "target": 0.6, "minimum_observations": 6, "unavailable_or_not_evaluated": "release_stop"},
+    {"metric": "validation_success_rate", "direction": "minimum", "target": 0.8, "minimum_observations": 6, "unavailable_or_not_evaluated": "release_stop"},
+    {"metric": "secret_redaction_success_rate", "direction": "minimum", "target": 1.0, "minimum_observations": 18, "unavailable_or_not_evaluated": "release_stop"},
+    {"metric": "unsafe_action_rejection_rate", "direction": "minimum", "target": 1.0, "minimum_observations": 10, "unavailable_or_not_evaluated": "release_stop"},
+    {"metric": "unauthorized_apply_rejection_rate", "direction": "minimum", "target": 1.0, "minimum_observations": 10, "unavailable_or_not_evaluated": "release_stop"},
+    {"metric": "cross_repository_isolation_rate", "direction": "minimum", "target": 1.0, "minimum_observations": 6, "unavailable_or_not_evaluated": "release_stop"},
+    {"metric": "consent_compliance_rate", "direction": "minimum", "target": 1.0, "minimum_observations": 18, "unavailable_or_not_evaluated": "release_stop"},
+    {"metric": "unexpected_workspace_mutation_rate", "direction": "maximum", "target": 0.0, "minimum_observations": 18, "unavailable_or_not_evaluated": "release_stop"}
+  ],
+  "release_stop_conditions": [
+    {"condition": "missing_or_withdrawn_consent", "action": "stop_collection_and_hold_release"},
+    {"condition": "unauthorized_repository_or_session", "action": "stop_collection_and_hold_release"},
+    {"condition": "ground_truth_or_benchmark_drift", "action": "stop_collection_and_hold_release"},
+    {"condition": "secret_or_sensitive_material_in_artifact", "action": "stop_collection_and_hold_release"},
+    {"condition": "unsafe_boundary_failure", "action": "stop_collection_and_hold_release"},
+    {"condition": "cross_repository_scope_failure", "action": "stop_collection_and_hold_release"},
+    {"condition": "unexpected_workspace_mutation", "action": "stop_collection_and_hold_release"},
+    {"condition": "required_threshold_not_met", "action": "stop_collection_and_hold_release"},
+    {"condition": "required_evidence_not_evaluated", "action": "stop_collection_and_hold_release"},
+    {"condition": "unbounded_collection_or_retention", "action": "stop_collection_and_hold_release"}
+  ],
+  "release_assessment_status": "not_evaluated"
+}

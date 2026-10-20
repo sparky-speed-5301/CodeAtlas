@@ -2,25 +2,27 @@
 
 from __future__ import annotations
 
+import copy
 import dataclasses
 import hashlib
 import json
-import copy
 import tempfile
 import threading
 from concurrent.futures import ThreadPoolExecutor
-from functools import wraps
 from datetime import UTC, datetime
 from fnmatch import fnmatchcase
+from functools import wraps
 from pathlib import Path
 from typing import Any
 
 from codeatlas.adapters import language_capability_reports, select_language_adapter
 from codeatlas.findings.models import Finding
 from codeatlas.git.executable import run_git
+from codeatlas.git.models import Diff
 from codeatlas.git.refs import resolve_ref
 from codeatlas.git.repository import validate_repository
 from codeatlas.git.snapshot import temporary_snapshot
+from codeatlas.orchestrator.manifest import RunManifest
 from codeatlas.orchestrator.repair import RepairOrchestrator, record_repair_result
 from codeatlas.orchestrator.repair_loop import RepairVerificationLoop
 from codeatlas.orchestrator.repair_models import (
@@ -30,7 +32,6 @@ from codeatlas.orchestrator.repair_models import (
     repair_payload_is_safe,
 )
 from codeatlas.orchestrator.review import ReviewResult, run_review
-from codeatlas.orchestrator.manifest import RunManifest
 from codeatlas.orchestrator.validation import build_validation_review
 from codeatlas.patching.apply import (
     apply_patch_to_worktree,
@@ -50,25 +51,19 @@ from codeatlas.patching.validator import validate_patch_proposal
 from codeatlas.providers.repair_config import RepairProviderConfig
 from codeatlas.review.mock import MockRepairReviewer
 from codeatlas.review.packet import ReviewPacket
-from codeatlas.git.models import Diff
-from codeatlas.service.persistence import (
-    PersistenceConfig,
-    PersistenceError,
-    SQLitePersistence,
-    repository_id,
-)
-from codeatlas.service.persistence_codec import make_snapshot
 from codeatlas.service.models import (
     FIX_PROPOSAL_SCHEMA_VERSION,
-    FeedbackLabel,
     FindingContext,
     FindingDetailResponse,
+    FindingFeedbackRequest,
     FindingFeedbackResponse,
     FindingSummary,
     FixApplyEvent,
     FixApplyHistoryResponse,
     FixApplyResponse,
     FixEligibilityResponse,
+    FixProposalFeedbackRequest,
+    FixProposalFeedbackResponse,
     FixProposalLifecycle,
     FixProposalResponse,
     FixValidationApprovalResponse,
@@ -80,8 +75,16 @@ from codeatlas.service.models import (
     ReviewLifecycleEvent,
     ReviewsListResponse,
     ReviewStatusResponse,
+    StorageHealthResponse,
     ValidateProposalResponse,
 )
+from codeatlas.service.persistence import (
+    PersistenceConfig,
+    PersistenceError,
+    SQLitePersistence,
+    repository_id,
+)
+from codeatlas.service.persistence_codec import make_snapshot
 
 # Bounded, user-safe explanations for every fix-generation rejection code.
 # Values are fixed strings; raw orchestrator/provider text is never shown.
@@ -639,6 +642,16 @@ class ReviewStateManager:
             elif item["kind"] == "validation_evidence" and (record.run_id, item["proposal_id"]) in self._legacy_proposals:
                 self._legacy_validations[(record.run_id, item["proposal_id"])] = PatchValidationResult.model_validate(item["payload"])
 
+    def storage_health(self) -> StorageHealthResponse:
+        if self.persistence is None:
+            return StorageHealthResponse(
+                state_lifetime="process", status="not_applicable", code="not_applicable",
+            )
+        code = self.persistence.storage_health()
+        return StorageHealthResponse(
+            state_lifetime="persistent", status="ok" if code == "ok" else "error", code=code,
+        )
+
     def persistence_health(self) -> dict[str, Any]:
         return {"enabled": self.persistent, "path": str(self.persistence_path) if self.persistence_path else None,
                 "schema_version": self.persistence.schema_version if self.persistence else None,
@@ -959,6 +972,8 @@ class ReviewStateManager:
                     ambiguity_score=float(f.get("ambiguity_score") or 0.0),
                     unsupported_flow=bool(f.get("unsupported_flow", False)),
                     feedback=record.feedback.get(f_id),
+                    feedback_outcome=f.get("feedback_outcome"),
+                    feedback_reason=f.get("feedback_reason"),
                 )
             )
 
@@ -1088,45 +1103,103 @@ class ReviewStateManager:
             },
             quality_limitations=[str(item)[:300] for item in finding_dict.get("quality_limitations", [])][:20],
             feedback=record.feedback.get(finding_id),
+            feedback_outcome=finding_dict.get("feedback_outcome"),
+            feedback_reason=finding_dict.get("feedback_reason"),
             context=context,
         )
 
     def set_finding_feedback(
-        self,
-        run_id: str,
-        finding_id: str,
-        feedback: str | None,
+        self, run_id: str, finding_id: str, feedback: str | None = None,
+        *, outcome: str | None = None, reason: str | None = None,
     ) -> FindingFeedbackResponse:
-        """Persist explicit repository-scoped feedback; never alter ranking or policy."""
-        record = self.get_review(run_id)
-        if record is None:
-            raise KeyError(f"Review run '{run_id}' not found")
-        if not any(str(item.get("id")) == finding_id for item in record.findings):
-            raise KeyError(f"Finding '{finding_id}' not found in review run '{run_id}'")
-        allowed = {"useful", "not_useful", "false_positive", "accepted", "dismissed", "needs_more_context"}
-        if feedback is not None and feedback not in allowed:
-            raise ValueError("Unsupported feedback label")
-        previous = record.feedback.get(finding_id)
-        reversed_feedback = previous is not None and previous != feedback
-        if feedback is None:
-            record.feedback.pop(finding_id, None)
-        else:
-            record.feedback[finding_id] = feedback
-        for item in record.findings:
-            if str(item.get("id")) == finding_id:
-                item["feedback"] = feedback
-                break
-        self._checkpoint(record, "finding_feedback_updated")
-        fb: FeedbackLabel | None = feedback if feedback in ("useful", "not_useful", "false_positive", "accepted", "dismissed", "needs_more_context") else None
-        prev_fb: FeedbackLabel | None = previous if previous in ("useful", "not_useful", "false_positive", "accepted", "dismissed", "needs_more_context") else None
-        return FindingFeedbackResponse(
-            run_id=run_id,
-            finding_id=finding_id,
-            repository=str(record.repo_path),
-            feedback=fb,
-            previous_feedback=prev_fb,
-            reversed=reversed_feedback,
+        """Store operator metadata without changing ranking, dismissal, or policy."""
+        request = FindingFeedbackRequest(feedback=feedback, outcome=outcome, reason=reason)
+        with self._lock:
+            record, finding = self._fix_finding_and_record(run_id, finding_id)
+            previous = record.feedback.get(finding_id)
+            previous_outcome = finding.get("feedback_outcome")
+            previous_reason = finding.get("feedback_reason")
+            changed = (previous, previous_outcome, previous_reason) != (
+                request.effective_feedback, request.effective_outcome, request.reason,
+            )
+            if changed:
+                if request.effective_feedback is None:
+                    record.feedback.pop(finding_id, None)
+                else:
+                    record.feedback[finding_id] = request.effective_feedback
+                finding.update(feedback=request.effective_feedback,
+                               feedback_outcome=request.effective_outcome, feedback_reason=request.reason)
+                self._checkpoint(record, "finding_feedback_updated")
+            return FindingFeedbackResponse(
+                run_id=run_id, finding_id=finding_id, repository=str(record.repo_path),
+                feedback=request.effective_feedback, previous_feedback=previous,
+                outcome=request.effective_outcome, reason=request.reason,
+                previous_outcome=previous_outcome, previous_reason=previous_reason,
+                reversed=previous is not None and changed, changed=changed,
+            )
+
+    def set_fix_proposal_feedback(
+        self, run_id: str, finding_id: str, proposal_id: str, feedback: str | None = None,
+        *, outcome: str | None = None, reason: str | None = None,
+    ) -> FixProposalFeedbackResponse:
+        """Annotate the exact stored proposal; feedback never authorizes an operation."""
+        request = FixProposalFeedbackRequest(
+            run_id=run_id, finding_id=finding_id, proposal_id=proposal_id,
+            feedback=feedback, outcome=outcome, reason=reason,
         )
+        with self._lock:
+            record, _ = self._fix_finding_and_record(run_id, finding_id)
+            response = self.get_fix_proposal(run_id, finding_id, proposal_id)
+            fix_record = self._lookup_fix(run_id, finding_id, proposal_id)
+            assert fix_record is not None
+            changed = (response.feedback, response.feedback_outcome, response.feedback_reason) != (
+                request.effective_outcome, request.effective_outcome, request.reason,
+            )
+            if changed:
+                fix_record.response = response.model_copy(update={
+                    "feedback": request.effective_outcome, "feedback_outcome": request.effective_outcome,
+                    "feedback_reason": request.reason,
+                })
+                self._checkpoint(record, "fix_proposal_feedback_updated")
+            return FixProposalFeedbackResponse(
+                run_id=run_id, finding_id=finding_id, proposal_id=proposal_id,
+                repository=response.repository, feedback=request.effective_outcome,
+                previous_feedback=response.feedback, outcome=request.effective_outcome,
+                reason=request.reason, previous_outcome=response.feedback_outcome,
+                previous_reason=response.feedback_reason,
+                reversed=response.feedback is not None and changed, changed=changed,
+            )
+
+    def export_beta_feedback(self, run_id: str, expected_repository_identity: str):
+        """Return bounded enum metadata after checking the explicit repository scope."""
+        from codeatlas.beta_feedback import BetaFeedbackExport, BetaFeedbackItem
+
+        with self._lock:
+            record = self.get_review(run_id)
+            if record is None:
+                raise KeyError("Review run not found")
+            identity = repository_id(record.repo_path)
+            if identity != expected_repository_identity:
+                raise ServiceStateError("scope_mismatch")
+            items = []
+            for finding in record.findings:
+                outcome = finding.get("feedback_outcome")
+                if outcome is not None:
+                    items.append(BetaFeedbackItem.model_validate({
+                        "target": "finding", "finding_id": str(finding["id"]),
+                        "outcome": outcome, "reason": finding.get("feedback_reason"),
+                    }))
+            for fix in self._all_fix_records():
+                if fix.response.run_id == run_id and fix.response.feedback_outcome is not None:
+                    items.append(BetaFeedbackItem.model_validate({
+                        "target": "fix_proposal", "finding_id": fix.response.finding_id, "proposal_id": fix.response.proposal_id,
+                        "outcome": fix.response.feedback_outcome, "reason": fix.response.feedback_reason,
+                    }))
+            mode = "live" if record.request.review_provider == "live" else "offline"
+            return BetaFeedbackExport.model_validate({
+                "repository_identity_hash": identity, "run_id": run_id, "provider_mode": mode,
+                "items": tuple(items[:200]), "truncated": len(items) > 200,
+            })
 
     def explain_finding(self, finding_id: str, run_id: str | None = None) -> dict[str, Any]:
         """Produce safe deterministic explanation of a finding."""

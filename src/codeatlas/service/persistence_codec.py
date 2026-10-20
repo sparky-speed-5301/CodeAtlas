@@ -6,11 +6,13 @@ import math
 import re
 from datetime import datetime
 from pathlib import Path
-from typing import Any
+from typing import Any, get_args
 
+from codeatlas.findings.models import FeedbackLabel
 from codeatlas.orchestrator.repair_models import repair_payload_is_safe
 from codeatlas.patching.proposal import compute_patch_hash
 from codeatlas.service.models import (
+    FindingFeedbackRequest,
     FixApplyEvent,
     FixProposalResponse,
     ReviewCreateRequest,
@@ -23,7 +25,7 @@ from codeatlas.service.persistence import (
     repository_id,
 )
 
-FINDING_FIELDS = frozenset(["id", "severity", "category", "claim", "file", "line", "start_line", "end_line", "confidence", "evidence_strength", "status", "impact", "limitations", "evidence", "reviewer_evidence", "tools_consulted", "quality_version", "evidence_sources", "deterministic_support", "reviewer_support", "changed_line_support", "repository_context_support", "test_support", "ambiguity_score", "truncation_penalty", "unsupported_flow", "abstention_reason", "duplicate_group_id", "suppressed_finding_ids", "quality_decision", "quality_score", "quality_limitations", "fixability", "feedback"])
+FINDING_FIELDS = frozenset(["id", "severity", "category", "claim", "file", "line", "start_line", "end_line", "confidence", "evidence_strength", "status", "impact", "limitations", "evidence", "reviewer_evidence", "tools_consulted", "quality_version", "evidence_sources", "deterministic_support", "reviewer_support", "changed_line_support", "repository_context_support", "test_support", "ambiguity_score", "truncation_penalty", "unsupported_flow", "abstention_reason", "duplicate_group_id", "suppressed_finding_ids", "quality_decision", "quality_score", "quality_limitations", "fixability", "feedback", "feedback_outcome", "feedback_reason"])
 VALIDATION_FIELDS = frozenset(["proposal_id", "base_commit", "patch_hash", "valid", "applies_cleanly", "syntax_valid", "type_check_status", "tests_status", "build_status", "security_check_status", "changed_files", "rejected_files", "execution_allowed", "sandbox_id", "approval_verified", "resulting_diff_hash", "cleanup_status", "sandbox_retained", "duration_ms", "test_runner", "tests_run", "test_exit_code", "test_duration_ms", "test_execution_attempted", "network_allowed", "dependency_install_allowed", "test_failure_count", "test_pass_count", "test_skip_count", "test_output_truncated", "network_policy_requested", "network_policy_enforced", "network_isolation_verified", "full_suite_requested", "full_suite_policy_opted_in", "full_suite_status", "approval_scope", "patch_applied_in_isolated_sandbox"])
 FIX_FIELDS = frozenset(FixProposalResponse.model_fields) - {"policy_decision", "review_packet", "human_approval_manifest", "validation_result", "recovery_state"}
 REVIEW_FIELDS = frozenset(ReviewStatusResponse.model_fields)
@@ -39,9 +41,16 @@ PATCH_FIELDS = frozenset(["proposal_id", "finding_id", "provider_name", "provide
 _HASH_RE = re.compile(r"^[a-f0-9]{64}$")
 _SAFE_ERROR_CODES = frozenset(["abstained", "suppressed_duplicate", "low_evidence", "ambiguous", "unsupported_flow", "invalid_location", "review_only_without_fix_eligibility", "finding_not_fix_eligible", "quality_gate_failed", "language_review_only", "unsupported_language", "protected_or_generated_target", "stale_run", "stale_finding", "finding_not_in_run", "invalid_run_finding", "incompatible_repository_state", "repository_state_stale", "unreadable_or_unbounded_target", "stale_or_truncated_context", "missing_required_context", "required_context_exceeds_bounds", "unsafe_or_unbounded_context", "source_parse_failed", "packet_redaction_failed", "invalid_provider_metadata", "offline_provider_required", "provider_abstained_or_failed", "invalid_provider_output", "unsafe_or_unbounded_provider_output", "provider_output_redaction_failed", "provider_output_exceeds_bounds", "provider_failed", "provider_scope_or_explanation_invalid", "exactly_one_finding_required", "exactly_one_proposal_required", "invalid_input", "patch_parse_failed", "patch_scope_invalid", "language_constraint_failed", "patch_preview_failed", "patch_preview_exceeds_bounds", "empty_repair", "syntax_validation_failed", "patch_validation_failed", "repository_state_changed_during_repair", "run_not_ready", "run_failed", "packet_unavailable", "generation_in_progress", "not_regenerable", "not_rejectable", "proposal_not_found", "scope_mismatch", "validation_not_approved", "validation_not_available", "validation_scope_invalid", "validation_token_invalid", "validation_redaction_failed", "apply_not_validated", "apply_validation_failed", "apply_evidence_missing", "apply_evidence_identity_mismatch", "apply_scope_invalid", "apply_policy_version_incompatible", "apply_not_available", "apply_confirmation_invalid", "apply_redaction_failed", "patch_hash_mismatch", "already_applied", "workspace_dirty", "apply_failed", "resulting_diff_mismatch", "revert_not_available", "revert_confirmation_invalid", "revert_state_changed", "revert_failed", "review_queue_full", "persistence_failed", "recovered_operation_unavailable", "review_not_retryable", "operation_interrupted", "operation_failed", "review_failed", "validation_failed", "persisted_identity_invalid"])
 _SAFE_WARNING_CODES = frozenset({"validation_limitations_omitted"})
-_FEEDBACK_LABELS = frozenset({
-    "useful", "not_useful", "false_positive", "accepted", "dismissed", "needs_more_context",
-})
+_FEEDBACK_LABELS = frozenset(get_args(FeedbackLabel))
+
+
+def _validate_feedback_metadata(payload: dict[str, Any], *, label_key: str = "feedback") -> None:
+    request = FindingFeedbackRequest.model_validate({
+        "feedback": payload.get(label_key), "outcome": payload.get("feedback_outcome"),
+        "reason": payload.get("feedback_reason"),
+    })
+    if payload.get("feedback_outcome") is not None and request.effective_feedback != payload.get(label_key):
+        raise ValueError
 _CAPABILITY_STATUSES = frozenset({"available", "unavailable", "unsupported", "not_run", "passed", "failed", "blocked"})
 _LIFECYCLE_STATES = frozenset({
     "idle", "preparing", "indexing", "analyzing", "reviewing", "findings_ready", "patch_proposed",
@@ -254,8 +263,7 @@ def _validate_finding(payload: dict[str, Any], finding_id: str) -> None:
         "unknown", "not_fixable", "review_required", "suggested", "validated",
     }:
         raise ValueError
-    if "feedback" in payload and payload["feedback"] not in _FEEDBACK_LABELS | {None}:
-        raise ValueError
+    _validate_feedback_metadata(payload)
     for field in ("line", "start_line", "end_line"):
         if field in payload and not _is_int(payload[field], minimum=1):
             raise ValueError
@@ -274,8 +282,9 @@ def _validate_finding(payload: dict[str, Any], finding_id: str) -> None:
 
 
 def _validate_feedback(payload: dict[str, Any]) -> None:
-    if "label" not in payload or payload["label"] not in _FEEDBACK_LABELS | {None}:
+    if "label" not in payload:
         raise ValueError
+    _validate_feedback_metadata(payload, label_key="label")
     if not _is_bool(payload.get("dismissed")):
         raise ValueError
 
@@ -371,6 +380,7 @@ def _validate_apply_event(payload: dict[str, Any], *, run_id: str, finding_id: s
 
 
 def _validate_fix_payload(payload: dict[str, Any], *, run_id: str, finding_id: str, proposal_id: str, patch_hash: str, base_commit: str) -> None:
+    _validate_feedback_metadata(payload)
     if not _check_dict(payload, FIX_FIELDS | {"validation_result", "apply_state", "recovery_state"}):
         raise ValueError
     text_fields = {
@@ -482,6 +492,7 @@ def proposal_projection(value: dict[str, Any]) -> dict[str, Any]:
     if (not isinstance(patch, str) or len(patch.encode()) > 64_000
             or not repair_payload_is_safe(patch) or compute_patch_hash(patch) != value.get("patch_hash")):
         raise PersistenceError("persisted_patch_invalid")
+    _validate_feedback_metadata(value)
     result = project(value, FIX_FIELDS)
     # Preserve exact patch bytes. Generic text bounding must never edit a patch.
     result["patch_text"] = patch
@@ -525,7 +536,9 @@ def make_snapshot(manager: Any, record: Any) -> dict[str, Any]:
     for finding in record.findings[:200]:
         fid = str(finding["id"])
         add("findings", fid, project(finding, FINDING_FIELDS), finding=fid)
-        add("finding_feedback", fid, {"label": record.feedback.get(fid), "dismissed": fid in record.dismissed_finding_ids}, finding=fid)
+        add("finding_feedback", fid, {"label": record.feedback.get(fid), "dismissed": fid in record.dismissed_finding_ids,
+                                      "feedback_outcome": finding.get("feedback_outcome"),
+                                      "feedback_reason": finding.get("feedback_reason")}, finding=fid)
     valid_findings = {item["id"] for item in entities if item["kind"] == "findings"}
     for (run_id, pid), patch in manager._legacy_proposals.items():
         if run_id != record.run_id or patch.finding_id not in valid_findings:
@@ -687,7 +700,7 @@ def validate_snapshot(snapshot: dict[str, Any]) -> None:
                 if item["finding_id"] != proposal["finding_id"] or item["patch_hash"] != proposal["patch_hash"]:
                     raise ValueError
             allowed = {
-                "findings": FINDING_FIELDS, "finding_feedback": {"label", "dismissed"},
+                "findings": FINDING_FIELDS, "finding_feedback": {"label", "dismissed", "feedback_outcome", "feedback_reason"},
                 "fix_proposals": FIX_FIELDS | {"validation_result", "apply_state", "recovery_state"},
                 "validation_attempts": VALIDATION_FIELDS | {"errors", "warnings"},
                 "validation_evidence": VALIDATION_FIELDS | {"errors", "warnings"},

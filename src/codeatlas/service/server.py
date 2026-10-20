@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import ipaddress
 import json
 import logging
 import os
@@ -18,29 +19,36 @@ from pydantic import ValidationError
 
 from codeatlas import __version__
 from codeatlas.adapters import language_capability_reports
-from codeatlas.service.contract import API_PREFIX, API_VERSION, ENDPOINTS, endpoint_for, openapi_document
+from codeatlas.service.contract import (
+    API_PREFIX,
+    API_VERSION,
+    ENDPOINTS,
+    endpoint_for,
+    openapi_document,
+)
 from codeatlas.service.models import (
     CapabilitiesResponse,
-    LanguageCapabilityResponse,
     ExplainRequest,
     FindingFeedbackRequest,
     FixApplyRequest,
+    FixProposalFeedbackRequest,
     FixProposalRequest,
     FixRejectRequest,
     FixRevertRequest,
     FixValidationApprovalRequest,
     FixValidationRequest,
     HealthResponse,
+    LanguageCapabilityResponse,
     PatchProposalRequest,
     ReviewCreateRequest,
     ValidateProposalRequest,
 )
+from codeatlas.service.persistence import default_database_path
 from codeatlas.service.state import (
     ReviewStateManager,
     ServicePathError,
     ServiceStateError,
 )
-from codeatlas.service.persistence import default_database_path
 
 logger = logging.getLogger("codeatlas.service")
 
@@ -178,6 +186,21 @@ class ReviewHttpHandler(BaseHTTPRequestHandler):
             if path is None:
                 return
             query = parse_qs(parsed_url.query)
+
+            if path == "/diagnostics/storage":
+                try:
+                    peer = ipaddress.ip_address(self.client_address[0])
+                    local = peer.is_loopback or (
+                        isinstance(peer, ipaddress.IPv6Address)
+                        and peer.ipv4_mapped is not None and peer.ipv4_mapped.is_loopback
+                    )
+                except ValueError:
+                    local = False
+                if not local:
+                    self._send_error_json(HTTPStatus.FORBIDDEN, "Loopback access required", "forbidden")
+                    return
+                self._send_json(HTTPStatus.OK, self.state_manager.storage_health().model_dump())
+                return
 
             if path == "/openapi.json":
                 self._send_json(HTTPStatus.OK, openapi_document())
@@ -368,6 +391,19 @@ class ReviewHttpHandler(BaseHTTPRequestHandler):
                 return
 
             # 4. GET /reviews/{run_id}
+            feedback_export_match = re.fullmatch(r"/reviews/([^/]+)/beta-feedback", path)
+            if feedback_export_match:
+                try:
+                    identity = query.get("repository_identity", [""])
+                    if len(identity) != 1:
+                        raise ValueError("invalid scope")
+                    result = self.state_manager.export_beta_feedback(feedback_export_match.group(1), identity[0])
+                    self._send_json(HTTPStatus.OK, result.model_dump())
+                except KeyError:
+                    self._send_error_json(HTTPStatus.NOT_FOUND, "Review not found", "not_found")
+                except (ValueError, ServiceStateError):
+                    self._send_error_json(HTTPStatus.BAD_REQUEST, "Invalid feedback scope", "scope_mismatch")
+                return
             events_match = re.fullmatch(r"/reviews/([^/]+)/events", path)
             if events_match:
                 try:
@@ -387,7 +423,7 @@ class ReviewHttpHandler(BaseHTTPRequestHandler):
 
             self._send_error_json(HTTPStatus.NOT_FOUND, f"Endpoint '{path}' not found", "not_found")
         except Exception:
-            logger.exception("Internal error in GET: %s", err)
+            logger.exception("Internal error in GET")
             self._send_error_json(HTTPStatus.INTERNAL_SERVER_ERROR, "Internal server error", "internal_error")
 
     def do_POST(self) -> None:
@@ -518,12 +554,35 @@ class ReviewHttpHandler(BaseHTTPRequestHandler):
                 finding_id = m_feedback.group(2)
                 try:
                     req = FindingFeedbackRequest.model_validate(body)
-                    result = self.state_manager.set_finding_feedback(run_id, finding_id, req.feedback)
+                    result = self.state_manager.set_finding_feedback(
+                        run_id, finding_id, req.feedback, outcome=req.outcome, reason=req.reason,
+                    )
                     self._send_json(HTTPStatus.OK, result.model_dump())
                 except KeyError as err:
                     self._send_error_json(HTTPStatus.NOT_FOUND, str(err), "not_found")
                 except Exception:
                     self._send_error_json(HTTPStatus.BAD_REQUEST, "Invalid finding feedback", "bad_request")
+                return
+
+            m_fix_feedback = re.match(r"^/reviews/([^/]+)/findings/([^/]+)/fix-proposal/feedback$", path)
+            if m_fix_feedback:
+                run_id, finding_id = m_fix_feedback.group(1), m_fix_feedback.group(2)
+                try:
+                    req = FixProposalFeedbackRequest.model_validate(body)
+                    if req.run_id != run_id or req.finding_id != finding_id:
+                        self._send_error_json(HTTPStatus.BAD_REQUEST, "Feedback scope does not match the URL", "scope_mismatch")
+                        return
+                    result = self.state_manager.set_fix_proposal_feedback(
+                        run_id, finding_id, req.proposal_id, req.feedback, outcome=req.outcome, reason=req.reason,
+                    )
+                    self._send_json(HTTPStatus.OK, result.model_dump())
+                except KeyError:
+                    self._send_error_json(HTTPStatus.NOT_FOUND, "Feedback target not found", "not_found")
+                except ServiceStateError as err:
+                    status = HTTPStatus.CONFLICT if err.reason == "scope_mismatch" else HTTPStatus.BAD_REQUEST
+                    self._send_error_json(status, err.explanation, err.reason)
+                except Exception:
+                    self._send_error_json(HTTPStatus.BAD_REQUEST, "Invalid FixProposal feedback", "bad_request")
                 return
 
             # 7b. POST .../fix-proposal/apply — explicit apply of a validated proposal
@@ -814,7 +873,11 @@ def run_service(
     """Start and run the CodeAtlas service indefinitely."""
     manager = None
     if repair_config is not None:
-        from codeatlas.providers import LiveRepairProvider, ProviderConfigError, load_repair_provider_config
+        from codeatlas.providers import (
+            LiveRepairProvider,
+            ProviderConfigError,
+            load_repair_provider_config,
+        )
 
         try:
             config = load_repair_provider_config(repair_config)

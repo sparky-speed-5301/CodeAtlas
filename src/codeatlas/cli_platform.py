@@ -17,10 +17,10 @@ from pydantic import BaseModel, ValidationError
 
 from codeatlas import __version__
 from codeatlas.client import ClientError, CodeAtlasClient
+from codeatlas.git.executable import git_executable
 from codeatlas.patching.proposal import generate_validation_approval_token
 from codeatlas.service import models as m
 from codeatlas.service.contract import openapi_document
-from codeatlas.git.executable import git_executable
 
 
 class FailOn(str, Enum):
@@ -304,10 +304,25 @@ def explain_finding(ctx: typer.Context, run_id: str, finding_id: str) -> None:
 
 @findings_app.command("feedback")
 @guarded
-def feedback(ctx: typer.Context, run_id: str, finding_id: str, label: str) -> None:
-    """Set a feedback label, or use 'clear' to remove feedback."""
-    request = m.FindingFeedbackRequest.model_validate({"feedback": None if label == "clear" else label})
-    emit(ctx, client(ctx).set_feedback(run_id, finding_id, request.feedback))
+def feedback(ctx: typer.Context, run_id: str, finding_id: str, label: str,
+             reason: str | None = typer.Option(None, "--reason")) -> None:
+    """Set an outcome or legacy label with an enum reason; 'clear' removes both."""
+    request = m.FindingFeedbackRequest.model_validate({
+        "feedback": None if label == "clear" else label, "reason": reason,
+    })
+    emit(ctx, client(ctx).set_feedback(run_id, finding_id, request.feedback, reason=request.reason))
+
+
+@findings_app.command("export-feedback")
+@guarded
+def export_feedback(ctx: typer.Context, run_id: str,
+                    repository_identity: str = typer.Option(..., "--repository-identity"),
+                    output: str = typer.Option(..., "--output")) -> None:
+    """Export only scoped enum feedback metadata to a new bounded file."""
+    from codeatlas.beta import write_beta_export
+    result = client(ctx).export_beta_feedback(run_id, repository_identity)
+    write_beta_export(result, output)
+    emit(ctx, result)
 
 
 @fix_app.callback()
@@ -377,6 +392,21 @@ def regenerate(ctx: typer.Context) -> None:
     emit(ctx, result)
     if result.generation_status != "draft_ready":
         raise typer.Exit(1)
+
+
+@fix_app.command("feedback")
+@guarded
+def fix_feedback(ctx: typer.Context, outcome: str,
+                 reason: str | None = typer.Option(None, "--reason")) -> None:
+    """Annotate the selected proposal; 'clear' removes outcome and reason."""
+    run_id, finding_id, proposal_id = scope(ctx, proposal_required=True)
+    assert proposal_id is not None
+    request = m.FixProposalFeedbackRequest.model_validate({
+        "run_id": run_id, "finding_id": finding_id, "proposal_id": proposal_id,
+        "outcome": None if outcome == "clear" else outcome, "reason": reason,
+    })
+    emit(ctx, client(ctx).set_fix_feedback(run_id, finding_id, proposal_id,
+                                         request.outcome, reason=request.reason))
 
 
 @fix_app.command("reject")

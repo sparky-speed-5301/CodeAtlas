@@ -1,0 +1,340 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://codeatlas.local/schemas/controlled-beta-evidence-plan.schema.json",
+  "title": "CodeAtlas controlled beta evidence plan",
+  "description": "Bounded metadata-only plan; it does not authorize collection or release.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "plan_version",
+    "status",
+    "status_reason",
+    "beta_mode",
+    "production_ready",
+    "benchmark_version",
+    "cohort_size",
+    "repository_selection",
+    "session_selection",
+    "language_distribution",
+    "review_case_distribution",
+    "fix_proposal_case_distribution",
+    "observation_period",
+    "session_duration_policy",
+    "inclusion_criteria",
+    "exclusion_criteria",
+    "ground_truth_requirements",
+    "reviewer_protocol",
+    "retention_policy",
+    "deletion_process",
+    "consent_requirements",
+    "collection_privacy",
+    "success_thresholds",
+    "release_stop_conditions",
+    "release_assessment_status"
+  ],
+  "properties": {
+    "plan_version": {"const": "controlled-beta-evidence-plan-v1"},
+    "status": {"enum": ["configured", "blocked", "invalid", "not_evaluated"]},
+    "status_reason": {
+      "enum": [
+        "ready_for_authorized_collection",
+        "repository_or_session_not_authorized",
+        "consent_not_obtained",
+        "required_ground_truth_unavailable",
+        "release_stop_triggered",
+        "schema_validation_failed",
+        "no_observations_available"
+      ]
+    },
+    "beta_mode": {"const": true},
+    "production_ready": {"const": false},
+    "benchmark_version": {"const": "wp7-controlled-beta-v1"},
+    "cohort_size": {"$ref": "#/$defs/cohortSize"},
+    "repository_selection": {"$ref": "#/$defs/repositorySelection"},
+    "session_selection": {"$ref": "#/$defs/sessionSelection"},
+    "language_distribution": {
+      "type": "array",
+      "minItems": 5,
+      "maxItems": 5,
+      "items": {"$ref": "#/$defs/languageDistribution"}
+    },
+    "review_case_distribution": {
+      "type": "array",
+      "minItems": 10,
+      "maxItems": 10,
+      "items": {"$ref": "#/$defs/reviewCaseDistribution"}
+    },
+    "fix_proposal_case_distribution": {
+      "type": "array",
+      "minItems": 1,
+      "maxItems": 10,
+      "items": {"$ref": "#/$defs/reviewCaseDistribution"}
+    },
+    "observation_period": {"$ref": "#/$defs/observationPeriod"},
+    "session_duration_policy": {"$ref": "#/$defs/sessionDurationPolicy"},
+    "inclusion_criteria": {
+      "type": "array",
+      "minItems": 1,
+      "maxItems": 8,
+      "uniqueItems": true,
+      "items": {"enum": [
+        "explicit_repository_authorization",
+        "explicit_session_opt_in",
+        "immutable_base_and_head",
+        "clean_controlled_worktree",
+        "supported_language",
+        "ground_truth_available",
+        "reviewer_consent_recorded",
+        "metadata_only_export_path"
+      ]}
+    },
+    "exclusion_criteria": {
+      "type": "array",
+      "minItems": 1,
+      "maxItems": 9,
+      "uniqueItems": true,
+      "items": {"enum": [
+        "missing_repository_authorization",
+        "missing_session_opt_in",
+        "mutable_or_unpinned_revision",
+        "raw_source_or_prompt_required",
+        "credential_or_token_material_present",
+        "unbounded_environment_required",
+        "unsupported_language_or_toolchain",
+        "ground_truth_unavailable",
+        "withdrawn_consent"
+      ]}
+    },
+    "ground_truth_requirements": {"$ref": "#/$defs/groundTruth"},
+    "reviewer_protocol": {"$ref": "#/$defs/reviewerProtocol"},
+    "retention_policy": {"$ref": "#/$defs/retentionPolicy"},
+    "deletion_process": {"$ref": "#/$defs/deletionProcess"},
+    "consent_requirements": {"$ref": "#/$defs/consentRequirements"},
+    "collection_privacy": {"$ref": "#/$defs/collectionPrivacy"},
+    "success_thresholds": {
+      "type": "array",
+      "minItems": 10,
+      "maxItems": 10,
+      "items": {"$ref": "#/$defs/successThreshold"}
+    },
+    "release_stop_conditions": {
+      "type": "array",
+      "minItems": 10,
+      "maxItems": 10,
+      "items": {"$ref": "#/$defs/releaseStopCondition"}
+    },
+    "release_assessment_status": {"const": "not_evaluated"}
+  },
+  "$defs": {
+    "boundedCount": {"type": "integer", "minimum": 0, "maximum": 50},
+    "cohortSize": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["minimum_participants", "target_participants", "maximum_participants", "maximum_sessions"],
+      "properties": {
+        "minimum_participants": {"type": "integer", "minimum": 1, "maximum": 50},
+        "target_participants": {"type": "integer", "minimum": 1, "maximum": 50},
+        "maximum_participants": {"type": "integer", "minimum": 1, "maximum": 50},
+        "maximum_sessions": {"type": "integer", "minimum": 1, "maximum": 50}
+      }
+    },
+    "repositorySelection": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["authorization_mode", "repository_scope", "revision_policy", "worktree_policy", "source_handling", "minimum_repositories", "target_repositories", "maximum_repositories", "allowed_repository_classes", "allowed_languages"],
+      "properties": {
+        "authorization_mode": {"const": "explicit_owner_or_maintainer_authorization"},
+        "repository_scope": {"const": "controlled_repositories_only"},
+        "revision_policy": {"const": "immutable_base_and_head"},
+        "worktree_policy": {"const": "clean_worktree_required"},
+        "source_handling": {"const": "metadata_only_no_source_persistence"},
+        "minimum_repositories": {"type": "integer", "minimum": 1, "maximum": 50},
+        "target_repositories": {"type": "integer", "minimum": 1, "maximum": 50},
+        "maximum_repositories": {"type": "integer", "minimum": 1, "maximum": 50},
+        "allowed_repository_classes": {
+          "type": "array", "minItems": 1, "maxItems": 3, "uniqueItems": true,
+          "items": {"enum": ["explicitly_authorized_private", "explicitly_authorized_public", "sanitized_controlled_fixture"]}
+        },
+        "allowed_languages": {
+          "type": "array", "minItems": 1, "maxItems": 5, "uniqueItems": true,
+          "items": {"$ref": "#/$defs/language"}
+        }
+      }
+    },
+    "sessionSelection": {
+      "type": "object", "additionalProperties": false,
+      "required": ["authorization_mode", "collection_mode", "unsolicited_collection", "automatic_collection", "maximum_sessions"],
+      "properties": {
+        "authorization_mode": {"const": "explicit_operator_opt_in"},
+        "collection_mode": {"const": "explicit_artifact_export_only"},
+        "unsolicited_collection": {"const": false},
+        "automatic_collection": {"const": false},
+        "maximum_sessions": {"type": "integer", "minimum": 1, "maximum": 50}
+      }
+    },
+    "language": {"enum": ["python", "javascript_typescript", "go", "java", "rust"]},
+    "languageDistribution": {
+      "type": "object", "additionalProperties": false,
+      "required": ["language", "minimum_cases", "target_cases", "maximum_cases"],
+      "properties": {
+        "language": {"$ref": "#/$defs/language"},
+        "minimum_cases": {"type": "integer", "minimum": 1, "maximum": 50},
+        "target_cases": {"type": "integer", "minimum": 1, "maximum": 50},
+        "maximum_cases": {"type": "integer", "minimum": 1, "maximum": 50}
+      }
+    },
+    "caseCategory": {"enum": ["clean_changes", "real_bugs", "security_issues", "sensitive_data_exposure", "authorization_authentication", "type_nullability", "performance_regressions", "ambiguous_changes", "correct_abstention", "ai_generated_defects"]},
+    "distributionTarget": {
+      "type": "object", "additionalProperties": false,
+      "required": ["minimum_cases", "target_cases", "maximum_cases"],
+      "properties": {
+        "minimum_cases": {"$ref": "#/$defs/boundedCount"},
+        "target_cases": {"$ref": "#/$defs/boundedCount"},
+        "maximum_cases": {"$ref": "#/$defs/boundedCount"}
+      }
+    },
+    "reviewCaseDistribution": {
+      "type": "object", "additionalProperties": false,
+      "required": ["category", "allocation"],
+      "properties": {
+        "category": {"$ref": "#/$defs/caseCategory"},
+        "allocation": {"$ref": "#/$defs/distributionTarget"}
+      }
+    },
+    "observationPeriod": {
+      "type": "object", "additionalProperties": false,
+      "required": ["start_date", "end_date"],
+      "properties": {
+        "start_date": {"type": "string", "format": "date"},
+        "end_date": {"type": "string", "format": "date"}
+      }
+    },
+    "sessionDurationPolicy": {
+      "type": "object", "additionalProperties": false,
+      "required": ["target_minutes", "maximum_minutes", "idle_timeout_minutes", "maximum_stage_minutes", "stop_on_timeout", "automatic_retry"],
+      "properties": {
+        "target_minutes": {"type": "integer", "minimum": 1, "maximum": 180},
+        "maximum_minutes": {"type": "integer", "minimum": 1, "maximum": 240},
+        "idle_timeout_minutes": {"type": "integer", "minimum": 1, "maximum": 60},
+        "maximum_stage_minutes": {"type": "integer", "minimum": 1, "maximum": 120},
+        "stop_on_timeout": {"const": true},
+        "automatic_retry": {"const": false}
+      }
+    },
+    "groundTruth": {
+      "type": "object", "additionalProperties": false,
+      "required": ["benchmark_version", "source_persistence", "expected_labels_hidden_until_submission", "immutable_revisions_required", "tests_are_not_ground_truth", "minimum_independent_adjudicators", "minimum_ground_truth_cases"],
+      "properties": {
+        "benchmark_version": {"const": "wp7-controlled-beta-v1"},
+        "source_persistence": {"const": "metadata_only"},
+        "expected_labels_hidden_until_submission": {"const": true},
+        "immutable_revisions_required": {"const": true},
+        "tests_are_not_ground_truth": {"const": true},
+        "minimum_independent_adjudicators": {"type": "integer", "minimum": 1, "maximum": 2},
+        "minimum_ground_truth_cases": {"type": "integer", "minimum": 1, "maximum": 50}
+      }
+    },
+    "reviewerProtocol": {
+      "type": "object", "additionalProperties": false,
+      "required": ["protocol_version", "case_order", "reviewer_identity_mode", "outcomes", "reason_codes", "expected_labels_hidden_until_submission", "one_record_per_case_and_run", "independent_adjudication", "free_form_comments_collected", "maximum_reviewers"],
+      "properties": {
+        "protocol_version": {"const": "human-review-v1"},
+        "case_order": {"const": "randomized_per_reviewer"},
+        "reviewer_identity_mode": {"const": "pseudonymous_hash_only"},
+        "outcomes": {"const": "enum_only"},
+        "reason_codes": {"const": "bounded_codes_only"},
+        "expected_labels_hidden_until_submission": {"const": true},
+        "one_record_per_case_and_run": {"const": true},
+        "independent_adjudication": {"const": true},
+        "free_form_comments_collected": {"const": false},
+        "maximum_reviewers": {"type": "integer", "minimum": 1, "maximum": 50}
+      }
+    },
+    "retentionPolicy": {
+      "type": "object", "additionalProperties": false,
+      "required": ["retention_days", "metadata_only", "raw_repository_source_retained", "raw_prompts_retained", "raw_provider_transcripts_retained", "credentials_retained", "approval_tokens_retained", "unrestricted_environment_retained", "retention_basis"],
+      "properties": {
+        "retention_days": {"type": "integer", "minimum": 1, "maximum": 90},
+        "metadata_only": {"const": true},
+        "raw_repository_source_retained": {"const": false},
+        "raw_prompts_retained": {"const": false},
+        "raw_provider_transcripts_retained": {"const": false},
+        "credentials_retained": {"const": false},
+        "approval_tokens_retained": {"const": false},
+        "unrestricted_environment_retained": {"const": false},
+        "retention_basis": {"const": "minimum_needed_for_predeclared_analysis"}
+      }
+    },
+    "deletionProcess": {
+      "type": "object", "additionalProperties": false,
+      "required": ["deletion_mode", "deletion_trigger", "temporary_checkouts_deleted", "exported_artifacts_deleted", "pseudonymous_reviewer_records_deleted", "verification_required", "automatic_persisted_path_deletion", "foreign_process_termination"],
+      "properties": {
+        "deletion_mode": {"const": "explicit_operator_action"},
+        "deletion_trigger": {"const": "retention_expiry_or_withdrawal"},
+        "temporary_checkouts_deleted": {"const": true},
+        "exported_artifacts_deleted": {"const": true},
+        "pseudonymous_reviewer_records_deleted": {"const": true},
+        "verification_required": {"const": true},
+        "automatic_persisted_path_deletion": {"const": false},
+        "foreign_process_termination": {"const": false}
+      }
+    },
+    "consentRequirements": {
+      "type": "object", "additionalProperties": false,
+      "required": ["consent_mode", "repository_owner_authorization_required", "session_operator_opt_in_required", "reviewer_consent_required", "reviewer_identity_consent_required", "withdrawal_allowed", "collection_before_consent", "silent_collection", "consent_record_mode"],
+      "properties": {
+        "consent_mode": {"const": "explicit_opt_in_before_collection"},
+        "repository_owner_authorization_required": {"const": true},
+        "session_operator_opt_in_required": {"const": true},
+        "reviewer_consent_required": {"const": true},
+        "reviewer_identity_consent_required": {"const": true},
+        "withdrawal_allowed": {"const": true},
+        "collection_before_consent": {"const": false},
+        "silent_collection": {"const": false},
+        "consent_record_mode": {"const": "bounded_status_only"}
+      }
+    },
+    "collectionPrivacy": {
+      "type": "object", "additionalProperties": false,
+      "required": ["collection_mode", "raw_repository_source", "raw_prompts", "raw_provider_transcripts", "credentials", "approval_tokens", "unrestricted_environment", "reviewer_identity_without_consent", "automatic_apply", "automatic_approval", "automatic_commit", "automatic_merge", "automatic_push", "arbitrary_commands", "dependency_installation", "unrestricted_network_access"],
+      "properties": {
+        "collection_mode": {"const": "explicit_artifact_export_only"},
+        "raw_repository_source": {"const": false},
+        "raw_prompts": {"const": false},
+        "raw_provider_transcripts": {"const": false},
+        "credentials": {"const": false},
+        "approval_tokens": {"const": false},
+        "unrestricted_environment": {"const": false},
+        "reviewer_identity_without_consent": {"const": false},
+        "automatic_apply": {"const": false},
+        "automatic_approval": {"const": false},
+        "automatic_commit": {"const": false},
+        "automatic_merge": {"const": false},
+        "automatic_push": {"const": false},
+        "arbitrary_commands": {"const": false},
+        "dependency_installation": {"const": false},
+        "unrestricted_network_access": {"const": false}
+      }
+    },
+    "thresholdMetric": {"enum": ["review_completion_rate", "finding_usefulness_rate", "fix_proposal_acceptance_rate", "validation_success_rate", "secret_redaction_success_rate", "unsafe_action_rejection_rate", "unauthorized_apply_rejection_rate", "cross_repository_isolation_rate", "consent_compliance_rate", "unexpected_workspace_mutation_rate"]},
+    "successThreshold": {
+      "type": "object", "additionalProperties": false,
+      "required": ["metric", "direction", "target", "minimum_observations", "unavailable_or_not_evaluated"],
+      "properties": {
+        "metric": {"$ref": "#/$defs/thresholdMetric"},
+        "direction": {"enum": ["minimum", "maximum"]},
+        "target": {"type": "number", "minimum": 0, "maximum": 1},
+        "minimum_observations": {"type": "integer", "minimum": 1, "maximum": 50},
+        "unavailable_or_not_evaluated": {"const": "release_stop"}
+      }
+    },
+    "releaseStopCondition": {
+      "type": "object", "additionalProperties": false,
+      "required": ["condition", "action"],
+      "properties": {
+        "condition": {"enum": ["missing_or_withdrawn_consent", "unauthorized_repository_or_session", "ground_truth_or_benchmark_drift", "secret_or_sensitive_material_in_artifact", "unsafe_boundary_failure", "cross_repository_scope_failure", "unexpected_workspace_mutation", "required_threshold_not_met", "required_evidence_not_evaluated", "unbounded_collection_or_retention"]},
+        "action": {"const": "stop_collection_and_hold_release"}
+      }
+    }
+  }
+}
