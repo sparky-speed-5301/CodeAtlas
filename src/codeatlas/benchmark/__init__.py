@@ -33,6 +33,14 @@ from .quality_collection import (
     collect_repair_quality,
     quality_report,
 )
+from .graph import (
+    GraphBenchmarkCase,
+    GraphEdgeExpectation,
+    GraphEvaluationReport,
+    GraphMetric,
+    load_graph_cases,
+    score_graph_cases,
+)
 from .repair import (
     RepairBenchmarkCase,
     RepairBenchmarkResult,
@@ -80,6 +88,10 @@ __all__ = [
     "ProductMetricDefinition",
     "ProviderPatchLimits",
     "QualityAttribution",
+    "GraphBenchmarkCase",
+    "GraphEdgeExpectation",
+    "GraphEvaluationReport",
+    "GraphMetric",
     "RepairBenchmarkCase",
     "RepairBenchmarkReport",
     "RepairBenchmarkResult",
@@ -101,6 +113,7 @@ __all__ = [
     "load_controlled_repository_suite",
     "load_human_evaluations",
     "load_metric_catalog",
+    "load_graph_cases",
     "load_provider_comparisons",
     "load_repository_cases",
     "load_review_observations",
@@ -110,4 +123,5 @@ __all__ = [
     "score_provider_comparisons",
     "score_repair_benchmark",
     "score_review_benchmark",
+    "score_graph_cases",
 ]

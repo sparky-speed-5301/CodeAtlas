@@ -1,0 +1,39 @@
+{
+  "case_id": "case-01-cross-file-import",
+  "fixture_ref": "case-01-cross-file-import",
+  "expected_edges": [
+    {
+      "edge_type": "export",
+      "source_file": "src/app.py",
+      "target_file": "src/app.py",
+      "target_symbol_id": "sym::src/app.py::function::root::run",
+      "resolution_state": "resolved"
+    },
+    {
+      "edge_type": "export",
+      "source_file": "src/helper.py",
+      "target_file": "src/helper.py",
+      "target_symbol_id": "sym::src/helper.py::function::root::helper",
+      "resolution_state": "resolved"
+    },
+    {
+      "edge_type": "import",
+      "source_file": "src/app.py",
+      "target_file": "src/helper.py",
+      "resolution_state": "resolved"
+    },
+    {
+      "edge_type": "reference",
+      "source_file": "src/app.py",
+      "target_file": "src/helper.py",
+      "source_symbol_id": "sym::src/app.py::function::root::run",
+      "target_symbol_id": "sym::src/helper.py::function::root::helper",
+      "resolution_state": "resolved"
+    }
+  ],
+  "expected_unresolved_edge_count": 0,
+  "known_limitations": [
+    "Fixture evaluates static local Python imports and references only."
+  ],
+  "benchmark_version": "wp10-graph-v1"
+}

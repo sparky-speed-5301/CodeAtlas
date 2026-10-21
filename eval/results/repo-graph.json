@@ -1,0 +1,228 @@
+{
+  "benchmark_version": "wp10-graph-v1",
+  "case_count": 2,
+  "case_results": [
+    {
+      "case_id": "case-01-cross-file-import",
+      "expected_edge_count": 4,
+      "expected_unresolved_edge_count": 0,
+      "false_negative_count": 0,
+      "false_positive_count": 0,
+      "observed_edge_count": 4,
+      "pass": true,
+      "true_positive_count": 4,
+      "unresolved_expectation_match": true,
+      "unresolved_observed_count": 0
+    },
+    {
+      "case_id": "case-02-relationships",
+      "expected_edge_count": 8,
+      "expected_unresolved_edge_count": 2,
+      "false_negative_count": 0,
+      "false_positive_count": 0,
+      "observed_edge_count": 8,
+      "pass": true,
+      "true_positive_count": 8,
+      "unresolved_expectation_match": true,
+      "unresolved_observed_count": 2
+    }
+  ],
+  "expected_edge_count": 12,
+  "false_negative_count": 0,
+  "false_positive_count": 0,
+  "metrics": [
+    {
+      "benchmark_version": "wp10-graph-v1",
+      "denominator": 12,
+      "edge_type": "overall",
+      "name": "precision",
+      "numerator": 12,
+      "population": "observed edge identities including explicit unresolved states",
+      "value": 1.0
+    },
+    {
+      "benchmark_version": "wp10-graph-v1",
+      "denominator": 12,
+      "edge_type": "overall",
+      "name": "recall",
+      "numerator": 12,
+      "population": "expected edge identities",
+      "value": 1.0
+    },
+    {
+      "benchmark_version": "wp10-graph-v1",
+      "denominator": 24,
+      "edge_type": "overall",
+      "name": "f1",
+      "numerator": 24,
+      "population": "expected and observed edge identities",
+      "value": 1.0
+    },
+    {
+      "benchmark_version": "wp10-graph-v1",
+      "denominator": 1,
+      "edge_type": "configuration_key",
+      "name": "precision",
+      "numerator": 1,
+      "population": "observed edge identities including explicit unresolved states",
+      "value": 1.0
+    },
+    {
+      "benchmark_version": "wp10-graph-v1",
+      "denominator": 1,
+      "edge_type": "configuration_key",
+      "name": "recall",
+      "numerator": 1,
+      "population": "expected edge identities",
+      "value": 1.0
+    },
+    {
+      "benchmark_version": "wp10-graph-v1",
+      "denominator": 2,
+      "edge_type": "configuration_key",
+      "name": "f1",
+      "numerator": 2,
+      "population": "expected and observed edge identities",
+      "value": 1.0
+    },
+    {
+      "benchmark_version": "wp10-graph-v1",
+      "denominator": 5,
+      "edge_type": "export",
+      "name": "precision",
+      "numerator": 5,
+      "population": "observed edge identities including explicit unresolved states",
+      "value": 1.0
+    },
+    {
+      "benchmark_version": "wp10-graph-v1",
+      "denominator": 5,
+      "edge_type": "export",
+      "name": "recall",
+      "numerator": 5,
+      "population": "expected edge identities",
+      "value": 1.0
+    },
+    {
+      "benchmark_version": "wp10-graph-v1",
+      "denominator": 10,
+      "edge_type": "export",
+      "name": "f1",
+      "numerator": 10,
+      "population": "expected and observed edge identities",
+      "value": 1.0
+    },
+    {
+      "benchmark_version": "wp10-graph-v1",
+      "denominator": 1,
+      "edge_type": "import",
+      "name": "precision",
+      "numerator": 1,
+      "population": "observed edge identities including explicit unresolved states",
+      "value": 1.0
+    },
+    {
+      "benchmark_version": "wp10-graph-v1",
+      "denominator": 1,
+      "edge_type": "import",
+      "name": "recall",
+      "numerator": 1,
+      "population": "expected edge identities",
+      "value": 1.0
+    },
+    {
+      "benchmark_version": "wp10-graph-v1",
+      "denominator": 2,
+      "edge_type": "import",
+      "name": "f1",
+      "numerator": 2,
+      "population": "expected and observed edge identities",
+      "value": 1.0
+    },
+    {
+      "benchmark_version": "wp10-graph-v1",
+      "denominator": 1,
+      "edge_type": "inheritance",
+      "name": "precision",
+      "numerator": 1,
+      "population": "observed edge identities including explicit unresolved states",
+      "value": 1.0
+    },
+    {
+      "benchmark_version": "wp10-graph-v1",
+      "denominator": 1,
+      "edge_type": "inheritance",
+      "name": "recall",
+      "numerator": 1,
+      "population": "expected edge identities",
+      "value": 1.0
+    },
+    {
+      "benchmark_version": "wp10-graph-v1",
+      "denominator": 2,
+      "edge_type": "inheritance",
+      "name": "f1",
+      "numerator": 2,
+      "population": "expected and observed edge identities",
+      "value": 1.0
+    },
+    {
+      "benchmark_version": "wp10-graph-v1",
+      "denominator": 3,
+      "edge_type": "reference",
+      "name": "precision",
+      "numerator": 3,
+      "population": "observed edge identities including explicit unresolved states",
+      "value": 1.0
+    },
+    {
+      "benchmark_version": "wp10-graph-v1",
+      "denominator": 3,
+      "edge_type": "reference",
+      "name": "recall",
+      "numerator": 3,
+      "population": "expected edge identities",
+      "value": 1.0
+    },
+    {
+      "benchmark_version": "wp10-graph-v1",
+      "denominator": 6,
+      "edge_type": "reference",
+      "name": "f1",
+      "numerator": 6,
+      "population": "expected and observed edge identities",
+      "value": 1.0
+    },
+    {
+      "benchmark_version": "wp10-graph-v1",
+      "denominator": 1,
+      "edge_type": "route_handler",
+      "name": "precision",
+      "numerator": 1,
+      "population": "observed edge identities including explicit unresolved states",
+      "value": 1.0
+    },
+    {
+      "benchmark_version": "wp10-graph-v1",
+      "denominator": 1,
+      "edge_type": "route_handler",
+      "name": "recall",
+      "numerator": 1,
+      "population": "expected edge identities",
+      "value": 1.0
+    },
+    {
+      "benchmark_version": "wp10-graph-v1",
+      "denominator": 2,
+      "edge_type": "route_handler",
+      "name": "f1",
+      "numerator": 2,
+      "population": "expected and observed edge identities",
+      "value": 1.0
+    }
+  ],
+  "observed_edge_count": 12,
+  "true_positive_count": 12,
+  "unresolved_expectation_mismatch_count": 0,
+  "unresolved_observed_count": 2
+}

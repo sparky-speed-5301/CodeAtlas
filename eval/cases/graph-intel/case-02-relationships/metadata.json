@@ -1,0 +1,65 @@
+{
+  "case_id": "case-02-relationships",
+  "fixture_ref": "case-02-relationships",
+  "expected_edges": [
+    {
+      "edge_type": "inheritance",
+      "source_file": "src/app.py",
+      "target_file": "src/app.py",
+      "source_symbol_id": "sym::src/app.py::class::root::Child",
+      "target_symbol_id": "sym::src/app.py::class::root::Base",
+      "resolution_state": "resolved"
+    },
+    {
+      "edge_type": "route_handler",
+      "source_file": "src/app.py",
+      "target_file": "src/app.py",
+      "source_symbol_id": "sym::src/app.py::function::root::items",
+      "resolution_state": "resolved"
+    },
+    {
+      "edge_type": "export",
+      "source_file": "src/app.py",
+      "target_file": "src/app.py",
+      "target_symbol_id": "sym::src/app.py::class::root::Base",
+      "resolution_state": "resolved"
+    },
+    {
+      "edge_type": "export",
+      "source_file": "src/app.py",
+      "target_file": "src/app.py",
+      "target_symbol_id": "sym::src/app.py::class::root::Child",
+      "resolution_state": "resolved"
+    },
+    {
+      "edge_type": "export",
+      "source_file": "src/app.py",
+      "target_file": "src/app.py",
+      "target_symbol_id": "sym::src/app.py::function::root::items",
+      "resolution_state": "resolved"
+    },
+    {
+      "edge_type": "configuration_key",
+      "source_file": "src/app.py",
+      "target_file": "src/app.py",
+      "source_symbol_id": "sym::src/app.py::function::root::items",
+      "resolution_state": "resolved"
+    },
+    {
+      "edge_type": "reference",
+      "source_file": "src/app.py",
+      "resolution_state": "ambiguous"
+    },
+    {
+      "edge_type": "reference",
+      "source_file": "src/app.py",
+      "source_symbol_id": "sym::src/app.py::function::root::items",
+      "resolution_state": "ambiguous"
+    }
+  ],
+  "expected_unresolved_edge_count": 2,
+  "known_limitations": [
+    "Framework route names are recognized without executing the application."
+  ],
+  "benchmark_version": "wp10-graph-v1"
+}
