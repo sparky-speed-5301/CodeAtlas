@@ -53,6 +53,10 @@ class ImportReference(BaseModel):
     is_relative: bool = Field(default=False)
     is_dynamic: bool = Field(default=False)
     resolved_path: str | None = Field(default=None, description="Resolved repository-relative path if local")
+    resolution_state: Literal["resolved", "unresolved", "ambiguous", "unsupported"] = Field(
+        default="unresolved"
+    )
+    resolution_reason: str | None = Field(default=None)
     line: int = Field(default=1, ge=1)
 
 

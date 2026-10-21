@@ -9,8 +9,10 @@ from codeatlas.repository.files import (
 )
 from codeatlas.repository.graph import DependencyGraph
 from codeatlas.repository.imports import (
+    extract_compiled_imports,
     extract_python_imports,
     extract_ts_js_imports,
+    resolve_import,
     resolve_import_path,
 )
 from codeatlas.repository.index import (
@@ -59,6 +61,8 @@ __all__ = [
     "is_configuration_file",
     "extract_python_imports",
     "extract_ts_js_imports",
+    "extract_compiled_imports",
+    "resolve_import",
     "resolve_import_path",
     "make_symbol_id",
     "extract_python_symbols",

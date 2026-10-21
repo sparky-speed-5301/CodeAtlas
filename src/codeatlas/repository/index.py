@@ -9,9 +9,10 @@ from pathlib import Path
 from typing import Any, Mapping
 
 from codeatlas.repository.imports import (
+    extract_compiled_imports,
     extract_python_imports,
     extract_ts_js_imports,
-    resolve_import_path,
+    resolve_import,
 )
 from codeatlas.repository.models import (
     GraphEdge,
@@ -129,15 +130,25 @@ def build_repository_index(
             repo_file.parse_status = "failed" if has_errors else "parsed"
 
         elif repo_file.language in {"go", "java", "rust"}:
+            file_imports, imp_diags = extract_compiled_imports(rel_path, source, repo_file.language)
             file_symbols, sym_diags = extract_compiled_symbols(rel_path, source, repo_file.language)
+            all_imports.extend(file_imports)
             all_symbols.extend(file_symbols)
+            all_diagnostics.extend(imp_diags)
             all_diagnostics.extend(sym_diags)
-            repo_file.parse_status = "parsed" if not any(d.level == "error" for d in sym_diags) else "failed"
+            repo_file.parse_status = "parsed" if not any(d.level == "error" for d in (imp_diags + sym_diags)) else "failed"
 
     # Phase 2: Statically resolve imports
     available_files = set(inventory.keys())
     for imp in all_imports:
-        imp.resolved_path = resolve_import_path(imp.file, imp.module, available_files)
+        language = inventory.get(imp.file).language if inventory.get(imp.file) else None
+        imp.resolved_path, imp.resolution_state, imp.resolution_reason = resolve_import(
+            imp.file,
+            imp.module,
+            available_files,
+            language=language,
+            is_dynamic=imp.is_dynamic,
+        )
 
     # Phase 3: Track safe local references
     symbols_by_file: dict[str, list[Symbol]] = {}
@@ -204,8 +215,8 @@ def build_repository_index(
             source_line=imp.line,
             parser_confidence=0.5 if imp.is_dynamic else 1.0,
             evidence_kind="import_statement",
-            resolution_state="resolved" if resolved else "unsupported" if imp.is_dynamic else "unresolved",
-            resolution_reason=None if resolved else "dynamic_import" if imp.is_dynamic else "external_or_unresolved",
+            resolution_state=imp.resolution_state,
+            resolution_reason=imp.resolution_reason,
         )
         all_graph_edges.append(edge)
     for ref in all_references:

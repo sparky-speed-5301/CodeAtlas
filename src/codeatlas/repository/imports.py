@@ -30,6 +30,10 @@ _TS_DYNAMIC_REQUIRE = re.compile(
     r"""(?m)\brequire\s*\(\s*(?P<arg>[^"'\s)][^)]*)\s*\)"""
 )
 
+_GO_IMPORT = re.compile(r'''^\s*import\s+(?:(?P<alias>[A-Za-z_]\w*)\s+)?["'](?P<module>[^"']+)["']\s*$''')
+_JAVA_IMPORT = re.compile(r"^\s*import\s+(?P<static>static\s+)?(?P<module>[A-Za-z_$][\w$]*(?:\.[A-Za-z_$][\w$]*)*)\s*;\s*$")
+_RUST_USE = re.compile(r"^\s*use\s+(?P<module>(?:crate|self|super|[A-Za-z_]\w*)(?:::[A-Za-z_]\w*)*)(?:\s*::\s*\{(?P<braced>[^}]+)\})?\s*;\s*$")
+
 
 def _clean_names(clause: str | None) -> list[str]:
     """Parse symbol names out of an import/export clause string."""
@@ -241,80 +245,193 @@ def extract_ts_js_imports(
     return imports, diagnostics
 
 
+def extract_compiled_imports(
+    file_path: str,
+    source: str,
+    language: str,
+) -> tuple[list[ImportReference], list[IndexDiagnostic]]:
+    """Extract conservative import/use declarations for Go, Java, and Rust."""
+    imports: list[ImportReference] = []
+    diagnostics: list[IndexDiagnostic] = []
+    lines = source.splitlines()
+
+    if language == "go":
+        in_block = False
+        for line_no, line in enumerate(lines, start=1):
+            stripped = line.strip()
+            if stripped.startswith("import ("):
+                in_block = True
+                continue
+            if in_block and stripped == ")":
+                in_block = False
+                continue
+            match = _GO_IMPORT.match(line) if in_block or stripped.startswith("import ") else None
+            if not match:
+                continue
+            imports.append(
+                ImportReference(
+                    file=file_path,
+                    module=match.group("module"),
+                    names=[match.group("alias")] if match.group("alias") else [],
+                    alias=match.group("alias"),
+                    line=line_no,
+                )
+            )
+    elif language == "java":
+        for line_no, line in enumerate(lines, start=1):
+            match = _JAVA_IMPORT.match(line)
+            if not match:
+                continue
+            parts = match.group("module").split(".")
+            imports.append(
+                ImportReference(
+                    file=file_path,
+                    module=match.group("module"),
+                    names=[parts[-1]],
+                    line=line_no,
+                )
+            )
+    elif language == "rust":
+        for line_no, line in enumerate(lines, start=1):
+            match = _RUST_USE.match(line)
+            if not match:
+                continue
+            module = match.group("module")
+            names = [item.strip().split(" as ", 1)[0].strip() for item in (match.group("braced") or "").split(",") if item.strip()]
+            if not names:
+                names = [module.rsplit("::", 1)[-1]]
+            imports.append(
+                ImportReference(
+                    file=file_path,
+                    module=module,
+                    names=names,
+                    line=line_no,
+                )
+            )
+
+    return imports, diagnostics
+
+
+def _unique_candidates(candidates: list[str], available_files: set[str]) -> list[str]:
+    """Normalize and retain available candidates in deterministic order."""
+    result: list[str] = []
+    for candidate in candidates:
+        normalized = posixpath.normpath(candidate).lstrip("./")
+        if normalized in available_files and normalized not in result:
+            result.append(normalized)
+    return result
+
+
+def _resolve_candidates(
+    from_file: str,
+    module: str,
+    available_files: Sequence[str] | set[str],
+    language: str | None,
+) -> list[str]:
+    files_set = {item.replace("\\", "/").lstrip("./") for item in available_files}
+    from_dir = posixpath.dirname(from_file)
+    candidates: list[str] = []
+
+    if language == "rust" or (language is None and from_file.endswith(".rs")):
+        rust_module = module
+        if rust_module.startswith("crate::"):
+            parts = rust_module.split("::")[1:]
+            module_bases = [posixpath.join("src", *parts[:index]) for index in range(len(parts), 0, -1)]
+        elif rust_module.startswith("self::"):
+            parts = rust_module.split("::")[1:]
+            module_bases = [posixpath.join(from_dir, *parts[:index]) for index in range(len(parts), 0, -1)]
+        elif rust_module.startswith("super::"):
+            parts = rust_module.split("::")
+            base_dir = posixpath.dirname(from_dir)
+            module_bases = [posixpath.join(base_dir, *parts[1:index]) for index in range(len(parts), 1, -1)]
+        else:
+            module_bases = []
+        for base in module_bases:
+            candidates.extend((base + ".rs", posixpath.join(base, "mod.rs")))
+        return _unique_candidates(candidates, files_set)
+
+    if language == "go" or (language is None and from_file.endswith(".go")):
+        module_path = module.rstrip("/")
+        suffix = "/" + module_path
+        return sorted(
+            path
+            for path in files_set
+            if path.endswith(".go")
+            and not path.endswith("_test.go")
+            and (posixpath.dirname(path) == module_path or posixpath.dirname(path).endswith(suffix))
+        )
+
+    if module.startswith("."):
+        if language == "python" or (language is None and from_file.endswith(".py")):
+            level = len(module) - len(module.lstrip("."))
+            remainder = module[level:].replace(".", "/")
+            base = from_dir
+            for _ in range(max(level - 1, 0)):
+                base = posixpath.dirname(base)
+            target_base = posixpath.join(base, remainder) if remainder else base
+            candidates.extend((target_base, target_base + ".py", posixpath.join(target_base, "__init__.py")))
+        else:
+            target_base = posixpath.normpath(posixpath.join(from_dir, module))
+            candidates.append(target_base)
+            candidates.extend(target_base + ext for ext in (".ts", ".tsx", ".js", ".jsx", ".d.ts", ".py"))
+            candidates.extend(posixpath.join(target_base, name) for name in ("index.ts", "index.tsx", "index.js", "index.jsx", "__init__.py"))
+    else:
+        as_path = module.replace(".", "/")
+        if language == "java" or (language is None and from_file.endswith(".java")):
+            candidates.extend((as_path + ".java", posixpath.join(as_path, "package-info.java")))
+        else:
+            candidates.extend(
+                (
+                    f"{as_path}.py",
+                    f"{as_path}/__init__.py",
+                    f"src/{as_path}.py",
+                    f"src/{as_path}/__init__.py",
+                    as_path,
+                    f"{as_path}.ts",
+                    f"{as_path}.tsx",
+                    f"{as_path}.js",
+                    f"{as_path}.jsx",
+                    f"{as_path}/index.ts",
+                    f"{as_path}/index.js",
+                )
+            )
+
+    return _unique_candidates(candidates, files_set)
+
+
+def resolve_import(
+    from_file: str,
+    module: str,
+    available_files: Sequence[str] | set[str],
+    *,
+    language: str | None = None,
+    is_dynamic: bool = False,
+) -> tuple[str | None, str, str | None]:
+    """Resolve an import with explicit resolved, unresolved, ambiguous, or unsupported state."""
+    if is_dynamic or not module or module == "<dynamic>":
+        return None, "unsupported", "dynamic_import"
+    candidates = _resolve_candidates(from_file, module, available_files, language)
+    if not candidates:
+        return None, "unresolved", "external_or_unresolved"
+    if len(candidates) > 1:
+        return None, "ambiguous", "multiple_local_candidates"
+    return candidates[0], "resolved", None
+
+
 def resolve_import_path(
     from_file: str,
     module: str,
     available_files: Sequence[str] | set[str],
 ) -> str | None:
     """Safely resolve an import string to a local repository file if possible."""
-    if not module or module == "<dynamic>":
-        return None
-
-    files_set = set(available_files)
-    from_dir = posixpath.dirname(from_file)
-
-    # Relative imports
-    if module.startswith("."):
-        # Normalize relative path
-        target_base = posixpath.normpath(posixpath.join(from_dir, module))
-
-        # Direct file check
-        if target_base in files_set:
-            return target_base
-
-        # TypeScript / JavaScript extension resolution
-        for ext in (".ts", ".tsx", ".js", ".jsx", ".d.ts"):
-            candidate = target_base + ext
-            if candidate in files_set:
-                return candidate
-
-        # Index file resolution
-        for idx in ("/index.ts", "/index.tsx", "/index.js", "/index.jsx"):
-            candidate = target_base + idx
-            if candidate in files_set:
-                return candidate
-
-        # Python relative resolution
-        candidate_py = target_base + ".py"
-        if candidate_py in files_set:
-            return candidate_py
-        candidate_py_init = posixpath.join(target_base, "__init__.py")
-        if candidate_py_init in files_set:
-            return candidate_py_init
-
-        # Check Python package-style relative imports (e.g. .models.user)
-        leading_dots = len(module) - len(module.lstrip("."))
-        remainder = module[leading_dots:].replace(".", "/")
-        rel_prefix = "." if leading_dots == 1 else ".." + ("/.." * (leading_dots - 2))
-        py_target = posixpath.normpath(posixpath.join(from_dir, posixpath.join(rel_prefix, remainder) if remainder else rel_prefix))
-        if py_target + ".py" in files_set:
-            return py_target + ".py"
-        if posixpath.join(py_target, "__init__.py") in files_set:
-            return posixpath.join(py_target, "__init__.py")
-
-    else:
-        # Check non-relative Python module (e.g. auth.service -> auth/service.py)
-        as_path = module.replace(".", "/")
-        for candidate in (
-            f"{as_path}.py",
-            f"{as_path}/__init__.py",
-            f"src/{as_path}.py",
-            f"src/{as_path}/__init__.py",
-        ):
-            if candidate in files_set:
-                return candidate
-
-        # Check TS path alias or root path if matches exactly
-        for ext in ("", ".ts", ".tsx", ".js", ".jsx", "/index.ts", "/index.js"):
-            candidate = as_path + ext
-            if candidate in files_set:
-                return candidate
-
-    return None
+    candidates = _resolve_candidates(from_file, module, available_files, None)
+    return candidates[0] if candidates else None
 
 
 __all__ = [
     "extract_python_imports",
     "extract_ts_js_imports",
+    "extract_compiled_imports",
+    "resolve_import",
     "resolve_import_path",
 ]

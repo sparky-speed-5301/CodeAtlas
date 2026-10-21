@@ -25,6 +25,7 @@ from codeatlas.repository import (
     build_repository_index,
     classify_file,
     deserialize_index_from_json,
+    extract_compiled_imports,
     extract_python_imports,
     extract_python_symbols,
     extract_references_for_file,
@@ -39,6 +40,7 @@ from codeatlas.repository import (
     make_symbol_id,
     resolve_import_path,
     retrieve_context,
+    resolve_import,
     scan_repository,
     serialize_index_to_json,
 )
@@ -312,6 +314,55 @@ def test_local_import_resolution():
     assert resolve_import_path("src/app.ts", "./utils", available) == "src/utils/index.ts"
     assert resolve_import_path("src/main.py", ".models.user", available) == "src/models/user.py"
     assert resolve_import_path("src/app.ts", "lodash", available) is None
+
+
+def test_deterministic_resolution_reports_ambiguity_and_external_states():
+    available = {"src/app.ts", "src/auth.ts", "src/auth.js"}
+    assert resolve_import("src/app.ts", "./auth", available, language="typescript") == (
+        None,
+        "ambiguous",
+        "multiple_local_candidates",
+    )
+    assert resolve_import("src/app.ts", "lodash", available, language="typescript") == (
+        None,
+        "unresolved",
+        "external_or_unresolved",
+    )
+    assert resolve_import("src/app.ts", "<dynamic>", available, language="typescript", is_dynamic=True) == (
+        None,
+        "unsupported",
+        "dynamic_import",
+    )
+
+
+def test_compiled_language_imports_are_indexed_with_explicit_states(tmp_path: Path):
+    (tmp_path / "src").mkdir()
+    (tmp_path / "src" / "main.go").write_text(
+        'package main\n\nimport "example.com/project/internal/util"\n\nfunc Main() {}\n',
+        encoding="utf-8",
+    )
+    (tmp_path / "src" / "Main.java").write_text(
+        "import com.example.Helper;\nclass Main {}\n", encoding="utf-8"
+    )
+    (tmp_path / "src" / "lib.rs").write_text(
+        "use crate::util::helper;\nfn main() {}\n", encoding="utf-8"
+    )
+    (tmp_path / "src" / "util.rs").write_text("pub fn helper() {}\n", encoding="utf-8")
+
+    go_imports, _ = extract_compiled_imports("src/main.go", 'import "fmt"\n', "go")
+    java_imports, _ = extract_compiled_imports("src/Main.java", "import com.example.Helper;\n", "java")
+    rust_imports, _ = extract_compiled_imports("src/lib.rs", "use crate::util::helper;\n", "rust")
+    assert go_imports[0].module == "fmt"
+    assert java_imports[0].names == ["Helper"]
+    assert rust_imports[0].names == ["helper"]
+
+    index = build_repository_index(tmp_path)
+    assert {item.module for item in index.imports} >= {
+        "example.com/project/internal/util",
+        "com.example.Helper",
+        "crate::util::helper",
+    }
+    assert all(item.resolution_state in {"resolved", "unresolved", "ambiguous", "unsupported"} for item in index.imports)
 
 
 # 14. Unresolved-reference diagnostics
