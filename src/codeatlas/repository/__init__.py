@@ -33,6 +33,7 @@ from codeatlas.repository.models import (
     SymbolReference,
 )
 from codeatlas.repository.references import extract_references_for_file
+from codeatlas.repository.relationships import extract_relationship_edges
 from codeatlas.repository.retrieval import identify_changed_symbols, retrieve_context
 from codeatlas.repository.scanner import DEFAULT_EXCLUSIONS, scan_repository
 from codeatlas.repository.symbols import (
@@ -69,6 +70,7 @@ __all__ = [
     "extract_ts_js_symbols",
     "extract_compiled_symbols",
     "extract_references_for_file",
+    "extract_relationship_edges",
     "DependencyGraph",
     "build_repository_index",
     "is_index_fresh",

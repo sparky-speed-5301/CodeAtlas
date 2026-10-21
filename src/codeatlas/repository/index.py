@@ -24,6 +24,7 @@ from codeatlas.repository.models import (
     SymbolReference,
 )
 from codeatlas.repository.references import extract_references_for_file
+from codeatlas.repository.relationships import extract_relationship_edges
 from codeatlas.repository.scanner import scan_repository
 from codeatlas.repository.symbols import (
     extract_compiled_symbols,
@@ -197,6 +198,19 @@ def build_repository_index(
     # Phase 4: Build a bounded provenance-bearing graph projection.  The
     # existing import/reference lists remain the compatibility source of truth.
     symbol_by_id = {symbol.id: symbol for symbol in all_symbols}
+    for rel_path, source in file_sources.items():
+        repo_file = inventory.get(rel_path)
+        if repo_file is None:
+            continue
+        relationship_edges, relationship_diagnostics = extract_relationship_edges(
+            rel_path,
+            source,
+            repo_file.language,
+            symbols_by_file.get(rel_path, []),
+            all_symbols,
+        )
+        all_graph_edges.extend(relationship_edges)
+        all_diagnostics.extend(relationship_diagnostics)
     for imp in all_imports:
         resolved = imp.resolved_path is not None
         target_symbol_id = None

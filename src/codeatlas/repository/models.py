@@ -98,7 +98,14 @@ class GraphEdge(BaseModel):
     target_line: int | None = Field(default=None, ge=1)
     parser_version: str = Field(default="1.0.0", max_length=64)
     parser_confidence: float = Field(default=1.0, ge=0.0, le=1.0)
-    evidence_kind: Literal["import_statement", "symbol_reference", "symbol_parent"]
+    evidence_kind: Literal[
+        "import_statement",
+        "symbol_reference",
+        "symbol_parent",
+        "declaration",
+        "route_declaration",
+        "configuration_declaration",
+    ]
     resolution_state: Literal["resolved", "unresolved", "ambiguous", "unsupported"]
     resolution_reason: str | None = Field(default=None, max_length=128)
 

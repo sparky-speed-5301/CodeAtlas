@@ -2,10 +2,10 @@
 
 from __future__ import annotations
 
-from collections import defaultdict
+from collections import defaultdict, deque
 from typing import Sequence
 
-from codeatlas.repository.models import GraphEdge, ImportReference, Symbol, SymbolReference
+from codeatlas.repository.models import GraphEdge, GraphLimits, ImportReference, Symbol, SymbolReference
 
 
 class DependencyGraph:
@@ -17,11 +17,13 @@ class DependencyGraph:
         references: Sequence[SymbolReference],
         symbols: Sequence[Symbol],
         edges: Sequence[GraphEdge] | None = None,
+        limits: GraphLimits | None = None,
     ) -> None:
         self.imports = list(imports)
         self.references = list(references)
         self.symbols_by_id = {s.id: s for s in symbols}
         self.edges = list(edges or ())
+        self.limits = limits or GraphLimits()
 
         # File -> list of files it imports
         self.file_imports: dict[str, set[str]] = defaultdict(set)
@@ -46,6 +48,15 @@ class DependencyGraph:
                 if ref.referencing_symbol_id:
                     self.symbol_callers[ref.resolved_symbol_id].add(ref.referencing_symbol_id)
                     self.symbol_callees[ref.referencing_symbol_id].add(ref.resolved_symbol_id)
+
+        self.symbol_edges: dict[str, list[GraphEdge]] = defaultdict(list)
+        for edge in sorted(self.edges, key=lambda item: item.edge_id):
+            if (
+                edge.resolution_state == "resolved"
+                and edge.source_symbol_id
+                and edge.target_symbol_id
+            ):
+                self.symbol_edges[edge.source_symbol_id].append(edge)
 
     def get_imported_files(self, file_path: str) -> list[str]:
         return sorted(self.file_imports.get(file_path, set()))
@@ -87,6 +98,43 @@ class DependencyGraph:
             ),
             key=lambda edge: (edge.source_line or 0, edge.edge_id),
         )
+
+    def get_bounded_cross_file_paths(
+        self,
+        source_symbol_id: str,
+        target_symbol_id: str,
+        *,
+        max_depth: int | None = None,
+        max_paths: int | None = None,
+    ) -> list[list[GraphEdge]]:
+        """Return deterministic, cycle-safe cross-file symbol paths within hard bounds."""
+        if source_symbol_id not in self.symbols_by_id or target_symbol_id not in self.symbols_by_id:
+            return []
+
+        depth_limit = self.limits.max_traversal_depth if max_depth is None else min(max_depth, self.limits.max_traversal_depth)
+        path_limit = self.limits.max_flow_paths if max_paths is None else min(max_paths, self.limits.max_flow_paths)
+        if depth_limit < 1 or path_limit < 1:
+            return []
+
+        queue: deque[tuple[str, list[GraphEdge], frozenset[str]]] = deque(
+            [(source_symbol_id, [], frozenset({source_symbol_id}))]
+        )
+        paths: list[list[GraphEdge]] = []
+        while queue and len(paths) < path_limit:
+            current_symbol, path, visited = queue.popleft()
+            if current_symbol == target_symbol_id and path:
+                if any(edge.source_file != edge.target_file for edge in path):
+                    paths.append(path)
+                continue
+            if len(path) >= depth_limit:
+                continue
+            for edge in self.symbol_edges.get(current_symbol, ()):
+                next_symbol = edge.target_symbol_id
+                if next_symbol is None or next_symbol in visited:
+                    continue
+                queue.append((next_symbol, path + [edge], visited | {next_symbol}))
+
+        return paths
 
 
 __all__ = ["DependencyGraph"]
