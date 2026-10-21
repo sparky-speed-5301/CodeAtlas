@@ -5,7 +5,7 @@ from __future__ import annotations
 from collections import defaultdict
 from typing import Sequence
 
-from codeatlas.repository.models import ImportReference, Symbol, SymbolReference
+from codeatlas.repository.models import GraphEdge, ImportReference, Symbol, SymbolReference
 
 
 class DependencyGraph:
@@ -16,10 +16,12 @@ class DependencyGraph:
         imports: Sequence[ImportReference],
         references: Sequence[SymbolReference],
         symbols: Sequence[Symbol],
+        edges: Sequence[GraphEdge] | None = None,
     ) -> None:
         self.imports = list(imports)
         self.references = list(references)
         self.symbols_by_id = {s.id: s for s in symbols}
+        self.edges = list(edges or ())
 
         # File -> list of files it imports
         self.file_imports: dict[str, set[str]] = defaultdict(set)
@@ -59,6 +61,32 @@ class DependencyGraph:
 
     def get_callees(self, symbol_id: str) -> list[str]:
         return sorted(self.symbol_callees.get(symbol_id, set()))
+
+    def get_import_edges(self, file_path: str) -> list[GraphEdge]:
+        return sorted(
+            (edge for edge in self.edges if edge.edge_type == "import" and edge.source_file == file_path),
+            key=lambda edge: (edge.source_line or 0, edge.edge_id),
+        )
+
+    def get_reference_edges(self, file_path: str) -> list[GraphEdge]:
+        return sorted(
+            (
+                edge
+                for edge in self.edges
+                if edge.edge_type in {"reference", "call"} and edge.source_file == file_path
+            ),
+            key=lambda edge: (edge.source_line or 0, edge.edge_id),
+        )
+
+    def get_edges_between(self, source_file: str, target_file: str) -> list[GraphEdge]:
+        return sorted(
+            (
+                edge
+                for edge in self.edges
+                if edge.source_file == source_file and edge.target_file == target_file
+            ),
+            key=lambda edge: (edge.source_line or 0, edge.edge_id),
+        )
 
 
 __all__ = ["DependencyGraph"]

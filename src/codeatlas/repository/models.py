@@ -1,8 +1,9 @@
-"""Typed models for repository intelligence, symbols, imports, and context."""
+"""Typed models for repository intelligence, graph edges, and context."""
 
 from __future__ import annotations
 
-from typing import Any
+import hashlib
+from typing import Any, Literal
 from pydantic import BaseModel, ConfigDict, Field
 
 
@@ -69,6 +70,72 @@ class SymbolReference(BaseModel):
     unresolved_reason: str | None = Field(default=None)
 
 
+class GraphEdge(BaseModel):
+    """Provenance-bearing relationship in the bounded repository graph."""
+
+    model_config = ConfigDict(extra="ignore")
+
+    edge_id: str = Field(pattern=r"^edge::[0-9a-f]{64}$")
+    edge_type: Literal[
+        "import",
+        "reference",
+        "call",
+        "containment",
+        "export",
+        "inheritance",
+        "route_handler",
+        "configuration_key",
+    ]
+    source_file: str = Field(min_length=1, max_length=512)
+    target_file: str | None = Field(default=None, max_length=512)
+    source_symbol_id: str | None = Field(default=None, max_length=256)
+    target_symbol_id: str | None = Field(default=None, max_length=256)
+    source_line: int | None = Field(default=None, ge=1)
+    target_line: int | None = Field(default=None, ge=1)
+    parser_version: str = Field(default="1.0.0", max_length=64)
+    parser_confidence: float = Field(default=1.0, ge=0.0, le=1.0)
+    evidence_kind: Literal["import_statement", "symbol_reference", "symbol_parent"]
+    resolution_state: Literal["resolved", "unresolved", "ambiguous", "unsupported"]
+    resolution_reason: str | None = Field(default=None, max_length=128)
+
+    @staticmethod
+    def make_id(
+        *,
+        edge_type: str,
+        source_file: str,
+        target_file: str | None,
+        source_symbol_id: str | None,
+        target_symbol_id: str | None,
+        source_line: int | None,
+    ) -> str:
+        payload = "|".join(
+            (
+                edge_type,
+                source_file,
+                target_file or "",
+                source_symbol_id or "",
+                target_symbol_id or "",
+                str(source_line or 0),
+            )
+        )
+        return f"edge::{hashlib.sha256(payload.encode('utf-8')).hexdigest()}"
+
+
+class GraphLimits(BaseModel):
+    """Hard bounds for graph construction and future bounded traversals."""
+
+    model_config = ConfigDict(extra="ignore")
+
+    max_files: int = Field(default=10_000, ge=1, le=100_000)
+    max_symbols: int = Field(default=50_000, ge=1, le=500_000)
+    max_edges: int = Field(default=10_000, ge=1, le=500_000)
+    max_graph_bytes: int = Field(default=4_000_000, ge=1_024, le=64_000_000)
+    max_traversal_depth: int = Field(default=8, ge=1, le=32)
+    max_flow_paths: int = Field(default=1_000, ge=1, le=50_000)
+    max_unresolved_references: int = Field(default=10_000, ge=0, le=100_000)
+    max_diagnostics: int = Field(default=10_000, ge=1, le=100_000)
+
+
 class IndexDiagnostic(BaseModel):
     """Parse or index diagnostic message."""
 
@@ -107,6 +174,12 @@ class RepositoryIndex(BaseModel):
     symbols: list[Symbol] = Field(default_factory=list)
     imports: list[ImportReference] = Field(default_factory=list)
     references: list[SymbolReference] = Field(default_factory=list)
+    graph_version: str = Field(default="1.0.0")
+    parser_version: str = Field(default="1.0.0")
+    source_inventory_sha256: str | None = Field(default=None, pattern=r"^[0-9a-f]{64}$")
+    graph_config_sha256: str | None = Field(default=None, pattern=r"^[0-9a-f]{64}$")
+    graph_limits: GraphLimits = Field(default_factory=GraphLimits)
+    graph_edges: list[GraphEdge] = Field(default_factory=list)
     diagnostics: list[IndexDiagnostic] = Field(default_factory=list)
     build_duration_ms: float = Field(default=0.0, ge=0.0)
 
@@ -116,6 +189,8 @@ __all__ = [
     "Symbol",
     "ImportReference",
     "SymbolReference",
+    "GraphEdge",
+    "GraphLimits",
     "IndexDiagnostic",
     "ContextCandidate",
     "RepositoryIndex",

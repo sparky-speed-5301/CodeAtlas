@@ -258,6 +258,68 @@ def beta_report(
         raise typer.Exit(code=1)
 
 
+@app.command("release-check")
+def release_check(
+    ctx: typer.Context,
+    plan: str = typer.Option(
+        "config/controlled-beta-evidence-plan.json",
+        "--plan",
+        help="Explicit controlled-beta evidence plan JSON.",
+    ),
+    evidence: str | None = typer.Option(
+        None,
+        "--evidence",
+        help="Explicit limited-release evidence JSON; no evidence is discovered automatically.",
+    ),
+    artifact_evidence: str | None = typer.Option(
+        None,
+        "--artifact-evidence",
+        help="Explicit independently verified artifact-evidence JSON.",
+    ),
+    artifact_directory: str | None = typer.Option(
+        None,
+        "--artifact-directory",
+        help="Explicit directory containing artifacts and SHA256SUMS.",
+    ),
+    source_root: str | None = typer.Option(
+        None,
+        "--source-root",
+        help="Explicit source checkout used for independent source identity verification.",
+    ),
+    kpi_catalog: str = typer.Option(
+        "eval/product-validation/metrics-v1.json",
+        "--kpi-catalog",
+        help="Explicit versioned KPI catalog JSON.",
+    ),
+    output: str | None = typer.Option(
+        None,
+        "--output",
+        help="Write the bounded release-check result to a new JSON file.",
+    ),
+) -> None:
+    """Run the fail-closed limited-release gate over explicitly supplied evidence."""
+    from codeatlas.release_check import run_release_check, write_release_check
+
+    try:
+        result = run_release_check(
+            repository_root=".",
+            plan_path=plan,
+            evidence_path=evidence,
+            artifact_evidence_path=artifact_evidence,
+            artifact_directory=artifact_directory,
+            source_root=source_root,
+            kpi_catalog_path=kpi_catalog,
+        )
+        if output:
+            write_release_check(result, output)
+    except (OSError, TypeError, ValueError):
+        typer.echo("Error [release_check_invalid]: Release-check inputs were invalid or unavailable.", err=True)
+        raise typer.Exit(code=2) from None
+    emit(ctx, result)
+    if result.decision == "blocked":
+        raise typer.Exit(code=1)
+
+
 @app.command("beta-onboard")
 def beta_onboard(
     ctx: typer.Context,

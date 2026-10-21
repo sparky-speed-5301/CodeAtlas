@@ -21,6 +21,8 @@ from codeatlas.repository.index import (
 )
 from codeatlas.repository.models import (
     ContextCandidate,
+    GraphEdge,
+    GraphLimits,
     ImportReference,
     IndexDiagnostic,
     RepositoryFile,
@@ -45,6 +47,8 @@ __all__ = [
     "SymbolReference",
     "IndexDiagnostic",
     "ContextCandidate",
+    "GraphEdge",
+    "GraphLimits",
     "RepositoryIndex",
     "DEFAULT_EXCLUSIONS",
     "scan_repository",
