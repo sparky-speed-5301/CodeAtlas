@@ -3,6 +3,7 @@
 from codeatlas.orchestrator.context import RepairContextBuildError, RepairContextBuildResult, RepairContextBuilder
 from codeatlas.orchestrator.repair_loop import (
     RepairAttempt,
+    RepairLifecycleEvent,
     RepairLoop,
     RepairLoopResult,
     RepairVerificationEvidence,
@@ -31,6 +32,7 @@ __all__ = [
     "LiveRepairProvider",
     "RealRepairProvider",
     "RepairAttempt",
+    "RepairLifecycleEvent",
     "RepairCandidate",
     "RepairContextBuildError",
     "RepairContextBuildResult",

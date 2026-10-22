@@ -63,6 +63,26 @@ class RepairAttempt(BaseModel):
     verification_status: str = Field(default="not_run", max_length=32)
 
 
+class RepairLifecycleEvent(BaseModel):
+    """Stable, bounded lifecycle evidence for one repair-loop operation."""
+
+    model_config = ConfigDict(extra="forbid", frozen=True)
+
+    attempt: int = Field(ge=1, le=5)
+    stage: Literal[
+        "proposal_requested",
+        "proposal_rejected",
+        "proposal_generated",
+        "verification_blocked",
+        "verification_started",
+        "verification_completed",
+        "retry_scheduled",
+        "finished",
+    ]
+    status: Literal["observed", "blocked", "passed", "failed", "scheduled", "terminal"]
+    reason: str = Field(default="", max_length=64)
+
+
 class RepairLoopResult(BaseModel):
     """Safe result envelope for the bounded generation/verification loop."""
 
@@ -76,6 +96,9 @@ class RepairLoopResult(BaseModel):
     context: RepairContext | None = None
     verification: RepairVerificationEvidence | None = None
     attempts: tuple[RepairAttempt, ...] = Field(default=(), max_length=5)
+    lifecycle: tuple[RepairLifecycleEvent, ...] = Field(default=(), max_length=24)
+    attempt_count: int = Field(default=0, ge=0, le=5)
+    final_stage: str = Field(default="finished", max_length=32)
     confidence: float = Field(default=0.0, ge=0, le=1)
     limitations: tuple[str, ...] = Field(default=(), max_length=24)
     approval_required: Literal[True] = True
@@ -238,6 +261,7 @@ class RepairVerificationLoop:
         run_tests: bool = False,
     ) -> RepairLoopResult:
         attempts: list[RepairAttempt] = []
+        lifecycle: list[RepairLifecycleEvent] = []
         limitations: list[str] = [
             "Provider output is untrusted and has no authority over policy, approval, or execution.",
             "Automatic application is permanently blocked by this operation.",
@@ -253,6 +277,9 @@ class RepairVerificationLoop:
         last_verification: RepairVerificationEvidence | None = None
 
         for number in range(1, max_attempts + 1):
+            lifecycle.append(RepairLifecycleEvent(
+                attempt=number, stage="proposal_requested", status="observed",
+            ))
             adapter = _LoopProvider(self.provider, fallback, finding, snapshot)
             result = RepairOrchestrator(adapter, limits=self.limits).plan(
                 finding,
@@ -268,28 +295,44 @@ class RepairVerificationLoop:
             if result.status in {"rejected", "review_only"} and result.proposal is None:
                 provider_reason = adapter.last_failure
                 reason = provider_reason or result.reason
+                lifecycle.append(RepairLifecycleEvent(
+                    attempt=number, stage="proposal_rejected",
+                    status="blocked" if result.status == "review_only" else "failed",
+                    reason=reason,
+                ))
                 if provider_reason and provider_reason in {"network_disabled", "secret_detected", "budget_exceeded"}:
                     attempts.append(RepairAttempt(attempt=number, status="abstained", reason=reason, provider_reason=provider_reason))
-                    return self._finish("abstained", reason, result, attempts, last_verification, limitations)
+                    return self._finish("abstained", reason, result, attempts, last_verification, limitations, lifecycle=lifecycle)
                 if provider_reason and provider_reason in {
                     "provider_unavailable", "timeout", "rate_limit", "malformed_response", "schema_failure", "retry_exhausted",
                 }:
                     retry = number < max_attempts
                     attempts.append(RepairAttempt(attempt=number, status="retry" if retry else "rejected", reason=reason, provider_reason=provider_reason))
                     if retry:
+                        lifecycle.append(RepairLifecycleEvent(
+                            attempt=number, stage="retry_scheduled", status="scheduled", reason=reason,
+                        ))
                         continue
-                    return self._finish("retry_exhausted", "retry_exhausted", result, attempts, last_verification, limitations)
+                    return self._finish("retry_exhausted", "retry_exhausted", result, attempts, last_verification, limitations, lifecycle=lifecycle)
                 attempts.append(RepairAttempt(attempt=number, status="abstained" if result.status == "review_only" else "rejected", reason=reason))
-                return self._finish("abstained" if result.status == "review_only" else "rejected", reason, result, attempts, last_verification, limitations)
+                return self._finish("abstained" if result.status == "review_only" else "rejected", reason, result, attempts, last_verification, limitations, lifecycle=lifecycle)
 
             if result.proposal is None or result.validation is None:
+                lifecycle.append(RepairLifecycleEvent(
+                    attempt=number, stage="proposal_rejected", status="failed",
+                    reason=result.reason or "proposal_missing",
+                ))
                 attempts.append(RepairAttempt(attempt=number, status="rejected", reason=result.reason or "proposal_missing"))
-                return self._finish("rejected", result.reason or "proposal_missing", result, attempts, last_verification, limitations)
+                return self._finish("rejected", result.reason or "proposal_missing", result, attempts, last_verification, limitations, lifecycle=lifecycle)
 
             output = adapter.last_output
             if output is None:
+                lifecycle.append(RepairLifecycleEvent(
+                    attempt=number, stage="proposal_rejected", status="failed",
+                    reason="provider_output_missing",
+                ))
                 attempts.append(RepairAttempt(attempt=number, status="rejected", reason="provider_output_missing"))
-                return self._finish("rejected", "provider_output_missing", result, attempts, last_verification, limitations)
+                return self._finish("rejected", "provider_output_missing", result, attempts, last_verification, limitations, lifecycle=lifecycle)
             # Trusted CodeAtlas confidence is the upper bound.  Provider claims
             # can only lower it and can never upgrade finding quality/severity.
             trusted_confidence = min(finding.confidence, result.context.confidence if result.context else finding.confidence)
@@ -310,13 +353,20 @@ class RepairVerificationLoop:
             validation = result.validation
             if execute_checks:
                 if not approval_token:
+                    lifecycle.append(RepairLifecycleEvent(
+                        attempt=number, stage="verification_blocked", status="blocked",
+                        reason="approval_required",
+                    ))
                     last_verification = RepairVerificationEvidence(
                         status="blocked",
                         syntax="passed" if validation.syntax_valid else "not_verified",
                         limitations=("Explicit validation approval is required before isolated checks.",),
                     )
                     attempts.append(RepairAttempt(attempt=number, status="abstained", reason="approval_required", verification_status="blocked"))
-                    return self._finish("abstained", "approval_required", result, attempts, last_verification, limitations)
+                    return self._finish("abstained", "approval_required", result, attempts, last_verification, limitations, lifecycle=lifecycle)
+                lifecycle.append(RepairLifecycleEvent(
+                    attempt=number, stage="verification_started", status="observed",
+                ))
                 validation = validate_patch_proposal(
                     result.proposal,
                     snapshot.path,
@@ -328,17 +378,30 @@ class RepairVerificationLoop:
                     run_tests=run_tests,
                 )
                 result.validation = validation
+                lifecycle.append(RepairLifecycleEvent(
+                    attempt=number, stage="verification_completed",
+                    status="passed" if validation.valid else "failed",
+                    reason="validated" if validation.valid else "verification_failed",
+                ))
+            else:
+                lifecycle.append(RepairLifecycleEvent(
+                    attempt=number, stage="proposal_generated", status="passed",
+                    reason="static_validation_passed",
+                ))
             last_verification = self._verification(validation, result, execute_checks, run_tests)
             if validation.valid and (not execute_checks or validation.tests_status in {"not_run", "passed"}):
                 attempts.append(RepairAttempt(attempt=number, status="accepted", reason="verified" if execute_checks else "static_validation_passed", verification_status=last_verification.status))
-                return self._finish("accepted", "verified" if execute_checks else "static_validation_passed", result, attempts, last_verification, limitations, confidence=confidence)
+                return self._finish("accepted", "verified" if execute_checks else "static_validation_passed", result, attempts, last_verification, limitations, confidence=confidence, lifecycle=lifecycle)
             retry = number < max_attempts
             attempts.append(RepairAttempt(attempt=number, status="retry" if retry else "rejected", reason="verification_failed", verification_status=last_verification.status))
             if retry:
+                lifecycle.append(RepairLifecycleEvent(
+                    attempt=number, stage="retry_scheduled", status="scheduled", reason="verification_failed",
+                ))
                 continue
-            return self._finish("retry_exhausted", "verification_failed", result, attempts, last_verification, limitations, confidence=confidence)
+            return self._finish("retry_exhausted", "verification_failed", result, attempts, last_verification, limitations, confidence=confidence, lifecycle=lifecycle)
 
-        return self._finish("retry_exhausted", last_provider_reason or "retry_exhausted", last_result, attempts, last_verification, limitations)
+        return self._finish("retry_exhausted", last_provider_reason or "retry_exhausted", last_result, attempts, last_verification, limitations, lifecycle=lifecycle)
 
     @staticmethod
     def _verification(validation: Any, result: RepairResult, executed: bool, run_tests: bool) -> RepairVerificationEvidence:
@@ -396,7 +459,16 @@ class RepairVerificationLoop:
         limitations: list[str],
         *,
         confidence: float = 0.0,
+        lifecycle: list[RepairLifecycleEvent] | None = None,
     ) -> RepairLoopResult:
+        history = list(lifecycle or ())
+        attempt = attempts[-1].attempt if attempts else 1
+        history.append(RepairLifecycleEvent(
+            attempt=attempt,
+            stage="finished",
+            status="terminal",
+            reason=reason,
+        ))
         return RepairLoopResult(
             status=status,
             reason=reason,
@@ -406,6 +478,9 @@ class RepairVerificationLoop:
             context=result.context if result else None,
             verification=verification,
             attempts=tuple(attempts),
+            lifecycle=tuple(history[-24:]),
+            attempt_count=len(attempts),
+            final_stage="finished",
             confidence=confidence,
             limitations=tuple(dict.fromkeys(limitations))[:24],
         )
@@ -417,6 +492,7 @@ RepairLoop = RepairVerificationLoop
 
 __all__ = [
     "RepairAttempt",
+    "RepairLifecycleEvent",
     "RepairLoop",
     "RepairLoopResult",
     "RepairVerificationEvidence",

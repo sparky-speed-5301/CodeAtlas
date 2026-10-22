@@ -2,6 +2,7 @@
 
 from codeatlas.orchestrator.repair_loop import (
     RepairAttempt,
+    RepairLifecycleEvent,
     RepairLoop,
     RepairLoopResult,
     RepairVerificationEvidence,
@@ -10,6 +11,7 @@ from codeatlas.orchestrator.repair_loop import (
 
 __all__ = [
     "RepairAttempt",
+    "RepairLifecycleEvent",
     "RepairLoop",
     "RepairLoopResult",
     "RepairVerificationEvidence",

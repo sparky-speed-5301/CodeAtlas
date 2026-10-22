@@ -19,16 +19,17 @@ __all__ = [
     "CompletedReview", "run_review", "RepairOrchestrator", "RepairRejected", "RepairContext", "RepairLimits",
     "RepairRepositoryState", "RepairResult", "REPAIR_POLICY_VERSION",
     "record_repair_result", "RepairContextBuilder", "RepairContextBuildError",
-    "RepairContextBuildResult", "compute_context_hash", "RepairAttempt", "RepairLoop",
+    "RepairContextBuildResult", "compute_context_hash", "RepairAttempt", "RepairLifecycleEvent", "RepairLoop",
     "RepairLoopResult", "RepairVerificationEvidence", "RepairVerificationLoop",
 ]
 
 
 def __getattr__(name: str):
     """Load the provider-dependent loop lazily to avoid an import cycle."""
-    if name in {"RepairAttempt", "RepairLoop", "RepairLoopResult", "RepairVerificationEvidence", "RepairVerificationLoop"}:
+    if name in {"RepairAttempt", "RepairLifecycleEvent", "RepairLoop", "RepairLoopResult", "RepairVerificationEvidence", "RepairVerificationLoop"}:
         from .repair_loop import (
             RepairAttempt,
+            RepairLifecycleEvent,
             RepairLoop,
             RepairLoopResult,
             RepairVerificationEvidence,
@@ -36,6 +37,7 @@ def __getattr__(name: str):
         )
         return {
             "RepairAttempt": RepairAttempt,
+            "RepairLifecycleEvent": RepairLifecycleEvent,
             "RepairLoop": RepairLoop,
             "RepairLoopResult": RepairLoopResult,
             "RepairVerificationEvidence": RepairVerificationEvidence,
