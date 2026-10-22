@@ -5,6 +5,8 @@ from __future__ import annotations
 from typing import Annotated, Any
 from pydantic import BaseModel, ConfigDict, Field
 
+from .sandbox_capabilities import SandboxBackend
+
 
 class CommandValidation(BaseModel):
     """Validation report for an approved test command."""
@@ -55,6 +57,7 @@ class TestPlan(BaseModel):
     exact_command: list[str] = Field(default_factory=list)
     working_directory: str = "."
     environment_policy: str = "sanitized"
+    sandbox_backend: SandboxBackend = "worktree"
     timeout: float = 30.0
     network_policy: str = "disabled"
     dependency_install_policy: str = "forbidden"
@@ -75,6 +78,7 @@ class TestResult(BaseModel):
     language: str = ""
     command: list[str] = Field(default_factory=list)
     working_directory: str = "."
+    sandbox_backend: SandboxBackend = "worktree"
     tests_run: list[str] = Field(default_factory=list)
     tests_passed: int = 0
     tests_failed: int = 0

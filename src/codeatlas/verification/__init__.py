@@ -27,6 +27,14 @@ from .runner_selection import (
     is_file_executable,
     resolve_runner_command,
 )
+from .sandbox_capabilities import (
+    SandboxBackend,
+    SandboxCapability,
+    SandboxCapabilities,
+    SandboxEvidenceBasis,
+    SandboxStatus,
+    discover_sandbox_capabilities,
+)
 
 __all__ = [
     "CommandValidation",
@@ -51,4 +59,10 @@ __all__ = [
     "find_js_runner_executable",
     "is_file_executable",
     "resolve_runner_command",
+    "SandboxBackend",
+    "SandboxCapability",
+    "SandboxCapabilities",
+    "SandboxEvidenceBasis",
+    "SandboxStatus",
+    "discover_sandbox_capabilities",
 ]
